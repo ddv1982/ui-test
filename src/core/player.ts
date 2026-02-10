@@ -260,3 +260,6 @@ function stepDescription(step: Step, index: number): string {
   }
   return "Step " + (index + 1) + ": " + step.action + desc;
 }
+
+// Exports for testing
+export { resolveLocator, parseGetByArgs, stepDescription };
