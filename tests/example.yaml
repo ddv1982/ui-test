@@ -1,0 +1,11 @@
+name: Example Test
+description: A sample test to verify the framework works
+baseUrl: https://example.com
+
+steps:
+  - action: navigate
+    url: /
+
+  - action: assertVisible
+    description: Page heading is visible
+    selector: "h1"

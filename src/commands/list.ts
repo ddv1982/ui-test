@@ -1,0 +1,55 @@
+import type { Command } from "commander";
+import fs from "node:fs/promises";
+import { globby } from "globby";
+import yaml from "js-yaml";
+import { loadConfig } from "../utils/config.js";
+import { ui } from "../utils/ui.js";
+import { handleError } from "../utils/errors.js";
+
+export function registerList(program: Command) {
+  program
+    .command("list")
+    .description("List all recorded tests")
+    .action(async () => {
+      try {
+        await runList();
+      } catch (err) {
+        handleError(err);
+      }
+    });
+}
+
+async function runList() {
+  const config = await loadConfig();
+  const testDir = config.testDir ?? "tests";
+
+  const files = await globby(`${testDir}/**/*.{yaml,yml}`);
+
+  if (files.length === 0) {
+    ui.warn(`No test files found in ${testDir}/`);
+    ui.dim("Record a test: npx easy-e2e record");
+    return;
+  }
+
+  files.sort();
+
+  const rows: string[][] = [["File", "Name", "Steps"]];
+
+  for (const file of files) {
+    try {
+      const content = await fs.readFile(file, "utf-8");
+      const data = yaml.load(content) as Record<string, unknown>;
+      const name = String(data?.name ?? "(unnamed)");
+      const steps = Array.isArray(data?.steps) ? String(data.steps.length) : "?";
+      rows.push([file, name, steps]);
+    } catch {
+      rows.push([file, "(invalid)", "?"]);
+    }
+  }
+
+  ui.heading(`Tests in ${testDir}/`);
+  console.log();
+  ui.table(rows);
+  console.log();
+  ui.dim(`${files.length} test${files.length > 1 ? "s" : ""} found`);
+}
