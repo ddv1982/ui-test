@@ -78,6 +78,20 @@ steps:
 - `assertValue` - Assert input has value
 - `assertChecked` - Assert checkbox is checked
 
+## Selector Syntax
+
+Each `selector` field supports:
+
+- Plain CSS selectors (for example `#submit`, `.card button`)
+- XPath selectors (for example `//button[@type='submit']`)
+- Playwright text selectors (`text=Save`)
+- Safe Playwright locator expressions with chaining, such as:
+  - `getByRole('button', { name: 'Save' })`
+  - `getByRole('button', { name: /save/i }).filter({ hasText: 'Save' }).nth(0)`
+  - `frameLocator('#checkout-frame').getByText('Confirm').first()`
+
+`easy-e2e` validates locator expressions with a safe allowlist and rejects arbitrary JavaScript execution.
+
 ## Configuration
 
 Create `easy-e2e.config.yaml`:
@@ -112,15 +126,15 @@ npm run test:coverage
 
 ### Test Coverage
 
-This project maintains comprehensive test coverage across all core modules:
+Coverage thresholds are enforced in [vitest.config.ts](vitest.config.ts):
 
-- **104 total tests** (95 unit + 9 integration)
-- **100% function coverage** - All public APIs tested
-- **74.86% line coverage** - Core logic thoroughly validated
-- **Fast feedback** - Unit tests run in ~30ms
-- **Real browser validation** - Integration tests with Playwright
+- **Lines:** 60%
+- **Functions:** 100%
+- **Branches:** 50%
+- **Statements:** 60%
 
-See [docs/test-coverage-report.md](docs/test-coverage-report.md) for detailed coverage metrics.
+Run `npm run test:coverage` for current local metrics.  
+See [docs/test-coverage-report.md](docs/test-coverage-report.md) for the latest recorded snapshot.
 
 ## License
 

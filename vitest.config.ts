@@ -12,8 +12,8 @@ export default defineConfig({
         "src/**/*.test.ts",
         "src/**/*.integration.test.ts",
         "src/bin/**",
-        "src/core/recorder.ts", // Recorder - covered by integration tests in practice
-        "src/utils/ui.ts", // UI utility - display only, no logic to test
+        "src/core/recorder.ts", // Interactive wrapper around Playwright codegen subprocess
+        "src/utils/ui.ts", // Display-only formatting helpers
       ],
       thresholds: {
         lines: 60,
