@@ -69,7 +69,8 @@ export async function record(options: RecordOptions): Promise<string> {
     baseUrl,
   });
 
-  const filename = slugify(options.name) + ".yaml";
+  const slug = slugify(options.name) || `test-${Date.now()}`;
+  const filename = slug + ".yaml";
   const outputPath = path.join(options.outputDir, filename);
   await fs.mkdir(options.outputDir, { recursive: true });
   await fs.writeFile(outputPath, yamlContent, "utf-8");

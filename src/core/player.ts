@@ -1,9 +1,13 @@
 import fs from "node:fs/promises";
 import { chromium, type Browser, type Page } from "playwright";
-import { testSchema, type Step, type TestFile } from "./yaml-schema.js";
+import { testSchema, type Step } from "./yaml-schema.js";
 import { yamlToTest } from "./transformer.js";
 import { ValidationError, UserError } from "../utils/errors.js";
 import { ui } from "../utils/ui.js";
+import {
+  evaluateLocatorExpression,
+  looksLikeLocatorExpression,
+} from "./locator-expression.js";
 
 export interface PlayOptions {
   headed?: boolean;
@@ -122,10 +126,7 @@ async function executeStep(
 ): Promise<void> {
   switch (step.action) {
     case "navigate": {
-      const url =
-        step.url.startsWith("http://") || step.url.startsWith("https://")
-          ? step.url
-          : (baseUrl ?? "") + step.url;
+      const url = resolveNavigateUrl(step.url, baseUrl, page.url());
       await page.goto(url, { timeout });
       break;
     }
@@ -212,18 +213,16 @@ async function executeStep(
   }
 }
 
-function resolveLocator(page: Page, selector: string) {
-  // Handle Playwright getBy* methods
-  const getByMatch = selector.match(
-    /^(getByRole|getByText|getByLabel|getByPlaceholder|getByAltText|getByTitle|getByTestId)\((.+)\)$/
-  );
-
-  if (getByMatch) {
-    const [, method, argsStr] = getByMatch;
-    // Parse the arguments - could be ('text') or ('text', { options })
-    const args = parseGetByArgs(argsStr);
-    const fn = page[method as keyof typeof page] as (...args: unknown[]) => ReturnType<typeof page.getByRole>;
-    return fn.call(page, ...args);
+function resolveLocator(page: Page, selector: string): any {
+  if (looksLikeLocatorExpression(selector)) {
+    const resolved = evaluateLocatorExpression(page, selector);
+    if (!resolved || typeof resolved !== "object") {
+      throw new UserError(
+        `Locator expression did not resolve to a locator: ${selector}`,
+        "Ensure the expression returns a Playwright locator chain."
+      );
+    }
+    return resolved;
   }
 
   // Handle text= selector
@@ -235,21 +234,39 @@ function resolveLocator(page: Page, selector: string) {
   return page.locator(selector);
 }
 
-function parseGetByArgs(argsStr: string): unknown[] {
-  // Wrap in array brackets to make it valid JSON-like, then eval safely
-  // Examples: "'button', { name: 'Submit' }" or "'Username'"
-  try {
-    // Convert single quotes to double quotes for JSON parsing,
-    // but handle the options object specially
-    const dq = '"';
-    const normalized = "[" + argsStr.replace(/'/g, dq) + "]";
-    return JSON.parse(normalized);
-  } catch {
-    // Fallback: treat as a single string argument
-    const match = argsStr.match(/^['"](.+)['"]$/);
-    if (match) return [match[1]];
-    return [argsStr];
+function resolveNavigateUrl(
+  stepUrl: string,
+  baseUrl: string | undefined,
+  currentPageUrl: string | undefined
+): string {
+  if (stepUrl.startsWith("http://") || stepUrl.startsWith("https://")) {
+    return stepUrl;
   }
+
+  try {
+    if (baseUrl) {
+      return new URL(stepUrl, baseUrl).toString();
+    }
+
+    const hasCurrentPageUrl =
+      currentPageUrl &&
+      currentPageUrl !== "about:blank" &&
+      (currentPageUrl.startsWith("http://") || currentPageUrl.startsWith("https://"));
+
+    if (stepUrl.startsWith("/") && hasCurrentPageUrl) {
+      return new URL(stepUrl, currentPageUrl).toString();
+    }
+  } catch {
+    throw new UserError(
+      `Invalid navigation URL: ${stepUrl}`,
+      "Use an absolute URL, or set baseUrl in the test/config for relative paths."
+    );
+  }
+
+  throw new UserError(
+    `Cannot resolve relative navigation URL: ${stepUrl}`,
+    "Set baseUrl in the test/config, or navigate to an absolute URL first."
+  );
 }
 
 function stepDescription(step: Step, index: number): string {
@@ -262,4 +279,4 @@ function stepDescription(step: Step, index: number): string {
 }
 
 // Exports for testing
-export { resolveLocator, parseGetByArgs, stepDescription };
+export { resolveLocator, resolveNavigateUrl, stepDescription };

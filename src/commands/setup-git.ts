@@ -58,6 +58,7 @@ async function runSetupGit() {
   const sshDir = path.join(os.homedir(), ".ssh");
   const keyPath = path.join(sshDir, "id_ed25519");
   const keyExists = await fs.access(keyPath).then(() => true).catch(() => false);
+  let shouldGenerateKey = true;
 
   if (keyExists) {
     ui.info("SSH key already exists at " + keyPath);
@@ -67,16 +68,16 @@ async function runSetupGit() {
     });
     if (!regenerate) {
       await showPublicKey(keyPath + ".pub");
-      return;
+      shouldGenerateKey = false;
     }
+  } else {
+    shouldGenerateKey = await confirm({
+      message: "Generate an SSH key for GitHub/GitLab?",
+      default: true,
+    });
   }
 
-  const generateKey = await confirm({
-    message: "Generate an SSH key for GitHub/GitLab?",
-    default: true,
-  });
-
-  if (generateKey) {
+  if (shouldGenerateKey) {
     await fs.mkdir(sshDir, { recursive: true });
     const keyFile = keyExists
       ? path.join(sshDir, `id_ed25519_easy_e2e_${Date.now()}`)

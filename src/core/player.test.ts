@@ -1,38 +1,46 @@
 import { describe, it, expect, vi } from "vitest";
-import { resolveLocator, parseGetByArgs, stepDescription } from "./player.js";
+import { resolveLocator, resolveNavigateUrl, stepDescription } from "./player.js";
 import type { Step } from "./yaml-schema.js";
 import type { Page } from "playwright";
 
-describe("parseGetByArgs", () => {
-  it("should parse single quoted string", () => {
-    const args = parseGetByArgs("'button'");
-    expect(args).toEqual(["button"]);
-  });
-
-  it("should parse double quoted string", () => {
-    const args = parseGetByArgs('"Submit"');
-    expect(args).toEqual(["Submit"]);
-  });
-
-  it("should parse role with options object", () => {
-    const args = parseGetByArgs('"button", { "name": "Submit" }');
-    expect(args).toEqual(["button", { name: "Submit" }]);
-  });
-
-  it("should handle complex options", () => {
-    const args = parseGetByArgs('"heading", { "level": 1, "name": "Welcome" }');
-    expect(args).toEqual(["heading", { level: 1, name: "Welcome" }]);
-  });
-
-  it("should fallback to original string if parsing fails", () => {
-    const args = parseGetByArgs("invalid(syntax");
-    expect(args).toEqual(["invalid(syntax"]);
-  });
-});
-
 describe("resolveLocator", () => {
   const createMockPage = () => {
-    const mockLocator = { click: vi.fn() };
+    const mockLocator = {
+      click: vi.fn(),
+      fill: vi.fn(),
+      filter: vi.fn(),
+      first: vi.fn(),
+      last: vi.fn(),
+      nth: vi.fn(),
+      and: vi.fn(),
+      or: vi.fn(),
+      getByRole: vi.fn(),
+      getByText: vi.fn(),
+      locator: vi.fn(),
+    };
+
+    mockLocator.filter.mockReturnValue(mockLocator);
+    mockLocator.first.mockReturnValue(mockLocator);
+    mockLocator.last.mockReturnValue(mockLocator);
+    mockLocator.nth.mockReturnValue(mockLocator);
+    mockLocator.and.mockReturnValue(mockLocator);
+    mockLocator.or.mockReturnValue(mockLocator);
+    mockLocator.getByRole.mockReturnValue(mockLocator);
+    mockLocator.getByText.mockReturnValue(mockLocator);
+    mockLocator.locator.mockReturnValue(mockLocator);
+
+    const mockFrameLocator = {
+      getByRole: vi.fn().mockReturnValue(mockLocator),
+      getByText: vi.fn().mockReturnValue(mockLocator),
+      getByLabel: vi.fn().mockReturnValue(mockLocator),
+      getByPlaceholder: vi.fn().mockReturnValue(mockLocator),
+      getByAltText: vi.fn().mockReturnValue(mockLocator),
+      getByTitle: vi.fn().mockReturnValue(mockLocator),
+      getByTestId: vi.fn().mockReturnValue(mockLocator),
+      locator: vi.fn().mockReturnValue(mockLocator),
+      frameLocator: vi.fn(),
+    };
+
     return {
       locator: vi.fn().mockReturnValue(mockLocator),
       getByRole: vi.fn().mockReturnValue(mockLocator),
@@ -42,6 +50,7 @@ describe("resolveLocator", () => {
       getByAltText: vi.fn().mockReturnValue(mockLocator),
       getByTitle: vi.fn().mockReturnValue(mockLocator),
       getByTestId: vi.fn().mockReturnValue(mockLocator),
+      frameLocator: vi.fn().mockReturnValue(mockFrameLocator),
     } as unknown as Page;
   };
 
@@ -53,8 +62,33 @@ describe("resolveLocator", () => {
 
   it("should handle getByRole with options", () => {
     const page = createMockPage();
-    resolveLocator(page, 'getByRole("button", { "name": "Submit" })');
+    resolveLocator(page, "getByRole('button', { name: 'Submit' })");
     expect(page.getByRole).toHaveBeenCalledWith("button", { name: "Submit" });
+  });
+
+  it("should handle getByRole with regex options", () => {
+    const page = createMockPage();
+    resolveLocator(page, "getByRole('button', { name: /submit/i })");
+    expect(page.getByRole).toHaveBeenCalledWith(
+      "button",
+      expect.objectContaining({ name: expect.any(RegExp) })
+    );
+  });
+
+  it("should handle chained locator expression", () => {
+    const page = createMockPage();
+    const locator = resolveLocator(
+      page,
+      "getByRole('button', { name: 'Submit' }).filter({ hasText: 'Submit' }).nth(0)"
+    );
+    expect(page.getByRole).toHaveBeenCalledWith("button", { name: "Submit" });
+    expect(locator).toBeDefined();
+  });
+
+  it("should handle frame locator expression chain", () => {
+    const page = createMockPage();
+    resolveLocator(page, "frameLocator('#frame').getByText('Save').first()");
+    expect(page.frameLocator).toHaveBeenCalledWith("#frame");
   });
 
   it("should handle getByText selector", () => {
@@ -97,6 +131,51 @@ describe("resolveLocator", () => {
     const page = createMockPage();
     resolveLocator(page, "//button[@id='submit']");
     expect(page.locator).toHaveBeenCalledWith("//button[@id='submit']");
+  });
+
+  it("should throw for unsupported chain methods", () => {
+    const page = createMockPage();
+    expect(() =>
+      resolveLocator(page, "getByRole('button').unknownMethod('x')")
+    ).toThrow(/Unsupported locator chain method/);
+  });
+});
+
+describe("resolveNavigateUrl", () => {
+  it("should keep absolute URLs unchanged", () => {
+    expect(
+      resolveNavigateUrl("https://example.com/login", "https://base.example", "about:blank")
+    ).toBe("https://example.com/login");
+  });
+
+  it("should resolve root-relative URL against baseUrl", () => {
+    expect(resolveNavigateUrl("/x", "https://a.com/app", "about:blank")).toBe(
+      "https://a.com/x"
+    );
+  });
+
+  it("should resolve path-relative URL against baseUrl path", () => {
+    expect(resolveNavigateUrl("x", "https://a.com/app/", "about:blank")).toBe(
+      "https://a.com/app/x"
+    );
+  });
+
+  it("should resolve root-relative URL against current page if baseUrl is missing", () => {
+    expect(resolveNavigateUrl("/next", undefined, "https://a.com/app/start")).toBe(
+      "https://a.com/next"
+    );
+  });
+
+  it("should throw when relative URL cannot be resolved", () => {
+    expect(() => resolveNavigateUrl("/next", undefined, "about:blank")).toThrow(
+      /Cannot resolve relative navigation URL/
+    );
+  });
+
+  it("should throw on malformed base URL", () => {
+    expect(() => resolveNavigateUrl("/next", "not-a-url", "about:blank")).toThrow(
+      /Invalid navigation URL/
+    );
   });
 });
 

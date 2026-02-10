@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { loadConfig } from "./config.js";
 import * as fs from "node:fs/promises";
+import { UserError } from "./errors.js";
 
 vi.mock("node:fs/promises");
 
@@ -42,7 +43,9 @@ baseUrl: http://localhost:3000
   });
 
   it("should return defaults when config file not found", async () => {
-    vi.mocked(fs.readFile).mockRejectedValue(new Error("ENOENT"));
+    vi.mocked(fs.readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" })
+    );
 
     const config = await loadConfig();
 
@@ -52,9 +55,7 @@ baseUrl: http://localhost:3000
   it("should return defaults when config is invalid YAML", async () => {
     vi.mocked(fs.readFile).mockResolvedValue("invalid: yaml: content:");
 
-    const config = await loadConfig();
-
-    expect(config).toEqual({});
+    await expect(loadConfig()).rejects.toBeInstanceOf(UserError);
   });
 
   it("should handle partial config", async () => {
@@ -93,5 +94,15 @@ timeout: 15000
     expect(config.baseUrl).toBe("https://staging.example.com");
     expect(config.headed).toBe(false);
     expect(config.timeout).toBe(15000);
+  });
+
+  it("should reject invalid config types", async () => {
+    const configContent = `
+timeout: "5000"
+headed: yes
+`;
+    vi.mocked(fs.readFile).mockResolvedValue(configContent);
+
+    await expect(loadConfig()).rejects.toBeInstanceOf(UserError);
   });
 });

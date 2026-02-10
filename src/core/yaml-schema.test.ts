@@ -82,7 +82,7 @@ describe("stepSchema - valid steps", () => {
     const step = { action: "assertChecked", selector: "#agree" };
     const result = stepSchema.safeParse(step);
     expect(result.success).toBe(true);
-    if (result.success) {
+    if (result.success && result.data.action === "assertChecked") {
       expect(result.data.checked).toBe(true);
     }
   });
@@ -91,7 +91,7 @@ describe("stepSchema - valid steps", () => {
     const step = { action: "assertChecked", selector: "#disagree", checked: false };
     const result = stepSchema.safeParse(step);
     expect(result.success).toBe(true);
-    if (result.success) {
+    if (result.success && result.data.action === "assertChecked") {
       expect(result.data.checked).toBe(false);
     }
   });

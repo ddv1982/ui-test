@@ -28,7 +28,18 @@ async function runPlay(
 ) {
   const config = await loadConfig();
   const headed = opts.headed ?? config.headed ?? false;
-  const timeout = opts.timeout ? Number(opts.timeout) : (config.timeout ?? 10_000);
+  const cliTimeout =
+    opts.timeout !== undefined
+      ? parseTimeout(opts.timeout, "CLI flag --timeout")
+      : undefined;
+  const timeout = cliTimeout ?? config.timeout ?? 10_000;
+
+  if (!Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(timeout)) {
+    throw new UserError(
+      `Invalid timeout value: ${timeout}`,
+      "Timeout must be a positive integer in milliseconds."
+    );
+  }
 
   let files: string[];
 
@@ -73,4 +84,15 @@ async function runPlay(
     );
     process.exitCode = 1;
   }
+}
+
+function parseTimeout(input: string, source: string): number {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) {
+    throw new UserError(
+      `Invalid timeout value from ${source}: ${input}`,
+      "Use a positive integer in milliseconds, for example: --timeout 10000"
+    );
+  }
+  return value;
 }
