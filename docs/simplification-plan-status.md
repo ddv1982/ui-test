@@ -15,11 +15,11 @@ This document tracks delivery status for the Vue-first simplification effort.
 | Add `--no-start` manual override | Achieved | Users can run against an already-running app. |
 | Keep safe locator-expression support | Achieved | Allowlisted locator parsing remains in place. |
 | Vue-only quickstart/docs | Achieved | README now centers on Vue example startup path and command split. |
-| Canonical startup command choice | Adjusted | Uses `npx easy-e2e example-app --host ... --port ...` for portability across consumer repos (instead of repo-local script dependency). |
+| Canonical startup command choice | Adjusted | Uses `npx ui-test example-app --host ... --port ...` for portability across consumer repos (instead of repo-local script dependency). |
 | CI coverage for user onboarding flow | Achieved | Added smoke path (`init --yes` -> `play`) via CI plan and scripts. |
 
 ## Adjustment Rationale
 
 The original simplification direction referenced a repo-local startup script pattern. That is convenient inside this repository but brittle for consumers installing from package tarballs or GitHub.
 
-Using `npx easy-e2e example-app ...` as the canonical generated `startCommand` ensures the startup command exists wherever `easy-e2e` is installed, preserving the one-command onboarding objective without coupling to host-repo scripts.
+Using `npx ui-test example-app ...` as the canonical generated `startCommand` ensures the startup command exists wherever `ui-test` is installed, preserving the one-command onboarding objective without coupling to host-repo scripts.

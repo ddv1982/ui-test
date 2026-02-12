@@ -44,7 +44,7 @@ describe("runPlay startup behavior", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       testDir: "e2e",
       baseUrl: "http://127.0.0.1:5173",
-      startCommand: "npx easy-e2e example-app --host 127.0.0.1 --port 5173",
+      startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
       timeout: 10000,
       delay: 0,
       headed: false,
@@ -64,7 +64,7 @@ describe("runPlay startup behavior", () => {
 
     await runPlay("e2e/example.yaml", {});
 
-    expect(spawn).toHaveBeenCalledWith("npx easy-e2e example-app --host 127.0.0.1 --port 5173", {
+    expect(spawn).toHaveBeenCalledWith("npx ui-test example-app --host 127.0.0.1 --port 5173", {
       shell: true,
       stdio: "inherit",
     });
@@ -105,7 +105,7 @@ describe("runPlay startup behavior", () => {
     vi.mocked(spawn).mockReturnValue(child);
     vi.mocked(loadConfig).mockResolvedValue({
       testDir: "e2e",
-      startCommand: "npx easy-e2e example-app --host 127.0.0.1 --port 5173",
+      startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
       timeout: 10000,
       delay: 0,
       headed: false,

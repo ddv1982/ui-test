@@ -44,7 +44,7 @@ async function main() {
   let tarballPath = "";
 
   try {
-    workspace = await mkdtemp(path.join(tmpdir(), "easy-e2e-smoke-"));
+    workspace = await mkdtemp(path.join(tmpdir(), "ui-test-smoke-"));
 
     const packRaw = runStep(
       "Pack local package",
@@ -63,11 +63,11 @@ async function main() {
 
     runStep("Create temp workspace", "npm", ["init", "-y"], workspace);
     runStep("Install packed CLI", "npm", ["install", "--save-dev", tarballPath], workspace);
-    runStep("Run easy-e2e setup", "npx", ["easy-e2e", "setup"], workspace, {
+    runStep("Run ui-test setup", "npx", ["ui-test", "setup"], workspace, {
       printStdout: false,
       stdio: "inherit",
     });
-    runStep("Run YAML browser test", "npx", ["easy-e2e", "play"], workspace);
+    runStep("Run YAML browser test", "npx", ["ui-test", "play"], workspace);
 
     console.log("\n[smoke] Consumer smoke test passed.");
   } finally {

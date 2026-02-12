@@ -31,7 +31,7 @@ describe("init URL helpers", () => {
     expect(DEFAULT_HEADED).toBe(false);
     expect(DEFAULT_INIT_INTENT).toBe("example");
     expect(buildDefaultStartCommand("http://127.0.0.1:5173")).toBe(
-      "npx easy-e2e example-app --host 127.0.0.1 --port 5173"
+      "npx ui-test example-app --host 127.0.0.1 --port 5173"
     );
   });
 
@@ -78,7 +78,7 @@ describe("init URL helpers", () => {
   describe("buildDefaultStartCommand", () => {
     it("builds local HTTP example server command", () => {
       expect(buildDefaultStartCommand("http://localhost:4000")).toBe(
-        "npx easy-e2e example-app --host localhost --port 4000"
+        "npx ui-test example-app --host localhost --port 4000"
       );
     });
 
@@ -91,7 +91,7 @@ describe("init URL helpers", () => {
 
 describe("migrateStockSample", () => {
   it("migrates stock sample to #app selector and removes baseUrl", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-test-"));
     const samplePath = path.join(dir, "example.yaml");
 
     const content = `
@@ -127,7 +127,7 @@ describe("runInit --yes", () => {
     const selectSpy = vi.fn(async () => {
       throw new Error("select prompt should not be called for --yes");
     });
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-yes-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-yes-test-"));
     const prevCwd = process.cwd();
 
     try {
@@ -145,14 +145,14 @@ describe("runInit --yes", () => {
       expect(confirmSpy).not.toHaveBeenCalled();
       expect(selectSpy).not.toHaveBeenCalled();
 
-      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
       const config = yaml.load(configText) as Record<string, unknown>;
 
       expect(config).toMatchObject({
         testDir: "e2e",
         baseUrl: "http://127.0.0.1:5173",
-        startCommand: "npx easy-e2e example-app --host 127.0.0.1 --port 5173",
+        startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
         headed: false,
         timeout: 10000,
       });
@@ -168,7 +168,7 @@ describe("runInit --yes", () => {
   });
 
   it("overwrites existing sample when overwriteSample is true", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-overwrite-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-overwrite-test-"));
     const prevCwd = process.cwd();
 
     try {
@@ -196,7 +196,7 @@ describe("runInit --yes", () => {
 
 describe("runInit interactive intents", () => {
   it("uses example intent by default and auto-populates startCommand", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-intent-example-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-intent-example-test-"));
     const prevCwd = process.cwd();
     const inputSpy = vi
       .fn()
@@ -223,10 +223,10 @@ describe("runInit interactive intents", () => {
       expect(selectArg.default).toBe("example");
       expect(inputSpy).toHaveBeenCalledTimes(5);
 
-      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
       const config = yaml.load(configText) as Record<string, unknown>;
-      expect(config.startCommand).toBe("npx easy-e2e example-app --host 127.0.0.1 --port 5173");
+      expect(config.startCommand).toBe("npx ui-test example-app --host 127.0.0.1 --port 5173");
     } finally {
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });
@@ -234,7 +234,7 @@ describe("runInit interactive intents", () => {
   });
 
   it("omits startCommand for running-site intent", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-intent-running-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-intent-running-test-"));
     const prevCwd = process.cwd();
     const inputSpy = vi
       .fn()
@@ -258,7 +258,7 @@ describe("runInit interactive intents", () => {
 
       expect(inputSpy).toHaveBeenCalledTimes(5);
 
-      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
       const config = yaml.load(configText) as Record<string, unknown>;
       expect(config).not.toHaveProperty("startCommand");
@@ -269,7 +269,7 @@ describe("runInit interactive intents", () => {
   });
 
   it("prompts for and stores startCommand for custom intent", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-intent-custom-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-init-intent-custom-test-"));
     const prevCwd = process.cwd();
     const inputSpy = vi
       .fn()
@@ -294,7 +294,7 @@ describe("runInit interactive intents", () => {
 
       expect(inputSpy).toHaveBeenCalledTimes(6);
 
-      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
       const config = yaml.load(configText) as Record<string, unknown>;
       expect(config.startCommand).toBe("npm run my-app");

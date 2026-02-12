@@ -11,7 +11,7 @@ export function run() {
   const program = new Command();
 
   program
-    .name("easy-e2e")
+    .name("ui-test")
     .description("No-code E2E testing — record and replay browser tests with YAML")
     .version("0.1.0");
 

@@ -3,12 +3,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { chromium } from "playwright";
-import { loadConfig } from "../utils/config.js";
+import { findLegacyConfigPath, loadConfig } from "../utils/config.js";
 import { handleError, UserError } from "../utils/errors.js";
 import { ui } from "../utils/ui.js";
 import { runInit } from "./init.js";
 
-const CONFIG_FILENAMES = ["easy-e2e.config.yaml", "easy-e2e.config.yml"];
+const CONFIG_FILENAMES = ["ui-test.config.yaml"];
 
 interface SetupOptions {
   forceInit?: boolean;
@@ -31,11 +31,21 @@ export function registerSetup(program: Command) {
 }
 
 async function runSetup(opts: SetupOptions = {}): Promise<void> {
-  ui.heading("easy-e2e setup");
+  ui.heading("ui-test setup");
   console.log();
 
   const existingConfigPath = await findExistingConfigPath();
   if (opts.forceInit || !existingConfigPath) {
+    if (!opts.forceInit) {
+      const legacyConfigPath = await findLegacyConfigPath();
+      if (legacyConfigPath) {
+        throw new UserError(
+          `Legacy config file detected at ${legacyConfigPath}`,
+          "Rename it to ui-test.config.yaml, then rerun setup. If you want a fresh config instead, use: npx ui-test setup --force-init"
+        );
+      }
+    }
+
     if (opts.forceInit && existingConfigPath) {
       ui.info(`Config found at ${existingConfigPath}; reinitializing due to --force-init.`);
     } else {
@@ -56,7 +66,7 @@ async function runSetup(opts: SetupOptions = {}): Promise<void> {
 
   console.log();
   ui.success("Setup complete.");
-  ui.step("Run tests: npx easy-e2e play");
+  ui.step("Run tests: npx ui-test play");
 }
 
 async function findExistingConfigPath(): Promise<string | undefined> {

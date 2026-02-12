@@ -71,7 +71,7 @@ async function runPlay(
     if (files.length === 0) {
       throw new UserError(
         `No test files found in ${testDir}/`,
-        "Record a test first: npx easy-e2e record"
+        "Record a test first: npx ui-test record"
       );
     }
     files.sort();
@@ -104,7 +104,7 @@ async function runPlay(
       if (!reachable) {
         const hint = startCommand
           ? `Cannot reach ${baseUrl}. Run \`${startCommand}\` first, or rerun without --no-start.`
-          : `Cannot reach ${baseUrl}. Start your app first, or configure startCommand in easy-e2e.config.yaml.`;
+          : `Cannot reach ${baseUrl}. Start your app first, or configure startCommand in ui-test.config.yaml.`;
         throw new UserError(
           `Cannot reach app at ${baseUrl}`,
           hint

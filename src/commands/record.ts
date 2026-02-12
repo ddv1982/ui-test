@@ -57,5 +57,5 @@ async function runRecord(opts: {
 
   console.log();
   ui.success(`Test saved to ${outputPath}`);
-  ui.info("Run it with: npx easy-e2e play " + outputPath);
+  ui.info("Run it with: npx ui-test play " + outputPath);
 }

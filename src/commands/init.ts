@@ -6,7 +6,7 @@ import yaml from "js-yaml";
 import { ui } from "../utils/ui.js";
 import { handleError } from "../utils/errors.js";
 
-interface EasyE2EConfig {
+interface UITestConfig {
   testDir: string;
   baseUrl: string;
   startCommand?: string;
@@ -33,7 +33,7 @@ const DEFAULT_INIT_INTENT: InitIntent = "example";
 export function registerInit(program: Command) {
   program
     .command("init")
-    .description("Set up a new easy-e2e test project")
+    .description("Set up a new ui-test project")
     .option("-y, --yes", "Use defaults without interactive prompts")
     .action(async (opts) => {
       try {
@@ -47,7 +47,7 @@ export function registerInit(program: Command) {
 async function runInit(
   opts: { yes?: boolean; promptApi?: PromptApi; overwriteSample?: boolean } = {}
 ) {
-  ui.heading("easy-e2e project setup");
+  ui.heading("ui-test project setup");
   console.log();
 
   const useDefaults = opts.yes ?? false;
@@ -102,7 +102,7 @@ async function runInit(
       ? defaultStartCommand
       : intent === "custom"
         ? await promptApi.input({
-            message: "App start command? (required for auto-start with `easy-e2e play`)",
+            message: "App start command? (required for auto-start with `ui-test play`)",
             default: defaultStartCommand,
             validate: (v) => (v.trim().length > 0 ? true : "Start command is required"),
           })
@@ -129,7 +129,7 @@ async function runInit(
         },
       });
 
-  const config: EasyE2EConfig = {
+  const config: UITestConfig = {
     testDir,
     baseUrl,
     ...(startCommand.trim().length > 0 ? { startCommand: startCommand.trim() } : {}),
@@ -138,7 +138,7 @@ async function runInit(
     ...(delayInput.trim().length > 0 ? { delay: Number(delayInput) } : {}),
   };
 
-  const configPath = path.resolve("easy-e2e.config.yaml");
+  const configPath = path.resolve("ui-test.config.yaml");
   await fs.writeFile(configPath, yaml.dump(config, { quotingType: '"' }), "utf-8");
 
   await fs.mkdir(path.resolve(testDir), { recursive: true });
@@ -178,19 +178,19 @@ async function runInit(
   console.log();
   ui.info("Next steps:");
   if (config.startCommand) {
-    ui.step("Run tests (auto-starts app): npx easy-e2e play");
+    ui.step("Run tests (auto-starts app): npx ui-test play");
     ui.step(`Manual mode app start: ${config.startCommand}`);
-    ui.step("Manual mode test run: npx easy-e2e play --no-start");
+    ui.step("Manual mode test run: npx ui-test play --no-start");
   } else {
     ui.step("Start your app manually.");
-    ui.step("Run tests against running app: npx easy-e2e play --no-start");
+    ui.step("Run tests against running app: npx ui-test play --no-start");
     ui.dim(
-      "Tip: `npx easy-e2e play` without --no-start expects `startCommand` in config or a reachable baseUrl."
+      "Tip: `npx ui-test play` without --no-start expects `startCommand` in config or a reachable baseUrl."
     );
   }
-  ui.step("Record a test: npx easy-e2e record");
-  ui.step("List tests: npx easy-e2e list");
-  ui.dim("Tip: update easy-e2e.config.yaml baseUrl if your app runs on a different host or port.");
+  ui.step("Record a test: npx ui-test record");
+  ui.step("List tests: npx ui-test list");
+  ui.dim("Tip: update ui-test.config.yaml baseUrl if your app runs on a different host or port.");
 }
 
 function validateBaseOrigin(value: string): true | string {
@@ -244,7 +244,7 @@ function buildDefaultStartCommand(baseUrl: string): string {
     }
 
     const port = parsed.port || "80";
-    return `npx easy-e2e example-app --host ${parsed.hostname} --port ${port}`;
+    return `npx ui-test example-app --host ${parsed.hostname} --port ${port}`;
   } catch {
     return "";
   }

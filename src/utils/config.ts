@@ -13,11 +13,12 @@ const configSchema = z.object({
   delay: z.number().int().nonnegative().optional(),
 });
 
-export type EasyE2EConfig = z.infer<typeof configSchema>;
+export type UITestConfig = z.infer<typeof configSchema>;
 
-const CONFIG_FILENAMES = ["easy-e2e.config.yaml", "easy-e2e.config.yml"];
+const CONFIG_FILENAMES = ["ui-test.config.yaml"];
+const LEGACY_CONFIG_FILENAMES = ["easy-e2e.config.yaml", "easy-e2e.config.yml"];
 
-export async function loadConfig(): Promise<EasyE2EConfig> {
+export async function loadConfig(): Promise<UITestConfig> {
   for (const filename of CONFIG_FILENAMES) {
     const configPath = path.resolve(filename);
     let content: string;
@@ -72,6 +73,27 @@ export async function loadConfig(): Promise<EasyE2EConfig> {
     return parsedConfig.data;
   }
 
+  const legacyConfigPath = await findLegacyConfigPath();
+  if (legacyConfigPath) {
+    throw new UserError(
+      `Legacy config file detected: ${legacyConfigPath}`,
+      "Rename it to ui-test.config.yaml. Legacy easy-e2e config filenames are no longer supported."
+    );
+  }
+
   // No config file found — use defaults
   return {};
+}
+
+export async function findLegacyConfigPath(): Promise<string | undefined> {
+  for (const filename of LEGACY_CONFIG_FILENAMES) {
+    const configPath = path.resolve(filename);
+    try {
+      await fs.access(configPath);
+      return configPath;
+    } catch {
+      // Keep checking.
+    }
+  }
+  return undefined;
 }

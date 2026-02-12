@@ -8,6 +8,7 @@ vi.mock("node:fs/promises");
 describe("loadConfig", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(fs.access).mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
   });
 
   it("should load valid YAML config", async () => {
@@ -52,6 +53,27 @@ baseUrl: http://localhost:3000
     const config = await loadConfig();
 
     expect(config).toEqual({});
+  });
+
+  it("should reject legacy easy-e2e config filenames", async () => {
+    vi.mocked(fs.readFile).mockImplementation(async (filePath) => {
+      const file = String(filePath);
+      if (file.endsWith("ui-test.config.yaml")) {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    vi.mocked(fs.access).mockImplementation(async (filePath) => {
+      const file = String(filePath);
+      if (file.endsWith("easy-e2e.config.yaml")) {
+        return undefined;
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    const run = loadConfig();
+    await expect(run).rejects.toBeInstanceOf(UserError);
+    await expect(run).rejects.toThrow(/Legacy config file detected/);
   });
 
   it("should return defaults when config is invalid YAML", async () => {

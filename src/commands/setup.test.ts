@@ -51,7 +51,7 @@ describe("runSetup", () => {
   });
 
   it("calls init --yes when config is missing", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-setup-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
 
     try {
@@ -65,13 +65,13 @@ describe("runSetup", () => {
   });
 
   it("keeps existing config by default", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-setup-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
 
     try {
       process.chdir(dir);
       await fs.writeFile(
-        "easy-e2e.config.yaml",
+        "ui-test.config.yaml",
         'testDir: "e2e"\nbaseUrl: "http://127.0.0.1:5173"\n',
         "utf-8"
       );
@@ -85,12 +85,12 @@ describe("runSetup", () => {
   });
 
   it("reinitializes config when --force-init is used", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-setup-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
 
     try {
       process.chdir(dir);
-      await fs.writeFile("easy-e2e.config.yaml", 'testDir: "e2e"\n', "utf-8");
+      await fs.writeFile("ui-test.config.yaml", 'testDir: "e2e"\n', "utf-8");
       await runSetup({ forceInit: true });
       expect(mockRunInit).toHaveBeenCalledWith({ yes: true, overwriteSample: true });
     } finally {
@@ -99,8 +99,26 @@ describe("runSetup", () => {
     }
   });
 
+  it("fails fast when only legacy easy-e2e config exists", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
+    const prevCwd = process.cwd();
+
+    try {
+      process.chdir(dir);
+      await fs.writeFile("easy-e2e.config.yaml", 'testDir: "e2e"\n', "utf-8");
+
+      const run = runSetup();
+      await expect(run).rejects.toBeInstanceOf(UserError);
+      await expect(run).rejects.toThrow(/Legacy config file detected/);
+      expect(mockRunInit).not.toHaveBeenCalled();
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("runs playwright install command", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-setup-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
 
     try {
@@ -119,7 +137,7 @@ describe("runSetup", () => {
   });
 
   it("throws UserError when playwright install fails", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-setup-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
 
     try {
@@ -141,7 +159,7 @@ describe("runSetup", () => {
   });
 
   it("reports install-deps hint for missing Linux dependencies", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-setup-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
 
     try {
@@ -167,7 +185,7 @@ describe("runSetup", () => {
   });
 
   it("skips browser install when --skip-browser-install is used", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-setup-test-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
 
     try {

@@ -1,10 +1,10 @@
 {
-  "name": "easy-e2e",
+  "name": "ui-test",
   "version": "0.1.0",
   "description": "No-code E2E testing framework - record and replay browser tests with YAML",
   "type": "module",
   "bin": {
-    "easy-e2e": "./dist/bin/easy-e2e.js"
+    "ui-test": "./dist/bin/ui-test.js"
   },
   "files": [
     "dist",
@@ -20,6 +20,7 @@
     "test": "vitest run",
     "test:framework": "vitest run",
     "test:smoke": "node ./scripts/smoke-consumer.mjs",
+    "check:npm-name": "node ./scripts/check-npm-name.mjs",
     "test:watch": "vitest",
     "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run src/**/*.integration.test.ts",

@@ -16,7 +16,7 @@ let baseUrl = "";
 let tempDir = "";
 
 beforeAll(async () => {
-  tempDir = await mkdtemp(join(tmpdir(), "easy-e2e-integration-"));
+  tempDir = await mkdtemp(join(tmpdir(), "ui-test-integration-"));
 
   await new Promise<void>((resolve, reject) => {
     server = createServer(async (req, res) => {

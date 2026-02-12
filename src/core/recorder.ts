@@ -16,7 +16,7 @@ export interface RecordOptions {
 export async function record(options: RecordOptions): Promise<string> {
   const tmpFile = path.join(
     os.tmpdir(),
-    `easy-e2e-recording-${Date.now()}.jsonl`
+    `ui-test-recording-${Date.now()}.jsonl`
   );
 
   // Ensure playwright CLI is available
