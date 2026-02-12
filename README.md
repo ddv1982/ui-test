@@ -17,50 +17,39 @@ npm install --save-dev github:ddv1982/easy-e2e-testing#main
 
 ## Quick Start
 
-### 1. Initialize
+### 1. Install and initialize
 
 ```bash
+npm install --save-dev .
 npx easy-e2e init
 ```
 
-### 2. Start your app at `baseUrl`
+Accept the defaults for the built-in Vue example app:
 
-`easy-e2e play` and `easy-e2e record` need your app running and reachable at
-the configured `baseUrl`.
+- `baseUrl`: `http://127.0.0.1:5173`
+- `startCommand`: `npx easy-e2e example-app --host 127.0.0.1 --port 5173`
 
-Common start commands:
-
-```bash
-# React / Vite
-npm run dev
-
-# Next.js
-npm run dev -- -p 4000
-
-# Express / Node
-npm run start
-```
-
-Then confirm it is reachable:
+### 2. Run tests (one command)
 
 ```bash
-curl -I http://localhost:4000
+npx easy-e2e play
 ```
 
-### 3. Record a test
+`play` auto-starts the app when `startCommand` is present in `easy-e2e.config.yaml`.
+
+### 3. Optional manual mode
+
+If you already started the app yourself:
+
+```bash
+npx easy-e2e example-app --host 127.0.0.1 --port 5173
+npx easy-e2e play --no-start
+```
+
+### 4. Record a test
 
 ```bash
 npx easy-e2e record
-```
-
-### 4. Run tests
-
-```bash
-# auto-start app using config.startCommand
-npx easy-e2e play --start
-
-# or run against an already running app
-npx easy-e2e play
 ```
 
 ### 5. List tests
@@ -133,8 +122,8 @@ Create `easy-e2e.config.yaml`:
 
 ```yaml
 testDir: e2e
-baseUrl: http://localhost:3000
-startCommand: npm run dev # optional; used by `easy-e2e play --start`
+baseUrl: http://127.0.0.1:5173
+startCommand: npx easy-e2e example-app --host 127.0.0.1 --port 5173
 headed: false
 timeout: 10000
 delay: 2000 # optional; milliseconds between steps

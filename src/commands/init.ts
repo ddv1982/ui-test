@@ -15,6 +15,9 @@ interface EasyE2EConfig {
   delay?: number;
 }
 
+const DEFAULT_BASE_ORIGIN = "http://127.0.0.1";
+const DEFAULT_PORT = "5173";
+
 export function registerInit(program: Command) {
   program
     .command("init")
@@ -39,17 +42,18 @@ async function runInit() {
 
   const baseOrigin = await input({
     message: "What is your application's base URL? (protocol + host)",
-    default: "http://localhost",
+    default: DEFAULT_BASE_ORIGIN,
     validate: validateBaseOrigin,
   });
 
   const portInput = await input({
     message: "Port (optional, blank to use URL default):",
-    default: "3000",
+    default: DEFAULT_PORT,
     validate: validatePortInput,
   });
 
   const baseUrl = buildBaseUrl(baseOrigin, portInput);
+  const defaultStartCommand = buildDefaultStartCommand(baseUrl);
 
   const headed = await confirm({
     message: "Run tests in headed mode by default? (visible browser)",
@@ -57,8 +61,8 @@ async function runInit() {
   });
 
   const startCommand = await input({
-    message: "App start command? (optional, used by `easy-e2e play --start`)",
-    default: "npm run dev",
+    message: "App start command? (optional, used by `easy-e2e play`)",
+    default: defaultStartCommand,
   });
 
   const timeout = await input({
@@ -104,17 +108,17 @@ async function runInit() {
         { action: "navigate", url: "/" },
         {
           action: "assertVisible",
-          description: "Page has loaded",
-          selector: "body",
+          description: "App root is visible",
+          selector: "#app",
         },
       ],
     };
     await fs.writeFile(samplePath, yaml.dump(sample, { quotingType: '"' }), "utf-8");
     ui.step(`Created sample test: ${samplePath}`);
   } else {
-    const migrated = await migrateLegacySampleBaseUrl(samplePath);
+    const migrated = await migrateStockSample(samplePath);
     if (migrated) {
-      ui.step(`Updated sample test to use config baseUrl fallback: ${samplePath}`);
+      ui.step(`Updated sample test for current defaults: ${samplePath}`);
     }
   }
 
@@ -123,10 +127,14 @@ async function runInit() {
   ui.success(`Test directory created: ${testDir}/`);
   console.log();
   ui.info("Next steps:");
-  ui.step(`Start your app so it is reachable at: ${baseUrl}`);
-  ui.step("Or auto-start app: npx easy-e2e play --start");
+  ui.step("Run tests (auto-starts app): npx easy-e2e play");
+  if (defaultStartCommand) {
+    ui.step(`Manual mode app start: ${defaultStartCommand}`);
+  } else {
+    ui.step("Manual mode app start: <your app start command>");
+  }
+  ui.step("Manual mode test run: npx easy-e2e play --no-start");
   ui.step("Record a test: npx easy-e2e record");
-  ui.step("Run tests: npx easy-e2e play");
   ui.step("List tests: npx easy-e2e list");
   ui.dim("Tip: update easy-e2e.config.yaml baseUrl if your app runs on a different host or port.");
 }
@@ -168,7 +176,27 @@ function buildBaseUrl(baseOrigin: string, portInput: string): string {
   return `${parsed.protocol}//${parsed.host}`;
 }
 
-async function migrateLegacySampleBaseUrl(samplePath: string): Promise<boolean> {
+function buildDefaultStartCommand(baseUrl: string): string {
+  try {
+    const parsed = new URL(baseUrl);
+    const isHttp = parsed.protocol === "http:";
+    const isLocalHost =
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "::1";
+
+    if (!isHttp || !isLocalHost) {
+      return "";
+    }
+
+    const port = parsed.port || "80";
+    return `npx easy-e2e example-app --host ${parsed.hostname} --port ${port}`;
+  } catch {
+    return "";
+  }
+}
+
+async function migrateStockSample(samplePath: string): Promise<boolean> {
   try {
     const content = await fs.readFile(samplePath, "utf-8");
     const parsed = yaml.load(content);
@@ -177,11 +205,38 @@ async function migrateLegacySampleBaseUrl(samplePath: string): Promise<boolean> 
     }
 
     const sample = parsed as Record<string, unknown>;
-    if (sample.name !== "Example Test" || !("baseUrl" in sample)) {
+    if (sample.name !== "Example Test") {
       return false;
     }
 
-    delete sample.baseUrl;
+    let changed = false;
+
+    if ("baseUrl" in sample) {
+      delete sample.baseUrl;
+      changed = true;
+    }
+
+    const rawSteps = sample.steps;
+    if (Array.isArray(rawSteps) && rawSteps.length > 1) {
+      const assertVisibleStep = rawSteps[1];
+      if (
+        assertVisibleStep &&
+        typeof assertVisibleStep === "object" &&
+        !Array.isArray(assertVisibleStep)
+      ) {
+        const mutableStep = assertVisibleStep as Record<string, unknown>;
+        if (mutableStep.action === "assertVisible" && mutableStep.selector === "body") {
+          mutableStep.selector = "#app";
+          mutableStep.description = "App root is visible";
+          changed = true;
+        }
+      }
+    }
+
+    if (!changed) {
+      return false;
+    }
+
     await fs.writeFile(samplePath, yaml.dump(sample, { quotingType: '"' }), "utf-8");
     return true;
   } catch {
@@ -189,4 +244,12 @@ async function migrateLegacySampleBaseUrl(samplePath: string): Promise<boolean> 
   }
 }
 
-export { buildBaseUrl, validateBaseOrigin, validatePortInput };
+export {
+  DEFAULT_BASE_ORIGIN,
+  DEFAULT_PORT,
+  buildBaseUrl,
+  buildDefaultStartCommand,
+  validateBaseOrigin,
+  validatePortInput,
+  migrateStockSample,
+};

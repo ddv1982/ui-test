@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>easy-e2e Vue Example</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  </head>
+  <body>
+    <main id="app" v-cloak>
+      <h1 data-testid="page-heading">easy-e2e Vue Example</h1>
+
+      <section class="panel">
+        <label for="name-input">Your name</label>
+        <input id="name-input" data-testid="name-input" v-model="name" placeholder="Type your name" />
+        <button data-testid="greet-button" @click="greet">Greet</button>
+        <p data-testid="message">{{ message }}</p>
+      </section>
+
+      <section class="panel">
+        <label class="row">
+          <input type="checkbox" data-testid="updates-checkbox" v-model="wantsUpdates" />
+          Receive updates
+        </label>
+
+        <label for="theme-select">Theme</label>
+        <select id="theme-select" data-testid="theme-select" v-model="theme">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
