@@ -13,7 +13,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "node ./scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+    "build": "node ./scripts/clean-dist.mjs && tsc -p tsconfig.build.json && node ./scripts/fix-bin-perms.mjs",
     "prepare": "npm run build",
     "dev": "tsc --watch",
     "test": "vitest run",
