@@ -6,11 +6,19 @@
   "bin": {
     "easy-e2e": "./dist/bin/easy-e2e.js"
   },
+  "files": [
+    "dist",
+    "examples/vue-app",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "node ./scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
     "prepare": "npm run build",
     "dev": "tsc --watch",
     "test": "vitest run",
+    "test:framework": "vitest run",
+    "test:smoke": "node ./scripts/smoke-consumer.mjs",
     "test:watch": "vitest",
     "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run src/**/*.integration.test.ts",

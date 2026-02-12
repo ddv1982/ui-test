@@ -1,21 +1,33 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import yaml from "js-yaml";
 import {
   DEFAULT_BASE_ORIGIN,
+  DEFAULT_HEADED,
   DEFAULT_PORT,
+  DEFAULT_TEST_DIR,
+  DEFAULT_TIMEOUT,
   buildBaseUrl,
   buildDefaultStartCommand,
   migrateStockSample,
+  runInit,
   validateBaseOrigin,
   validatePortInput,
 } from "./init.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("init URL helpers", () => {
   it("uses Vue-first defaults for init prompts", () => {
     expect(DEFAULT_BASE_ORIGIN).toBe("http://127.0.0.1");
     expect(DEFAULT_PORT).toBe("5173");
+    expect(DEFAULT_TEST_DIR).toBe("e2e");
+    expect(DEFAULT_TIMEOUT).toBe(10_000);
+    expect(DEFAULT_HEADED).toBe(false);
     expect(buildDefaultStartCommand("http://127.0.0.1:5173")).toBe(
       "npx easy-e2e example-app --host 127.0.0.1 --port 5173"
     );
@@ -99,5 +111,52 @@ steps:
     const updated = await fs.readFile(samplePath, "utf-8");
     expect(updated).not.toContain("baseUrl:");
     expect(updated).toContain('selector: "#app"');
+  });
+});
+
+describe("runInit --yes", () => {
+  it("uses defaults non-interactively and writes expected config and sample", async () => {
+    const inputSpy = vi.fn(async () => {
+      throw new Error("input prompt should not be called for --yes");
+    });
+    const confirmSpy = vi.fn(async () => {
+      throw new Error("confirm prompt should not be called for --yes");
+    });
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "easy-e2e-init-yes-test-"));
+    const prevCwd = process.cwd();
+
+    try {
+      process.chdir(dir);
+      await runInit({
+        yes: true,
+        promptApi: {
+          input: inputSpy as never,
+          confirm: confirmSpy as never,
+        },
+      });
+
+      expect(inputSpy).not.toHaveBeenCalled();
+      expect(confirmSpy).not.toHaveBeenCalled();
+
+      const configPath = path.join(dir, "easy-e2e.config.yaml");
+      const configText = await fs.readFile(configPath, "utf-8");
+      const config = yaml.load(configText) as Record<string, unknown>;
+
+      expect(config).toMatchObject({
+        testDir: "e2e",
+        baseUrl: "http://127.0.0.1:5173",
+        startCommand: "npx easy-e2e example-app --host 127.0.0.1 --port 5173",
+        headed: false,
+        timeout: 10000,
+      });
+      expect(config).not.toHaveProperty("delay");
+
+      const samplePath = path.join(dir, "e2e", "example.yaml");
+      const sampleText = await fs.readFile(samplePath, "utf-8");
+      expect(sampleText).toContain('selector: "#app"');
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });

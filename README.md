@@ -58,6 +58,24 @@ npx easy-e2e record
 npx easy-e2e list
 ```
 
+## Command Matrix
+
+| Command | What it runs | Main audience |
+| --- | --- | --- |
+| `npx easy-e2e play` | YAML browser tests from `testDir` | End users testing an app |
+| `npm test` | Vitest framework suite (unit + integration in `src/**/*.test.ts` and `src/**/*.integration.test.ts`) | Maintainers of `easy-e2e` |
+| `npm run test:smoke` | Consumer-style packaged smoke (`init --yes` -> `play`) | Maintainers validating onboarding |
+
+## Common Confusion
+
+If you run `npm test`, you will **not** see your YAML `headed` browser flow.  
+`npm test` runs framework tests; YAML browser playback is run via `npx easy-e2e play`.
+
+`headed` and `delay` are read from `easy-e2e.config.yaml` (or CLI flags) when running:
+
+- `npx easy-e2e play`
+- `npx easy-e2e play --headed --delay 2000`
+
 ## Test Format
 
 Tests are written in YAML with a simple, readable format:
@@ -134,8 +152,12 @@ delay: 2000 # optional; milliseconds between steps
 ### Running Tests
 
 ```bash
-# Run all tests
+# Framework tests (maintainer suite)
 npm test
+npm run test:framework
+
+# Consumer onboarding smoke (pack -> install -> init --yes -> play)
+npm run test:smoke
 
 # Run unit tests only
 npm run test:unit

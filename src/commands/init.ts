@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { input, confirm } from "@inquirer/prompts";
+import * as prompts from "@inquirer/prompts";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "js-yaml";
@@ -15,80 +15,107 @@ interface EasyE2EConfig {
   delay?: number;
 }
 
+interface PromptApi {
+  input: typeof prompts.input;
+  confirm: typeof prompts.confirm;
+}
+
 const DEFAULT_BASE_ORIGIN = "http://127.0.0.1";
 const DEFAULT_PORT = "5173";
+const DEFAULT_TEST_DIR = "e2e";
+const DEFAULT_TIMEOUT = 10_000;
+const DEFAULT_HEADED = false;
 
 export function registerInit(program: Command) {
   program
     .command("init")
     .description("Set up a new easy-e2e test project")
-    .action(async () => {
+    .option("-y, --yes", "Use defaults without interactive prompts")
+    .action(async (opts) => {
       try {
-        await runInit();
+        await runInit(opts);
       } catch (err) {
         handleError(err);
       }
     });
 }
 
-async function runInit() {
+async function runInit(
+  opts: { yes?: boolean; promptApi?: PromptApi } = {}
+) {
   ui.heading("easy-e2e project setup");
   console.log();
 
-  const testDir = await input({
-    message: "Where should tests be stored?",
-    default: "e2e",
-  });
+  const useDefaults = opts.yes ?? false;
+  const promptApi = opts.promptApi ?? prompts;
+  const testDir = useDefaults
+    ? DEFAULT_TEST_DIR
+    : await promptApi.input({
+        message: "Where should tests be stored?",
+        default: DEFAULT_TEST_DIR,
+      });
 
-  const baseOrigin = await input({
-    message: "What is your application's base URL? (protocol + host)",
-    default: DEFAULT_BASE_ORIGIN,
-    validate: validateBaseOrigin,
-  });
+  const baseOrigin = useDefaults
+    ? DEFAULT_BASE_ORIGIN
+    : await promptApi.input({
+        message: "What is your application's base URL? (protocol + host)",
+        default: DEFAULT_BASE_ORIGIN,
+        validate: validateBaseOrigin,
+      });
 
-  const portInput = await input({
-    message: "Port (optional, blank to use URL default):",
-    default: DEFAULT_PORT,
-    validate: validatePortInput,
-  });
+  const portInput = useDefaults
+    ? DEFAULT_PORT
+    : await promptApi.input({
+        message: "Port (optional, blank to use URL default):",
+        default: DEFAULT_PORT,
+        validate: validatePortInput,
+      });
 
   const baseUrl = buildBaseUrl(baseOrigin, portInput);
   const defaultStartCommand = buildDefaultStartCommand(baseUrl);
 
-  const headed = await confirm({
-    message: "Run tests in headed mode by default? (visible browser)",
-    default: false,
-  });
+  const headed = useDefaults
+    ? DEFAULT_HEADED
+    : await promptApi.confirm({
+        message: "Run tests in headed mode by default? (visible browser)",
+        default: DEFAULT_HEADED,
+      });
 
-  const startCommand = await input({
-    message: "App start command? (optional, used by `easy-e2e play`)",
-    default: defaultStartCommand,
-  });
+  const startCommand = useDefaults
+    ? defaultStartCommand
+    : await promptApi.input({
+        message: "App start command? (optional, used by `easy-e2e play`)",
+        default: defaultStartCommand,
+      });
 
-  const timeout = await input({
-    message: "Default step timeout in milliseconds?",
-    default: "10000",
-    validate: (v) => (!isNaN(Number(v)) && Number(v) > 0 ? true : "Must be a positive number"),
-  });
+  const timeoutInput = useDefaults
+    ? String(DEFAULT_TIMEOUT)
+    : await promptApi.input({
+        message: "Default step timeout in milliseconds?",
+        default: String(DEFAULT_TIMEOUT),
+        validate: (v) => (!isNaN(Number(v)) && Number(v) > 0 ? true : "Must be a positive number"),
+      });
 
-  const delay = await input({
-    message: "Delay between steps in milliseconds? (optional, blank for no delay)",
-    default: "",
-    validate: (v) => {
-      if (v.trim().length === 0) return true;
-      return !isNaN(Number(v)) && Number(v) >= 0 && Number.isInteger(Number(v))
-        ? true
-        : "Must be a non-negative integer or blank";
-    },
-  });
+  const delayInput = useDefaults
+    ? ""
+    : await promptApi.input({
+        message: "Delay between steps in milliseconds? (optional, blank for no delay)",
+        default: "",
+        validate: (v) => {
+          if (v.trim().length === 0) return true;
+          return !isNaN(Number(v)) && Number(v) >= 0 && Number.isInteger(Number(v))
+            ? true
+            : "Must be a non-negative integer or blank";
+        },
+      });
 
   const config: EasyE2EConfig = {
     testDir,
     baseUrl,
     ...(startCommand.trim().length > 0 ? { startCommand: startCommand.trim() } : {}),
     headed,
-    timeout: Number(timeout),
-    ...(delay.trim().length > 0 ? { delay: Number(delay) } : {}),
+    timeout: Number(timeoutInput),
+    ...(delayInput.trim().length > 0 ? { delay: Number(delayInput) } : {}),
   };
 
   const configPath = path.resolve("easy-e2e.config.yaml");
@@ -247,9 +274,13 @@ async function migrateStockSample(samplePath: string): Promise<boolean> {
 export {
   DEFAULT_BASE_ORIGIN,
   DEFAULT_PORT,
+  DEFAULT_TEST_DIR,
+  DEFAULT_TIMEOUT,
+  DEFAULT_HEADED,
   buildBaseUrl,
   buildDefaultStartCommand,
   validateBaseOrigin,
   validatePortInput,
   migrateStockSample,
+  runInit,
 };
