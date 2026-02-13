@@ -109,7 +109,7 @@ Repeated timeout warnings are capped per test file to keep logs readable.
 
 - Linux browser dependency issue: if setup reports missing dependencies, run `npx playwright install-deps chromium`.
 - Proxy/firewall environments: browser download may fail if outbound access is blocked; configure npm/proxy settings and rerun `npx ui-test setup`.
-- Legacy config file detected: `easy-e2e.config.yaml` is no longer supported. Rename it to `ui-test.config.yaml`.
+- Legacy config file detected: `easy-e2e.config.yaml` and `easy-e2e.config.yml` are no longer supported. Rename to `ui-test.config.yaml`.
 
 ## Test Format
 
@@ -235,7 +235,7 @@ Record overrides:
 Recorder reliability behavior:
 
 - Primary path: Playwright codegen JSONL capture
-- Fallback path: Playwright `--target playwright-test` + constrained AST parser
+- Fallback path: Playwright `--target playwright-test` + constrained AST parser when JSONL is unavailable, disabled (`UI_TEST_DISABLE_JSONL=1`), or JSONL codegen fails without recoverable steps
 - CLI prints whether fallback/degraded fidelity was used and selector quality counts
 
 ## Development
