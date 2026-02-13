@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import type { Target } from "../yaml-schema.js";
-import { resolveLocator } from "../player.js";
+import { resolveLocator } from "../runtime/locator-runtime.js";
 import type { TargetCandidate } from "./candidate-generator.js";
 
 export interface TargetCandidateScore {
