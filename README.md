@@ -295,6 +295,17 @@ Coverage thresholds are enforced in [vitest.config.ts](vitest.config.ts):
 Run `npm run test:coverage` for current local metrics.  
 See [docs/test-coverage-report.md](docs/test-coverage-report.md) for the latest recorded snapshot.
 
+## Third-Party Licenses
+
+This project uses Microsoft Playwright for browser automation and recording, including Playwright CLI commands such as:
+
+- `npx playwright codegen`
+- `npx playwright install chromium`
+- `npx playwright install-deps chromium`
+
+Playwright is licensed under Apache License 2.0.  
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution details.
+
 ## License
 
 MIT
