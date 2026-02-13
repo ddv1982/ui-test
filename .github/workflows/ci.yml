@@ -7,7 +7,9 @@ on:
 
 jobs:
   framework-tests:
-    runs-on: ubuntu-latest
+    # Optional fallback: set repo/org variable CI_RUNNER_LABELS_JSON to e.g.
+    # ["self-hosted","linux"] to run on self-hosted runners.
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || '["ubuntu-latest"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +30,7 @@ jobs:
         run: npm run test:framework
 
   consumer-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || '["ubuntu-latest"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

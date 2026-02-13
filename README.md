@@ -266,6 +266,14 @@ npm run test:coverage
 npm run check:npm-name
 ```
 
+### CI Runner Fallback
+
+If GitHub-hosted runners are unavailable (for example billing/spending-limit issues), set a repository or organization variable so CI runs on self-hosted runners:
+
+- `CI_RUNNER_LABELS_JSON=["self-hosted","linux"]`
+
+When this variable is not set, CI defaults to `ubuntu-latest`.
+
 ### Test Coverage
 
 Coverage thresholds are enforced in [vitest.config.ts](vitest.config.ts):
