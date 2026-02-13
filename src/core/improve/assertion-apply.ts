@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
-import type { Step } from "../yaml-schema.js";
+import type { Step, Target } from "../yaml-schema.js";
 import type {
   AssertionApplyStatus,
   AssertionCandidate,
@@ -192,7 +192,7 @@ function areEquivalentAssertions(left: Step, right: Step): boolean {
   return false;
 }
 
-function areEquivalentTargets(left: Step["target"], right: Step["target"]): boolean {
+function areEquivalentTargets(left: Target, right: Target): boolean {
   return (
     left.value === right.value &&
     left.kind === right.kind &&

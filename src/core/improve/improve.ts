@@ -18,6 +18,8 @@ import { selectImproveProvider } from "./providers/provider-selector.js";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
 import {
   improveReportSchema,
+  type AssertionApplyStatus,
+  type AssertionCandidate,
   type ImproveDiagnostic,
   type ImproveProviderUsed,
   type ImproveReport,
@@ -173,7 +175,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
     const rawAssertionCandidates =
       options.assertions === "candidates" ? buildAssertionCandidates(outputSteps, findings) : [];
-    let assertionCandidates = rawAssertionCandidates.map((candidate) => ({
+    let assertionCandidates: AssertionCandidate[] = rawAssertionCandidates.map((candidate) => ({
       ...candidate,
       applyStatus: "not_requested" as const,
     }));
@@ -189,11 +191,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       const outcomeByCandidate = new Map<
         number,
         {
-          applyStatus:
-            | "applied"
-            | "skipped_low_confidence"
-            | "skipped_runtime_failure"
-            | "skipped_existing";
+          applyStatus: AssertionApplyStatus;
           applyMessage?: string;
         }
       >();
