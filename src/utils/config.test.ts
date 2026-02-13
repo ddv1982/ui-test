@@ -122,6 +122,7 @@ recordLoadStorage: ".auth/in.json"
 recordSaveStorage: ".auth/out.json"
 improveProvider: playwright-cli
 improveApplyMode: review
+improveApplyAssertions: true
 improveAssertions: candidates
 llm:
   enabled: true
@@ -153,6 +154,7 @@ llm:
     expect(config.recordSaveStorage).toBe(".auth/out.json");
     expect(config.improveProvider).toBe("playwright-cli");
     expect(config.improveApplyMode).toBe("review");
+    expect(config.improveApplyAssertions).toBe(true);
     expect(config.improveAssertions).toBe("candidates");
     expect(config.llm).toEqual({
       enabled: true,
@@ -179,6 +181,7 @@ recordSelectorPolicy: fast
 recordBrowser: safari
 improveProvider: cli
 improveApplyMode: merge
+improveApplyAssertions: "yes"
 improveAssertions: all
 llm:
   provider: unknown

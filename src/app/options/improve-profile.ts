@@ -8,6 +8,7 @@ import { UserError } from "../../utils/errors.js";
 
 export interface ImproveProfileInput {
   apply?: boolean;
+  applyAssertions?: boolean;
   llm?: boolean;
   provider?: string;
   assertions?: string;
@@ -18,6 +19,7 @@ export interface ResolvedImproveProfile {
   provider: ImproveProvider;
   assertions: ImproveAssertionsMode;
   apply: boolean;
+  applyAssertions: boolean;
   llmEnabled: boolean;
   reportPath?: string;
   llmConfig: OllamaConfig;
@@ -31,6 +33,7 @@ export function resolveImproveProfile(
     provider: parseImproveProvider(input.provider) ?? config.improveProvider ?? "auto",
     assertions: parseImproveAssertions(input.assertions) ?? config.improveAssertions ?? "candidates",
     apply: input.apply ?? (config.improveApplyMode ? config.improveApplyMode === "apply" : false),
+    applyAssertions: input.applyAssertions ?? config.improveApplyAssertions ?? false,
     llmEnabled: input.llm ?? config.llm?.enabled ?? false,
     reportPath: input.report,
     llmConfig: {

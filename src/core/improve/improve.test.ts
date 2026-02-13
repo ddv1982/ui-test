@@ -34,6 +34,7 @@ describe("improveTestFile", () => {
     const result = await improveTestFile({
       testFile: yamlPath,
       apply: false,
+      applyAssertions: false,
       provider: "playwright",
       assertions: "none",
       llmEnabled: false,
@@ -68,6 +69,7 @@ describe("improveTestFile", () => {
     const run = improveTestFile({
       testFile: yamlPath,
       apply: true,
+      applyAssertions: false,
       provider: "playwright",
       assertions: "none",
       llmEnabled: false,
@@ -81,6 +83,70 @@ describe("improveTestFile", () => {
     });
 
     await expect(run).rejects.toBeInstanceOf(UserError);
-    await expect(run).rejects.toThrow("Cannot apply selector improvements without runtime validation");
+    await expect(run).rejects.toThrow("Cannot apply improve changes without runtime validation");
+  });
+
+  it("fails fast in apply-assertions mode when runtime validation is unavailable", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      `name: sample\nsteps:\n  - action: navigate\n    url: https://example.com\n  - action: click\n    target:\n      value: "#submit"\n      kind: css\n      source: manual\n`,
+      "utf-8"
+    );
+
+    const run = improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: true,
+      provider: "playwright",
+      assertions: "candidates",
+      llmEnabled: false,
+      llmConfig: {
+        baseUrl: "http://127.0.0.1:11434",
+        model: "gemma3:4b",
+        timeoutMs: 1000,
+        temperature: 0,
+        maxOutputTokens: 100,
+      },
+    });
+
+    await expect(run).rejects.toBeInstanceOf(UserError);
+    await expect(run).rejects.toThrow("Cannot apply improve changes without runtime validation");
+  });
+
+  it("rejects apply-assertions when assertions mode is none", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      `name: sample\nsteps:\n  - action: navigate\n    url: https://example.com\n  - action: click\n    target:\n      value: "#submit"\n      kind: css\n      source: manual\n`,
+      "utf-8"
+    );
+
+    const run = improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: true,
+      provider: "playwright",
+      assertions: "none",
+      llmEnabled: false,
+      llmConfig: {
+        baseUrl: "http://127.0.0.1:11434",
+        model: "gemma3:4b",
+        timeoutMs: 1000,
+        temperature: 0,
+        maxOutputTokens: 100,
+      },
+    });
+
+    await expect(run).rejects.toBeInstanceOf(UserError);
+    await expect(run).rejects.toThrow(
+      "Cannot apply assertion candidates when assertions mode is disabled"
+    );
   });
 });

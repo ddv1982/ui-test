@@ -15,11 +15,12 @@ export function formatRecordingProfileSummary(profile: {
 export function formatImproveProfileSummary(profile: {
   provider: string;
   apply: boolean;
+  applyAssertions: boolean;
   assertions: string;
   llmEnabled: boolean;
   llmModel: string;
 }): string {
-  return `Improve profile: provider=${profile.provider}, apply=${profile.apply ? "yes" : "no"}, assertions=${profile.assertions}, llm=${profile.llmEnabled ? profile.llmModel : "disabled"}`;
+  return `Improve profile: provider=${profile.provider}, apply=${profile.apply ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, llm=${profile.llmEnabled ? profile.llmModel : "disabled"}`;
 }
 
 export function formatPlayProfileSummary(profile: {

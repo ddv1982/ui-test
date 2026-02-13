@@ -70,7 +70,17 @@ UI_TEST_DISABLE_JSONL=1 npx ui-test record
 
 If you see runtime validation errors:
 - install Chromium (`npx playwright install chromium`)
-- run without `--apply` for report-only mode
+- run without `--apply` or `--apply-assertions` for report-only mode
+
+## Assertions Not Inserted by `improve`
+
+If assertions were listed as candidates but not written to YAML:
+1. Ensure you used `--apply-assertions`.
+2. Keep `--assertions candidates` (not `--assertions none`).
+3. Check report `assertionCandidates[].applyStatus` for skip reasons.
+4. Re-run in a stable test environment so runtime validation can pass.
+
+LLM is optional for assertion insertion. Deterministic assertion apply works with `--no-llm`.
 
 ## Local LLM Issues
 

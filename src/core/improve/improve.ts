@@ -5,6 +5,11 @@ import { stepsToYaml, yamlToTest } from "../transformer.js";
 import { testSchema, type Step, type Target } from "../yaml-schema.js";
 import { UserError, ValidationError } from "../../utils/errors.js";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
+import {
+  insertAppliedAssertions,
+  selectCandidatesForApply,
+  validateCandidatesAgainstRuntime,
+} from "./assertion-apply.js";
 import { generateTargetCandidates } from "./candidate-generator.js";
 import { scoreTargetCandidates, shouldAdoptCandidate } from "./candidate-scorer.js";
 import type { OllamaConfig } from "./llm/ollama-client.js";
@@ -25,6 +30,7 @@ export type ImproveAssertionsMode = "none" | "candidates";
 export interface ImproveOptions {
   testFile: string;
   apply: boolean;
+  applyAssertions: boolean;
   provider: ImproveProvider;
   assertions: ImproveAssertionsMode;
   llmEnabled: boolean;
@@ -40,6 +46,7 @@ export interface ImproveResult {
 
 const DEFAULT_RUNTIME_TIMEOUT_MS = 3_000;
 const DEFAULT_SCORING_TIMEOUT_MS = 1_200;
+const ASSERTION_APPLY_MIN_CONFIDENCE = 0.75;
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
   const absoluteTestPath = path.resolve(options.testFile);
@@ -54,6 +61,14 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
   const test = parsedTest.data;
   const diagnostics: ImproveDiagnostic[] = [];
+  if (options.applyAssertions && options.assertions === "none") {
+    throw new UserError(
+      "Cannot apply assertion candidates when assertions mode is disabled.",
+      "Use --assertions candidates with --apply-assertions, or remove --apply-assertions."
+    );
+  }
+
+  const wantsWrite = options.apply || options.applyAssertions;
   const initialUrl = inferInitialUrl(test.steps, test.baseUrl);
   const providerResult = await selectImproveProvider(options.provider, initialUrl);
   diagnostics.push(...providerResult.diagnostics);
@@ -70,15 +85,15 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       level: "warn",
       message: `Browser runtime analysis unavailable. Falling back to static scoring. ${launchMessage}`,
     });
-    if (options.apply) {
+    if (wantsWrite) {
       throw new UserError(
-        "Cannot apply selector improvements without runtime validation.",
-        "Install and configure Chromium (for example: npx playwright install chromium), or run improve without --apply."
+        "Cannot apply improve changes without runtime validation.",
+        "Install and configure Chromium (for example: npx playwright install chromium), or run improve without --apply/--apply-assertions."
       );
     }
   }
 
-  const outputSteps: Step[] = [...test.steps];
+  let outputSteps: Step[] = [...test.steps];
   const findings: StepFinding[] = [];
   let llmUsed = false;
 
@@ -156,8 +171,90 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       }
     }
 
-    const assertionCandidates =
+    const rawAssertionCandidates =
       options.assertions === "candidates" ? buildAssertionCandidates(outputSteps, findings) : [];
+    let assertionCandidates = rawAssertionCandidates.map((candidate) => ({
+      ...candidate,
+      applyStatus: "not_requested" as const,
+    }));
+    let appliedAssertions = 0;
+    let skippedAssertions = 0;
+
+    if (options.applyAssertions && page) {
+      const selection = selectCandidatesForApply(rawAssertionCandidates, ASSERTION_APPLY_MIN_CONFIDENCE);
+      const outcomes = await validateCandidatesAgainstRuntime(page, outputSteps, selection.selected, {
+        timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
+        baseUrl: test.baseUrl,
+      });
+      const outcomeByCandidate = new Map<
+        number,
+        {
+          applyStatus:
+            | "applied"
+            | "skipped_low_confidence"
+            | "skipped_runtime_failure"
+            | "skipped_existing";
+          applyMessage?: string;
+        }
+      >();
+
+      for (const outcome of selection.skippedLowConfidence) {
+        outcomeByCandidate.set(outcome.candidateIndex, {
+          applyStatus: outcome.applyStatus,
+          applyMessage: outcome.applyMessage,
+        });
+        skippedAssertions += 1;
+      }
+
+      for (const outcome of outcomes) {
+        outcomeByCandidate.set(outcome.candidateIndex, {
+          applyStatus: outcome.applyStatus,
+          applyMessage: outcome.applyMessage,
+        });
+        if (outcome.applyStatus === "applied") {
+          appliedAssertions += 1;
+          continue;
+        }
+
+        skippedAssertions += 1;
+        if (outcome.applyStatus === "skipped_runtime_failure") {
+          diagnostics.push({
+            code: "assertion_apply_runtime_failure",
+            level: "warn",
+            message: `Assertion candidate ${outcome.candidateIndex + 1} skipped: ${outcome.applyMessage ?? "runtime validation failed"}`,
+          });
+        }
+      }
+
+      const appliedInsertions = outcomes
+        .filter((outcome) => outcome.applyStatus === "applied")
+        .map((outcome) => {
+          const candidate = rawAssertionCandidates[outcome.candidateIndex];
+          if (!candidate) {
+            throw new UserError("Assertion candidate index was out of range during apply.");
+          }
+          return {
+            sourceIndex: candidate.index,
+            assertionStep: candidate.candidate,
+          };
+        });
+
+      outputSteps = insertAppliedAssertions(outputSteps, appliedInsertions);
+      assertionCandidates = rawAssertionCandidates.map((candidate, candidateIndex) => {
+        const outcome = outcomeByCandidate.get(candidateIndex);
+        if (!outcome) {
+          return {
+            ...candidate,
+            applyStatus: "not_requested" as const,
+          };
+        }
+        return {
+          ...candidate,
+          applyStatus: outcome.applyStatus,
+          ...(outcome.applyMessage ? { applyMessage: outcome.applyMessage } : {}),
+        };
+      });
+    }
 
     const report: ImproveReport = {
       testFile: absoluteTestPath,
@@ -170,6 +267,8 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         fallback: findings.filter((item) => isFallbackTarget(item.recommendedTarget)).length,
         warnings: diagnostics.filter((item) => item.level !== "info").length,
         assertionCandidates: assertionCandidates.length,
+        appliedAssertions,
+        skippedAssertions,
       },
       stepFindings: findings,
       assertionCandidates,
@@ -185,7 +284,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     await fs.writeFile(reportPath, JSON.stringify(validatedReport, null, 2), "utf-8");
 
     let outputPath: string | undefined;
-    if (options.apply) {
+    if (wantsWrite) {
       const yamlOut = stepsToYaml(test.name, outputSteps, {
         description: test.description,
         baseUrl: test.baseUrl,

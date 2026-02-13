@@ -25,12 +25,14 @@ describe("profile summary formatting", () => {
     const out = formatImproveProfileSummary({
       provider: "auto",
       apply: false,
+      applyAssertions: true,
       assertions: "candidates",
       llmEnabled: false,
       llmModel: "gemma3:4b",
     });
 
     expect(out).toContain("provider=auto");
+    expect(out).toContain("applyAssertions=yes");
     expect(out).toContain("llm=disabled");
   });
 

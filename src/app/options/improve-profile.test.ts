@@ -11,6 +11,7 @@ describe("resolveImproveProfile", () => {
     const out = resolveImproveProfile(
       {
         apply: false,
+        applyAssertions: true,
         llm: false,
         provider: "playwright-cli",
         assertions: "none",
@@ -19,6 +20,7 @@ describe("resolveImproveProfile", () => {
       {
         improveProvider: "auto",
         improveApplyMode: "apply",
+        improveApplyAssertions: false,
         improveAssertions: "candidates",
         llm: {
           enabled: true,
@@ -30,6 +32,7 @@ describe("resolveImproveProfile", () => {
     expect(out.provider).toBe("playwright-cli");
     expect(out.assertions).toBe("none");
     expect(out.apply).toBe(false);
+    expect(out.applyAssertions).toBe(true);
     expect(out.llmEnabled).toBe(false);
     expect(out.reportPath).toBe("out.json");
   });
@@ -39,6 +42,7 @@ describe("resolveImproveProfile", () => {
     expect(out.provider).toBe("auto");
     expect(out.assertions).toBe("candidates");
     expect(out.apply).toBe(false);
+    expect(out.applyAssertions).toBe(false);
     expect(out.llmEnabled).toBe(false);
     expect(out.llmConfig.model).toBe("gemma3:4b");
   });

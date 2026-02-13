@@ -16,6 +16,8 @@ export function registerImprove(program: Command) {
     .argument("<test-file>", "Path to the YAML test file to analyze")
     .option("--apply", "Apply approved selector improvements to the YAML file")
     .option("--no-apply", "Force review mode and do not write YAML changes")
+    .option("--apply-assertions", "Apply high-confidence assertion candidates to the YAML file")
+    .option("--no-apply-assertions", "Do not apply assertion candidates for this run")
     .option("--llm", "Enable local LLM ranking (Ollama)")
     .option("--no-llm", "Disable local LLM ranking for this run")
     .option("--provider <provider>", "Context provider: auto, playwright, playwright-cli")
@@ -34,6 +36,7 @@ async function runImprove(
   testFile: string,
   opts: {
     apply?: boolean;
+    applyAssertions?: boolean;
     llm?: boolean;
     provider?: string;
     assertions?: string;
@@ -47,6 +50,7 @@ async function runImprove(
     formatImproveProfileSummary({
       provider: profile.provider,
       apply: profile.apply,
+      applyAssertions: profile.applyAssertions,
       assertions: profile.assertions,
       llmEnabled: profile.llmEnabled,
       llmModel: profile.llmConfig.model,
@@ -56,6 +60,7 @@ async function runImprove(
   const result = await improveTestFile({
     testFile,
     apply: profile.apply,
+    applyAssertions: profile.applyAssertions,
     provider: profile.provider,
     assertions: profile.assertions,
     llmEnabled: profile.llmEnabled,
@@ -69,12 +74,15 @@ async function runImprove(
   }
 
   ui.info(
-    `Summary: improved=${result.report.summary.improved}, unchanged=${result.report.summary.unchanged}, fallback=${result.report.summary.fallback}, warnings=${result.report.summary.warnings}, assertionCandidates=${result.report.summary.assertionCandidates}`
+    `Summary: improved=${result.report.summary.improved}, unchanged=${result.report.summary.unchanged}, fallback=${result.report.summary.fallback}, warnings=${result.report.summary.warnings}, assertionCandidates=${result.report.summary.assertionCandidates}, appliedAssertions=${result.report.summary.appliedAssertions}, skippedAssertions=${result.report.summary.skippedAssertions}`
   );
 
   ui.step(`Review report: ${result.reportPath}`);
   if (!result.outputPath) {
     ui.step(`Apply approved changes: npx ui-test improve ${path.resolve(testFile)} --apply`);
+  }
+  if (!profile.applyAssertions && profile.assertions === "candidates") {
+    ui.step(`Apply assertion candidates: npx ui-test improve ${path.resolve(testFile)} --apply-assertions`);
   }
   if (!profile.llmEnabled) {
     ui.step(`Enable local LLM ranking: npx ui-test improve ${path.resolve(testFile)} --llm`);

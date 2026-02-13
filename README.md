@@ -75,6 +75,7 @@ See: [Record Workflow](docs/workflows/record.md)
 ```bash
 npx ui-test improve e2e/login.yaml
 npx ui-test improve e2e/login.yaml --apply
+npx ui-test improve e2e/login.yaml --apply-assertions
 ```
 
 Optional local LLM ranking (Ollama):
@@ -151,6 +152,7 @@ recordSelectorPolicy: reliable
 recordBrowser: chromium
 improveProvider: auto
 improveApplyMode: review
+improveApplyAssertions: false
 improveAssertions: candidates
 llm:
   enabled: false
@@ -189,8 +191,9 @@ When a run fails, CLI output includes:
 ### Improve
 - Default mode is review-first: writes report only.
 - `--apply` writes recommended selector updates.
+- `--apply-assertions` writes high-confidence, runtime-validated assertion candidates.
 - Runtime validation is required for apply mode.
-- Optional Ollama ranking is best-effort; deterministic scoring remains fallback.
+- Optional Ollama ranking is best-effort; deterministic scoring/apply remain available with `--no-llm`.
 
 ## Quick Troubleshooting
 
