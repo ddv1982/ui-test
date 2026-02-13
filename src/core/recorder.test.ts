@@ -12,7 +12,12 @@ vi.mock("node:child_process", () => ({
 }));
 
 import { spawn } from "node:child_process";
-import { record, resolvePlaywrightCliPath, runCodegen } from "./recorder.js";
+import {
+  detectJsonlCapability,
+  record,
+  resolvePlaywrightCliPath,
+  runCodegen,
+} from "./recorder.js";
 
 function createMockChildProcess() {
   return new EventEmitter() as ChildProcess;
@@ -68,6 +73,7 @@ describe("resolvePlaywrightCliPath", () => {
 describe("record", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    delete process.env.UI_TEST_DISABLE_JSONL;
   });
 
   it("recovers and saves JSONL steps even when jsonl codegen exits via signal", async () => {
@@ -211,5 +217,85 @@ describe("record", () => {
     await expect(run).rejects.toThrow("No interactions were recorded");
 
     await fs.rm(outputDir, { recursive: true, force: true });
+  });
+
+  it("uses fallback directly when JSONL is disabled by environment", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(717171);
+    process.env.UI_TEST_DISABLE_JSONL = "1";
+
+    const fallbackChild = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValueOnce(fallbackChild);
+
+    const fallbackCodePath = path.join(
+      os.tmpdir(),
+      "ui-test-recording-fallback-717171.spec.ts"
+    );
+    await fs.writeFile(
+      fallbackCodePath,
+      [
+        "import { test } from '@playwright/test';",
+        "test('x', async ({ page }) => {",
+        "  await page.getByRole('button', { name: 'Save' }).click();",
+        "});",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
+    const run = record({
+      name: "JSONL Disabled Recording",
+      url: "http://127.0.0.1:5173",
+      outputDir,
+    });
+
+    await vi.waitFor(() => {
+      expect(spawn).toHaveBeenCalledTimes(1);
+    });
+    fallbackChild.emit("close", 0, null);
+
+    const result = await run;
+    expect(result.recordingMode).toBe("fallback");
+    expect(spawn).toHaveBeenCalledTimes(1);
+
+    await fs.rm(outputDir, { recursive: true, force: true });
+  });
+});
+
+describe("detectJsonlCapability", () => {
+  it("returns unknown for npx entrypoint", async () => {
+    await expect(detectJsonlCapability("npx")).resolves.toBe("unknown");
+  });
+
+  it("detects supported when playwright-core jsonl generator exists", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-capability-"));
+    const cliPath = path.join(root, "node_modules", "playwright", "cli.js");
+    const jsonlPath = path.join(
+      root,
+      "node_modules",
+      "playwright-core",
+      "lib",
+      "server",
+      "codegen",
+      "jsonl.js"
+    );
+    await fs.mkdir(path.dirname(cliPath), { recursive: true });
+    await fs.mkdir(path.dirname(jsonlPath), { recursive: true });
+    await fs.writeFile(cliPath, "", "utf-8");
+    await fs.writeFile(jsonlPath, "", "utf-8");
+
+    await expect(detectJsonlCapability(cliPath)).resolves.toBe("supported");
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("detects unsupported when jsonl generator is missing", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-capability-"));
+    const cliPath = path.join(root, "node_modules", "playwright", "cli.js");
+    await fs.mkdir(path.dirname(cliPath), { recursive: true });
+    await fs.writeFile(cliPath, "", "utf-8");
+
+    await expect(detectJsonlCapability(cliPath)).resolves.toBe("unsupported");
+
+    await fs.rm(root, { recursive: true, force: true });
   });
 });

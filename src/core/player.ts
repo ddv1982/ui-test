@@ -1,6 +1,13 @@
 import fs from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
-import { chromium, errors as playwrightErrors, type Browser, type Page } from "playwright";
+import {
+  chromium,
+  errors as playwrightErrors,
+  type Browser,
+  type FrameLocator,
+  type Locator,
+  type Page,
+} from "playwright";
 import { testSchema, type Step, type Target } from "./yaml-schema.js";
 import { yamlToTest } from "./transformer.js";
 import { ValidationError, UserError } from "../utils/errors.js";
@@ -287,17 +294,18 @@ function isPlaywrightTimeoutError(err: unknown): boolean {
 }
 
 type TargetStep = Exclude<Step, { action: "navigate" }>;
+type LocatorContext = Page | FrameLocator;
 
 function resolveLocator(
   page: Page,
   targetOrStep: Target | TargetStep
-): any {
+): Locator {
   const target = "action" in targetOrStep ? targetOrStep.target : targetOrStep;
   const context = resolveLocatorContext(page, target.framePath);
 
   if (target.kind === "locatorExpression") {
-    const resolved = evaluateLocatorExpression(context as any, target.value);
-    if (!resolved || typeof resolved !== "object") {
+    const resolved = evaluateLocatorExpression(context, target.value);
+    if (!isPlaywrightLocator(resolved)) {
       throw new UserError(
         `Locator expression did not resolve to a locator: ${target.value}`,
         "Ensure the expression returns a Playwright locator chain."
@@ -309,8 +317,8 @@ function resolveLocator(
   return context.locator(target.value);
 }
 
-function resolveLocatorContext(page: Page, framePath?: string[]): any {
-  let context: any = page;
+function resolveLocatorContext(page: Page, framePath?: string[]): LocatorContext {
+  let context: LocatorContext = page;
   if (!framePath || framePath.length === 0) return context;
 
   for (const frameSelector of framePath) {
@@ -319,6 +327,16 @@ function resolveLocatorContext(page: Page, framePath?: string[]): any {
   }
 
   return context;
+}
+
+function isPlaywrightLocator(value: unknown): value is Locator {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Locator>;
+  return (
+    typeof candidate.locator === "function" &&
+    typeof candidate.click === "function" &&
+    typeof candidate.waitFor === "function"
+  );
 }
 
 function resolveNavigateUrl(
@@ -373,4 +391,5 @@ export {
   stepDescription,
   waitForPostStepNetworkIdle,
   isPlaywrightTimeoutError,
+  isPlaywrightLocator,
 };

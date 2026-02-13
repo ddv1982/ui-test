@@ -270,9 +270,21 @@ npm run check:npm-name
 
 If GitHub-hosted runners are unavailable (for example billing/spending-limit issues), set a repository or organization variable so CI runs on self-hosted runners:
 
-- `CI_RUNNER_LABELS_JSON=["self-hosted","linux"]`
+- `CI_RUNNER_MODE=self-hosted`
 
-When this variable is not set, CI defaults to `ubuntu-latest`.
+When this variable is set, CI targets strict labels:
+
+- `["self-hosted","macOS","ARM64"]`
+
+When not set (or set to anything else), CI defaults to `ubuntu-latest`.
+
+### Recorder Stability Override
+
+The recorder uses Playwright JSONL capture first when available, with fallback to `playwright-test` parsing.
+
+To force stable fallback mode (skip JSONL entirely), set:
+
+- `UI_TEST_DISABLE_JSONL=1`
 
 ### Test Coverage
 

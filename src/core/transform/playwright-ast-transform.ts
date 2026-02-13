@@ -32,6 +32,16 @@ interface AwaitExpressionNode extends AstNode {
   argument: unknown;
 }
 
+interface ArrowFunctionExpressionNode extends AstNode {
+  type: "ArrowFunctionExpression";
+  body: unknown;
+}
+
+interface FunctionExpressionNode extends AstNode {
+  type: "FunctionExpression";
+  body: unknown;
+}
+
 export function playwrightCodeToSteps(code: string): Step[] {
   let ast: unknown;
   try {
@@ -45,13 +55,63 @@ export function playwrightCodeToSteps(code: string): Step[] {
   }
 
   const steps: Step[] = [];
-  walkAst(ast, (node) => {
-    if (!isAwaitExpression(node) || !isCallExpression(node.argument)) return;
-    const step = awaitedCallToStep(node.argument, code);
-    if (step) steps.push(step);
-  });
+  const callbackBodies = collectTestCallbackBodies(ast);
+  for (const body of callbackBodies) {
+    walkAst(body, (node) => {
+      if (!isAwaitExpression(node) || !isCallExpression(node.argument)) return;
+      const step = awaitedCallToStep(node.argument, code);
+      if (step) steps.push(step);
+    });
+  }
 
   return steps;
+}
+
+function collectTestCallbackBodies(ast: unknown): unknown[] {
+  const callbackBodies: unknown[] = [];
+
+  walkAst(ast, (node) => {
+    if (!isCallExpression(node)) return;
+
+    const callback = getTestCallback(node);
+    if (!callback) return;
+    callbackBodies.push(callback.body);
+  });
+
+  if (callbackBodies.length > 0) return callbackBodies;
+  return [ast];
+}
+
+function getTestCallback(call: CallExpressionNode): ArrowFunctionExpressionNode | FunctionExpressionNode | null {
+  if (!isTestCallCallee(call.callee)) return null;
+  if (!Array.isArray(call.arguments) || call.arguments.length === 0) return null;
+
+  for (let index = call.arguments.length - 1; index >= 0; index -= 1) {
+    const arg = call.arguments[index];
+    if (isArrowFunctionExpression(arg) || isFunctionExpression(arg)) {
+      return arg;
+    }
+  }
+
+  return null;
+}
+
+function isTestCallCallee(callee: unknown): boolean {
+  if (isIdentifier(callee) && callee.name === "test") {
+    return true;
+  }
+
+  if (
+    isMemberExpression(callee) &&
+    !callee.computed &&
+    isIdentifier(callee.object) &&
+    callee.object.name === "test" &&
+    isIdentifier(callee.property)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function walkAst(node: unknown, visitor: (node: AstNode) => void): void {
@@ -283,6 +343,14 @@ function isMemberExpression(value: unknown): value is MemberExpressionNode {
 
 function isIdentifier(value: unknown): value is IdentifierNode {
   return isAstNode(value) && value.type === "Identifier" && typeof value.name === "string";
+}
+
+function isArrowFunctionExpression(value: unknown): value is ArrowFunctionExpressionNode {
+  return isAstNode(value) && value.type === "ArrowFunctionExpression";
+}
+
+function isFunctionExpression(value: unknown): value is FunctionExpressionNode {
+  return isAstNode(value) && value.type === "FunctionExpression";
 }
 
 function isMemberCall(value: unknown): value is {

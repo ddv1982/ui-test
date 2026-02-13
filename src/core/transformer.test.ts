@@ -174,6 +174,21 @@ describe("playwrightCodeToSteps", () => {
   it("returns empty list for non-parseable code", () => {
     expect(playwrightCodeToSteps("this is not js")).toEqual([]);
   });
+
+  it("ignores awaited calls outside test callback bodies", () => {
+    const code = `
+      import { test } from '@playwright/test';
+      async function helper(page) {
+        await page.goto('https://should-not-be-recorded.example');
+      }
+      test('x', async ({ page }) => {
+        await page.goto('https://example.com');
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps).toEqual([{ action: "navigate", url: "https://example.com" }]);
+  });
 });
 
 describe("yaml conversion", () => {

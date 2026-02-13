@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { errors as playwrightErrors, type Page } from "playwright";
 import {
+  isPlaywrightLocator,
   resolveLocator,
   resolveLocatorContext,
   resolveNavigateUrl,
@@ -23,6 +24,8 @@ describe("resolveLocator", () => {
     const mockLocator = {
       click: vi.fn(),
       fill: vi.fn(),
+      waitFor: vi.fn(),
+      selectOption: vi.fn(),
       filter: vi.fn(),
       first: vi.fn(),
       last: vi.fn(),
@@ -248,5 +251,21 @@ describe("isPlaywrightTimeoutError", () => {
 
   it("returns false for non-timeout errors", () => {
     expect(isPlaywrightTimeoutError(new Error("x"))).toBe(false);
+  });
+});
+
+describe("isPlaywrightLocator", () => {
+  it("returns true for locator-like objects", () => {
+    expect(
+      isPlaywrightLocator({
+        locator: () => undefined,
+        click: () => undefined,
+        waitFor: () => Promise.resolve(),
+      })
+    ).toBe(true);
+  });
+
+  it("returns false for non-locators", () => {
+    expect(isPlaywrightLocator({})).toBe(false);
   });
 });

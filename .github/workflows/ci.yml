@@ -5,11 +5,34 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  build:
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package
+        run: npm run build
+
   framework-tests:
-    # Optional fallback: set repo/org variable CI_RUNNER_LABELS_JSON to e.g.
-    # ["self-hosted","linux"] to run on self-hosted runners.
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || '["ubuntu-latest"]') }}
+    needs: build
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +52,8 @@ jobs:
         run: npm run test:framework
 
   consumer-smoke:
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || '["ubuntu-latest"]') }}
+    needs: build
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

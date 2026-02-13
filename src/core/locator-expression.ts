@@ -46,9 +46,7 @@ const CHAIN_METHODS = new Set([
 const EXPRESSION_HINT =
   "Use locator expressions like getByRole('button', { name: 'Save' }).nth(0), or plain CSS/XPath/text= selectors.";
 
-type LocatorLike = {
-  [method: string]: (...args: unknown[]) => unknown;
-};
+type LocatorLike = object;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -255,7 +253,7 @@ function callTargetMethod(
   args: unknown[],
   selector: string
 ): unknown {
-  const fn = target[method];
+  const fn = (target as Record<string, unknown>)[method];
 
   if (typeof fn !== "function") {
     throw new UserError(

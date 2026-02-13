@@ -15,6 +15,7 @@ import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";
 
 export type RecordBrowser = "chromium" | "firefox" | "webkit";
+type JsonlCapability = "supported" | "unsupported" | "unknown";
 
 export interface RecordOptions {
   name: string;
@@ -40,8 +41,16 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   const playwrightBin = await findPlaywrightCli();
   const selectorPolicy = options.selectorPolicy ?? "reliable";
   const browser = options.browser ?? "chromium";
+  const jsonlCapability = await detectJsonlCapability(playwrightBin);
+  const jsonlDisabledByEnv = process.env.UI_TEST_DISABLE_JSONL === "1";
 
-  ui.warn("Recorder uses Playwright's hidden JSONL target first; this may break across Playwright versions.");
+  if (jsonlDisabledByEnv) {
+    ui.warn("JSONL recording disabled by UI_TEST_DISABLE_JSONL=1; using playwright-test fallback mode.");
+  } else if (jsonlCapability === "unsupported") {
+    ui.warn("JSONL target internals were not detected in this Playwright install; using playwright-test fallback mode.");
+  } else {
+    ui.warn("Recorder uses Playwright's hidden JSONL target first; this may break across Playwright versions.");
+  }
   ui.info("Opening browser for recording...");
   ui.dim("Interact with the page. Close the browser when done.");
 
@@ -50,19 +59,25 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   let codegenJsonlError: Error | undefined;
   let jsonlContent = "";
 
-  try {
-    await runCodegen(playwrightBin, {
-      url: options.url,
-      outputFile: jsonlTmpFile,
-      target: "jsonl",
-      browser,
-      device: options.device,
-      testIdAttribute: options.testIdAttribute,
-      loadStorage: options.loadStorage,
-      saveStorage: options.saveStorage,
-    });
-  } catch (err) {
-    codegenJsonlError = err instanceof Error ? err : new Error(String(err));
+  if (jsonlDisabledByEnv) {
+    codegenJsonlError = new Error("JSONL recording disabled by UI_TEST_DISABLE_JSONL=1.");
+  } else if (jsonlCapability === "unsupported") {
+    codegenJsonlError = new Error("JSONL target internals not detected in installed Playwright package.");
+  } else {
+    try {
+      await runCodegen(playwrightBin, {
+        url: options.url,
+        outputFile: jsonlTmpFile,
+        target: "jsonl",
+        browser,
+        device: options.device,
+        testIdAttribute: options.testIdAttribute,
+        loadStorage: options.loadStorage,
+        saveStorage: options.saveStorage,
+      });
+    } catch (err) {
+      codegenJsonlError = err instanceof Error ? err : new Error(String(err));
+    }
   }
 
   try {
@@ -199,6 +214,25 @@ async function findPlaywrightCli(): Promise<string> {
   return "npx";
 }
 
+async function detectJsonlCapability(playwrightBin: string): Promise<JsonlCapability> {
+  if (playwrightBin === "npx") return "unknown";
+
+  const resolvedCliPath = resolvePlaywrightCliPath(playwrightBin);
+  if (!resolvedCliPath.includes("node_modules")) return "unknown";
+
+  const jsonlGeneratorPath = path.resolve(
+    path.dirname(resolvedCliPath),
+    "../playwright-core/lib/server/codegen/jsonl.js"
+  );
+
+  try {
+    await fs.access(jsonlGeneratorPath);
+    return "supported";
+  } catch {
+    return "unsupported";
+  }
+}
+
 interface CodegenRunOptions {
   url: string;
   outputFile: string;
@@ -273,4 +307,4 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export { runCodegen, resolvePlaywrightCliPath };
+export { runCodegen, resolvePlaywrightCliPath, detectJsonlCapability };
