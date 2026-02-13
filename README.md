@@ -268,15 +268,12 @@ npm run check:npm-name
 
 ### CI Runner Fallback
 
-If GitHub-hosted runners are unavailable (for example billing/spending-limit issues), set a repository or organization variable so CI runs on self-hosted runners:
+If GitHub-hosted runners are unavailable (for example billing/spending-limit issues), configure one of these repository/organization variables:
 
-- `CI_RUNNER_MODE=self-hosted`
+- `CI_RUNNER_LABELS_JSON` (preferred): JSON array of runner labels, for example `["self-hosted"]` or `["self-hosted","macOS","ARM64"]`
+- `CI_RUNNER_MODE=self-hosted` (fallback): uses strict labels `["self-hosted","macOS","ARM64"]`
 
-When this variable is set, CI targets strict labels:
-
-- `["self-hosted","macOS","ARM64"]`
-
-When not set (or set to anything else), CI defaults to `ubuntu-latest`.
+When neither variable is set, CI defaults to `ubuntu-latest`.
 
 ### Recorder Stability Override
 

@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
 
   framework-tests:
     needs: build
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
 
   consumer-smoke:
     needs: build
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
