@@ -9,18 +9,10 @@ describe("normalizeRecordUrl", () => {
     );
   });
 
-  it("requires explicit protocol for public domains", () => {
-    try {
-      normalizeRecordUrl("apps.crv4all.nl/veemanager");
-      throw new Error("expected normalizeRecordUrl to throw");
-    } catch (err) {
-      expect(err).toBeInstanceOf(UserError);
-      const userError = err as UserError;
-      expect(userError.message).toContain("Invalid starting URL");
-      expect(userError.hint).toContain(
-        "For non-local domains, include http:// or https:// explicitly"
-      );
-    }
+  it("adds https protocol when missing for public domains", () => {
+    expect(normalizeRecordUrl("apps.crv4all.nl/veemanager")).toBe(
+      "https://apps.crv4all.nl/veemanager"
+    );
   });
 
   it("adds http protocol when missing for localhost", () => {

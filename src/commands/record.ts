@@ -122,7 +122,7 @@ function looksLikeHttpSchemeTypo(value: string): boolean {
   );
 }
 
-function inferDefaultScheme(schemeLessUrl: string): "http" | null {
+function inferDefaultScheme(schemeLessUrl: string): "http" | "https" | null {
   const parsed = tryParseSchemeLessUrl(schemeLessUrl);
   if (!parsed) {
     return null;
@@ -133,7 +133,7 @@ function inferDefaultScheme(schemeLessUrl: string): "http" | null {
     return "http";
   }
 
-  return null;
+  return "https";
 }
 
 function tryParseSchemeLessUrl(value: string): URL | null {
