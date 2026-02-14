@@ -10,7 +10,7 @@ This document tracks delivery status for the Vue-first simplification effort.
 | Keep core commands (`init`, `play`, `record`, `list`) | Achieved | Command surface remains intact and focused. |
 | Keep runtime controls (`timeout`, `delay`, `headed`) | Achieved | Config + CLI flags remain supported. |
 | Support one-command example run path | Achieved | `play` auto-starts via `startCommand` when configured. |
-| Cross-platform one-command onboarding setup | Achieved | `setup` prepares config and browser install without shell-specific scripts. |
+| Cross-platform one-command onboarding setup | Achieved | `setup` plus `npm run bootstrap:*` provide shell-neutral onboarding across platforms. |
 | Simplify `play` startup logic | Achieved | Removed pre-parse multi-file URL reachability complexity. |
 | Add `--no-start` manual override | Achieved | Users can run against an already-running app. |
 | Keep safe locator-expression support | Achieved | Allowlisted locator parsing remains in place. |

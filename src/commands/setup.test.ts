@@ -21,7 +21,7 @@ vi.mock("./init.js", () => ({
 import { spawnSync } from "node:child_process";
 import { chromium } from "playwright";
 import { runInit } from "./init.js";
-import { runSetup } from "./setup.js";
+import { buildInstallFailureHint, buildLaunchFailureHint, runSetup } from "./setup.js";
 
 const mockSpawnSync = vi.mocked(spawnSync);
 const mockLaunch = vi.mocked(chromium.launch);
@@ -197,5 +197,35 @@ describe("runSetup", () => {
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("setup hints", () => {
+  it("returns Linux-specific install hint for Linux platform", () => {
+    const hint = buildInstallFailureHint("linux");
+    expect(hint).toContain("npx playwright install chromium");
+    expect(hint).toContain("npx playwright install-deps chromium");
+  });
+
+  it("returns generic install hint for non-Linux platforms", () => {
+    const hint = buildInstallFailureHint("win32");
+    expect(hint).toContain("npx playwright install chromium");
+    expect(hint).not.toContain("install-deps");
+  });
+
+  it("returns Linux dependency hint when launch error occurs on Linux", () => {
+    const hint = buildLaunchFailureHint(
+      "Host system is missing dependencies to run browsers.",
+      "linux"
+    );
+    expect(hint).toContain("Linux dependencies may be missing");
+  });
+
+  it("returns conditional Linux guidance for dependency-like error on non-Linux", () => {
+    const hint = buildLaunchFailureHint(
+      "Host system is missing dependencies to run browsers.",
+      "darwin"
+    );
+    expect(hint).toContain("If you are on Linux");
   });
 });

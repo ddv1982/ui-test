@@ -100,7 +100,7 @@ function runInstallStep(name: string, command: string, args: string[]): void {
   if (result.status !== 0) {
     throw new UserError(
       `${name} failed.`,
-      "Check internet/proxy settings and retry. Manual command: npx playwright install chromium"
+      buildInstallFailureHint()
     );
   }
 }
@@ -119,9 +119,30 @@ async function verifyChromiumLaunch(): Promise<void> {
   }
 }
 
-function buildLaunchFailureHint(message: string): string {
-  if (isLikelyMissingLinuxDeps(message)) {
+function buildInstallFailureHint(platform: NodeJS.Platform = process.platform): string {
+  if (platform === "linux") {
+    return (
+      "Check internet/proxy settings and retry. Manual command: npx playwright install chromium. " +
+      "If launch still fails on Linux, run: npx playwright install-deps chromium"
+    );
+  }
+
+  return "Check internet/proxy settings and retry. Manual command: npx playwright install chromium";
+}
+
+function buildLaunchFailureHint(
+  message: string,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (platform === "linux" && isLikelyMissingLinuxDeps(message)) {
     return "Linux dependencies may be missing. Run: npx playwright install-deps chromium";
+  }
+
+  if (isLikelyMissingLinuxDeps(message)) {
+    return (
+      "Playwright reported missing system dependencies. " +
+      "If you are on Linux, run: npx playwright install-deps chromium"
+    );
   }
 
   return "Re-run setup, then try: npx playwright install chromium";
@@ -139,7 +160,13 @@ function isLikelyMissingLinuxDeps(message: string): boolean {
   );
 }
 
-export { runSetup, buildLaunchFailureHint, isLikelyMissingLinuxDeps, findExistingConfigPath };
+export {
+  runSetup,
+  buildInstallFailureHint,
+  buildLaunchFailureHint,
+  isLikelyMissingLinuxDeps,
+  findExistingConfigPath,
+};
 
 function parseSetupOptions(value: unknown): SetupOptions {
   if (!value || typeof value !== "object") return {};

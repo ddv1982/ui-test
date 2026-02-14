@@ -8,15 +8,23 @@ Note: `ui-test` uses the V2 `target` selector contract. Legacy `selector:` field
 ## 5-Minute Quickstart
 
 ```bash
-npm install --save-dev .
-npx ui-test setup
-npx ui-test play
+npm run bootstrap:quickstart
 ```
 
 What this does:
-1. Creates `ui-test.config.yaml` and a sample test in `e2e/` (if missing).
-2. Installs Chromium for Playwright.
-3. Verifies Chromium can launch.
+1. Installs dependencies (`npm ci` when lockfile exists, otherwise `npm install`).
+2. Installs/verifies Playwright-CLI pinned to the installed Playwright version.
+3. Creates `ui-test.config.yaml` and a sample test in `e2e/` (if missing).
+4. Installs Chromium for Playwright and verifies Chromium can launch.
+5. Runs `npx ui-test play`.
+
+If you are consuming `ui-test` from npm in another project:
+
+```bash
+npm install --save-dev ui-test
+npx ui-test setup
+npx ui-test play
+```
 
 ## Choose Your Path
 
@@ -25,7 +33,7 @@ What this does:
 Use defaults and run:
 
 ```bash
-npx ui-test setup
+npm run bootstrap:setup
 npx ui-test play
 ```
 
@@ -192,6 +200,9 @@ When a run fails, CLI output includes:
 - `--assertion-apply-policy reliable|aggressive` controls whether snapshot-derived `assertVisible` stays report-only (`reliable`) or becomes auto-eligible after runtime validation (`aggressive`).
 - By default (`--assertion-source snapshot-native`), assertions are generated from page state changes captured via native aria snapshots during the already-running replay — no external tool needed.
 - `--assertion-source snapshot-cli` enables external Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
+- Playwright-CLI is not required for default improve mode. It is only used when `--assertion-source snapshot-cli` is selected.
+- `npm run bootstrap` and `npm run bootstrap:quickstart` install/verify Playwright-CLI automatically.
+- Manual Playwright-CLI install/verify command: `npx -y @playwright/cli@<playwright-version> --help`
 - Snapshot-derived `assertVisible` candidates are report-only in apply mode (`skipped_policy`) and are never auto-inserted.
 - Snapshot-derived `assertText` candidates can still be auto-inserted after runtime validation.
 - If a snapshot source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.

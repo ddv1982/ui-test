@@ -9,11 +9,27 @@ This guide is for first-time `ui-test` users.
 
 ## Install
 
+If you are working in this repository:
+
 ```bash
-npm install --save-dev .
+npm run bootstrap
+```
+
+If you are adding `ui-test` to another project:
+
+```bash
+npm install --save-dev ui-test
 ```
 
 ## Setup
+
+Repository checkout:
+
+```bash
+npm run bootstrap:setup
+```
+
+Npm consumer project:
 
 ```bash
 npx ui-test setup
@@ -58,6 +74,14 @@ Init modes:
 - Custom app with start command
 
 ## Typical First Session
+
+Repository checkout:
+
+```bash
+npm run bootstrap:quickstart
+```
+
+Npm consumer project:
 
 ```bash
 npx ui-test setup

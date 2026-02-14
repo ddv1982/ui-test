@@ -1,5 +1,24 @@
 # Troubleshooting
 
+## Bootstrap Script Issues
+
+### `npm run bootstrap` or `npm run bootstrap:quickstart` fails
+
+1. Verify Node.js version (`node -v`) is 18 or newer.
+2. Verify npm and npx are available in PATH (`npm -v`, `npx -v`).
+3. Re-run with explicit steps:
+
+```bash
+npm run bootstrap
+npm run bootstrap:setup
+```
+
+If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and setup continues. `playwright-cli` is only required for:
+
+```bash
+npx ui-test improve <file> --assertion-source snapshot-cli
+```
+
 ## Browser Installation Issues
 
 ### Chromium executable missing
@@ -12,7 +31,7 @@ npx playwright install chromium
 
 ### Linux shared dependencies missing
 
-Run:
+On Linux, run:
 
 ```bash
 npx playwright install-deps chromium
