@@ -7,9 +7,10 @@ import {
   collectRuntimeInfo,
   getCliVersion,
   isPathInside,
+  isProjectLocalUiTestInvocation,
   resolveLocalUiTestPackageRoot,
-  resolveWorkspaceRoot,
   resolveInvocationPath,
+  resolveWorkspaceRoot,
 } from "./runtime-info.js";
 
 describe("runtime-info", () => {
@@ -137,5 +138,23 @@ describe("runtime-info", () => {
     expect(resolveLocalUiTestPackageRoot(appDir)).toBeUndefined();
     expect(info.localPackageRoot).toBeUndefined();
     expect(info.localPackageVersion).toBeUndefined();
+  });
+
+  it("detects invocation from project-local node_modules/ui-test", () => {
+    const cwd = "/repo/project";
+    const invocation = "/repo/project/node_modules/ui-test/dist/bin/ui-test.js";
+    expect(isProjectLocalUiTestInvocation(cwd, invocation)).toBe(true);
+  });
+
+  it("does not classify global installation path as project-local", () => {
+    const cwd = "/repo/project";
+    const invocation = "/usr/local/lib/node_modules/ui-test/dist/bin/ui-test.js";
+    expect(isProjectLocalUiTestInvocation(cwd, invocation)).toBe(false);
+  });
+
+  it("does not classify npx cache path as project-local", () => {
+    const cwd = "/repo/project";
+    const invocation = "/tmp/_npx/abcd/node_modules/ui-test/dist/bin/ui-test.js";
+    expect(isProjectLocalUiTestInvocation(cwd, invocation)).toBe(false);
   });
 });

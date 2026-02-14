@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { handleError } from "./utils/errors.js";
 import { registerInit } from "./commands/init.js";
 import { registerRecord } from "./commands/record.js";
 import { registerPlay } from "./commands/play.js";
@@ -9,9 +8,26 @@ import { registerSetup } from "./commands/setup.js";
 import { registerImprove } from "./commands/improve.js";
 import { registerDoctor } from "./commands/doctor.js";
 import { registerBootstrap } from "./commands/bootstrap.js";
-import { getCliVersion } from "./utils/runtime-info.js";
+import { UserError, handleError } from "./utils/errors.js";
+import { getCliVersion, isProjectLocalUiTestInvocation } from "./utils/runtime-info.js";
+
+const STANDALONE_POLICY_HINT = [
+  "Run ui-test in standalone mode instead:",
+  "  npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart",
+  "  npm i -g ui-test",
+  "  ui-test bootstrap quickstart",
+].join("\n");
 
 export function run() {
+  if (isProjectLocalUiTestInvocation(process.cwd(), process.argv[1])) {
+    handleError(
+      new UserError(
+        "Project-local ui-test installs are not supported.",
+        STANDALONE_POLICY_HINT
+      )
+    );
+  }
+
   const program = new Command();
 
   program

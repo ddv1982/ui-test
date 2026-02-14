@@ -119,6 +119,36 @@ export function resolveLocalUiTestPackageRoot(cwd: string): string | undefined {
   return packageJsonPath ? path.dirname(packageJsonPath) : undefined;
 }
 
+export function isProjectLocalUiTestInvocation(
+  cwd = process.cwd(),
+  argv1 = process.argv[1]
+): boolean {
+  const resolvedCwd = path.resolve(cwd);
+  const resolvedInvocationPath = resolveInvocationPath(argv1, resolvedCwd);
+  if (!resolvedInvocationPath) return false;
+
+  const candidatePaths = new Set([resolvedInvocationPath]);
+  try {
+    candidatePaths.add(path.resolve(fs.realpathSync.native(resolvedInvocationPath)));
+  } catch {
+    // Ignore missing/broken symlink resolution; plain resolved path check still applies.
+  }
+
+  let current = resolvedCwd;
+  while (true) {
+    const localUiTestRoot = path.join(current, "node_modules", "ui-test");
+    for (const candidate of candidatePaths) {
+      if (isPathInside(candidate, localUiTestRoot)) return true;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  return false;
+}
+
 export function isPathInside(targetPath: string, parentPath: string): boolean {
   const relative = path.relative(parentPath, targetPath);
   if (relative === "") return true;

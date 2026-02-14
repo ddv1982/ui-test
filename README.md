@@ -13,11 +13,11 @@ Note: `ui-test` uses the V2 `target` selector contract. Legacy `selector:` field
 npm run bootstrap:quickstart
 ```
 
-### 2) Using the published npm package in your app
+### 2) Global install (standalone)
 
 ```bash
-npm install --save-dev ui-test
-npx ui-test bootstrap quickstart
+npm i -g ui-test
+ui-test bootstrap quickstart
 ```
 
 ### 3) Run directly from GitHub (no checkout, one-off)
@@ -26,12 +26,7 @@ npx ui-test bootstrap quickstart
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
-### 4) Install from GitHub as a dependency (persist in package.json)
-
-```bash
-npm install --save-dev github:ddv1982/easy-e2e-testing
-npx ui-test bootstrap quickstart
-```
+Project dependency installs are intentionally unsupported.
 
 ## What `bootstrap quickstart` Does
 

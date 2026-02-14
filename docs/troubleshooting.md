@@ -13,7 +13,7 @@
 npm run bootstrap
 npm run bootstrap:setup
 
-# npm/github package consumer
+# standalone CLI (global install or npx package execution)
 npx ui-test bootstrap install
 npx ui-test bootstrap setup
 ```
@@ -23,6 +23,9 @@ If you are running directly from GitHub without installing:
 ```bash
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
+
+If you see `Standalone install policy: project-local installs are not supported`, remove any
+`ui-test` dependency entry from the project and use one-off (`npx -y github:...`) or global install (`npm i -g ui-test`) instead.
 
 If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and setup continues. `playwright-cli` is only required for:
 

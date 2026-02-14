@@ -8,6 +8,7 @@
   },
   "files": [
     "dist",
+    "scripts/enforce-standalone-install.mjs",
     "examples/vue-app",
     "README.md",
     "LICENSE",
@@ -17,6 +18,7 @@
     "bootstrap": "node ./scripts/bootstrap.mjs install",
     "bootstrap:setup": "node ./scripts/bootstrap.mjs setup",
     "bootstrap:quickstart": "node ./scripts/bootstrap.mjs quickstart --run-play",
+    "preinstall": "node ./scripts/enforce-standalone-install.mjs",
     "build": "node ./scripts/clean-dist.mjs && tsc -p tsconfig.build.json && node ./scripts/fix-bin-perms.mjs",
     "help": "node ./scripts/help.mjs",
     "prepare": "npm run build",

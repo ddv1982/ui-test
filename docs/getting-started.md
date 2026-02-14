@@ -15,11 +15,11 @@ This guide is for first-time `ui-test` users.
 npm run bootstrap:quickstart
 ```
 
-### npm package consumer
+### Global install (standalone)
 
 ```bash
-npm install --save-dev ui-test
-npx ui-test bootstrap quickstart
+npm i -g ui-test
+ui-test bootstrap quickstart
 ```
 
 ### GitHub one-off run (no checkout)
@@ -28,12 +28,7 @@ npx ui-test bootstrap quickstart
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
-### GitHub dependency install
-
-```bash
-npm install --save-dev github:ddv1982/easy-e2e-testing
-npx ui-test bootstrap quickstart
-```
+Project dependency installs are intentionally unsupported.
 
 ## Bootstrap Modes
 

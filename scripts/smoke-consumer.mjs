@@ -62,12 +62,22 @@ async function main() {
     tarballPath = path.join(repoRoot, String(packed[0].filename));
 
     runStep("Create temp workspace", "npm", ["init", "-y"], workspace);
-    runStep("Install packed CLI", "npm", ["install", "--save-dev", tarballPath], workspace);
-    runStep("Run ui-test setup", "npx", ["ui-test", "setup"], workspace, {
-      printStdout: false,
-      stdio: "inherit",
-    });
-    runStep("Run YAML browser test", "npx", ["ui-test", "play"], workspace);
+    runStep(
+      "Run ui-test setup",
+      "npm",
+      ["exec", "--yes", "--package", tarballPath, "ui-test", "setup"],
+      workspace,
+      {
+        printStdout: false,
+        stdio: "inherit",
+      }
+    );
+    runStep(
+      "Run YAML browser test",
+      "npm",
+      ["exec", "--yes", "--package", tarballPath, "ui-test", "play"],
+      workspace
+    );
 
     console.log("\n[smoke] Consumer smoke test passed.");
   } finally {
