@@ -8,6 +8,7 @@ import { registerExampleApp } from "./commands/example-app.js";
 import { registerSetup } from "./commands/setup.js";
 import { registerImprove } from "./commands/improve.js";
 import { registerDoctor } from "./commands/doctor.js";
+import { registerBootstrap } from "./commands/bootstrap.js";
 import { getCliVersion } from "./utils/runtime-info.js";
 
 export function run() {
@@ -23,6 +24,7 @@ export function run() {
     [
       "",
       "Examples:",
+      "  npx ui-test bootstrap quickstart",
       "  npx ui-test improve e2e/login.yaml",
       "  npx ui-test improve e2e/login.yaml --apply --apply-assertions",
       "  npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli",
@@ -34,6 +36,7 @@ export function run() {
   );
 
   registerInit(program);
+  registerBootstrap(program);
   registerSetup(program);
   registerRecord(program);
   registerPlay(program);

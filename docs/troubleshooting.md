@@ -1,16 +1,27 @@
 # Troubleshooting
 
-## Bootstrap Script Issues
+## Bootstrap Issues
 
-### `npm run bootstrap` or `npm run bootstrap:quickstart` fails
+### `ui-test bootstrap` (or repo `npm run bootstrap:*`) fails
 
 1. Verify Node.js version (`node -v`) is 18 or newer.
 2. Verify npm and npx are available in PATH (`npm -v`, `npx -v`).
-3. Re-run with explicit steps:
+3. Re-run with explicit steps for your context:
 
 ```bash
+# repo checkout
 npm run bootstrap
 npm run bootstrap:setup
+
+# npm/github package consumer
+npx ui-test bootstrap install
+npx ui-test bootstrap setup
+```
+
+If you are running directly from GitHub without installing:
+
+```bash
+npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
 If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and setup continues. `playwright-cli` is only required for:

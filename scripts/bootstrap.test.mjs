@@ -61,6 +61,15 @@ describe("bootstrap argument parsing", () => {
       setupArgs: ["--help"],
     });
   });
+
+  it("passes quickstart -- --help through to ui-test setup", () => {
+    const parsed = parseArgs(["quickstart", "--", "--help"]);
+    expect(parsed).toMatchObject({
+      mode: "quickstart",
+      showHelp: false,
+      setupArgs: ["--help"],
+    });
+  });
 });
 
 describe("bootstrap playwright-cli provisioning", () => {

@@ -84,16 +84,16 @@ function parseArgs(argv) {
     };
   }
 
-  if (rest.includes("-h") || rest.includes("--help")) {
-    return {
-      mode,
-      runPlay: false,
-      setupArgs: [],
-      showHelp: true,
-    };
-  }
-
   if (mode === "install") {
+    if (rest.includes("-h") || rest.includes("--help")) {
+      return {
+        mode,
+        runPlay: false,
+        setupArgs: [],
+        showHelp: true,
+      };
+    }
+
     if (rest.length > 0) {
       throw new Error("install mode does not accept extra arguments.");
     }
@@ -108,6 +108,15 @@ function parseArgs(argv) {
   const separatorIndex = rest.indexOf("--");
   const quickstartOptions = separatorIndex === -1 ? rest : rest.slice(0, separatorIndex);
   const setupArgs = separatorIndex === -1 ? [] : rest.slice(separatorIndex + 1);
+
+  if (quickstartOptions.includes("-h") || quickstartOptions.includes("--help")) {
+    return {
+      mode,
+      runPlay: false,
+      setupArgs: [],
+      showHelp: true,
+    };
+  }
 
   let runPlay = false;
   for (const option of quickstartOptions) {

@@ -7,45 +7,45 @@ This guide is for first-time `ui-test` users.
 - Node.js 18+
 - npm
 
-## Install
+## Pick Your Entry Path
 
-If you are working in this repository:
+### Repository checkout
 
 ```bash
-npm run bootstrap
+npm run bootstrap:quickstart
 ```
 
-If you are adding `ui-test` to another project:
+### npm package consumer
 
 ```bash
 npm install --save-dev ui-test
+npx ui-test bootstrap quickstart
 ```
 
-If you want to install from GitHub directly (no local checkout of this repo):
+### GitHub one-off run (no checkout)
+
+```bash
+npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
+```
+
+### GitHub dependency install
 
 ```bash
 npm install --save-dev github:ddv1982/easy-e2e-testing
+npx ui-test bootstrap quickstart
 ```
 
-## Setup
-
-Repository checkout:
+## Bootstrap Modes
 
 ```bash
-npm run bootstrap:setup
+npx ui-test bootstrap install
+npx ui-test bootstrap setup
+npx ui-test bootstrap quickstart
+npx ui-test bootstrap quickstart --run-play
+npx ui-test bootstrap quickstart -- --skip-browser-install
 ```
 
-Npm or GitHub consumer project:
-
-```bash
-npx ui-test setup
-```
-
-`setup` does the following:
-1. Creates `ui-test.config.yaml` if missing.
-2. Creates a sample test in your `testDir`.
-3. Installs Playwright Chromium.
-4. Verifies Chromium can launch.
+`bootstrap quickstart` handles dependency install, setup, browser provisioning, and optionally a first `play` run.
 
 ## Run Tests
 
@@ -59,45 +59,28 @@ If your app is already running and you do not want auto-start:
 npx ui-test play --no-start
 ```
 
-`play` saves failure artifacts by default under `.ui-test-artifacts/`.
-To disable this for a run:
+## Record and Replay
 
 ```bash
-npx ui-test play --no-save-failure-artifacts
-```
-
-## Initialize Manually
-
-If you want interactive initialization choices:
-
-```bash
-npx ui-test init
-```
-
-Init modes:
-- Built-in example app
-- Already-running website
-- Custom app with start command
-
-## Typical First Session
-
-Repository checkout:
-
-```bash
-npm run bootstrap:quickstart
-```
-
-Npm or GitHub consumer project:
-
-```bash
-npx ui-test setup
-npx ui-test play
 npx ui-test record
 npx ui-test play
 ```
 
+## Improve Selector Quality
+
+```bash
+npx ui-test improve e2e/login.yaml
+npx ui-test improve e2e/login.yaml --apply
+```
+
+For snapshot-cli assertions:
+
+```bash
+npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
+```
+
 ## Next Steps
 
-- Record tests: [Record Workflow](workflows/record.md)
-- Improve selectors: [Improve Workflow](workflows/improve.md)
-- Configure defaults: [Configuration](configuration.md)
+- Record workflow: [Record Workflow](workflows/record.md)
+- Improve workflow: [Improve Workflow](workflows/improve.md)
+- Configuration reference: [Configuration](configuration.md)
