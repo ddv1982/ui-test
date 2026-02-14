@@ -3,6 +3,7 @@ import {
   buildSnapshotCliAssertionCandidates,
   parseSnapshotNodes,
 } from "./assertion-candidates-snapshot-cli.js";
+import { richDeltaStepSnapshot } from "./assertion-candidates-snapshot.test-fixtures.js";
 
 describe("snapshot-cli assertion candidates", () => {
   it("parses snapshot nodes from playwright-cli output", () => {
@@ -79,22 +80,7 @@ describe("snapshot-cli assertion candidates", () => {
   });
 
   it("generates multiple candidates from a rich delta", () => {
-    const out = buildSnapshotCliAssertionCandidates([
-      {
-        index: 1,
-        step: {
-          action: "click",
-          target: { value: "#login", kind: "css", source: "manual" },
-        },
-        preSnapshot: "- generic [ref=e1]:\n",
-        postSnapshot: [
-          "- generic [ref=e1]:",
-          '  - heading "Dashboard" [level=1] [ref=e2]',
-          '  - link "Settings" [ref=e3]',
-          '  - button "Log out" [ref=e4]',
-        ].join("\n") + "\n",
-      },
-    ]);
+    const out = buildSnapshotCliAssertionCandidates([richDeltaStepSnapshot]);
 
     expect(out.length).toBeGreaterThan(1);
     expect(out[0]?.candidate.action).toBe("assertText");

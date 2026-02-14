@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
+import { richDeltaStepSnapshot } from "./assertion-candidates-snapshot.test-fixtures.js";
 
 describe("snapshot-native assertion candidates", () => {
   it("generates a text assertion from post-step snapshot delta", () => {
@@ -58,22 +59,7 @@ describe("snapshot-native assertion candidates", () => {
   });
 
   it("generates multiple candidates from a rich delta via native snapshots", () => {
-    const out = buildSnapshotNativeAssertionCandidates([
-      {
-        index: 1,
-        step: {
-          action: "click",
-          target: { value: "#login", kind: "css", source: "manual" },
-        },
-        preSnapshot: "- generic [ref=e1]:\n",
-        postSnapshot: [
-          "- generic [ref=e1]:",
-          '  - heading "Dashboard" [level=1] [ref=e2]',
-          '  - link "Settings" [ref=e3]',
-          '  - button "Log out" [ref=e4]',
-        ].join("\n") + "\n",
-      },
-    ]);
+    const out = buildSnapshotNativeAssertionCandidates([richDeltaStepSnapshot]);
 
     expect(out.length).toBeGreaterThan(1);
     expect(out[0]?.candidate.action).toBe("assertText");
