@@ -47,6 +47,12 @@ npx ui-test bootstrap quickstart -- --skip-browser-install
 
 `bootstrap quickstart` handles dependency install, setup, browser provisioning, and optionally a first `play` run.
 
+To reconfigure an existing project interactively:
+
+```bash
+npx ui-test setup --reconfigure
+```
+
 ## Run Tests
 
 ```bash

@@ -12,6 +12,7 @@ const CONFIG_FILENAMES = ["ui-test.config.yaml"];
 
 interface SetupOptions {
   forceInit?: boolean;
+  reconfigure?: boolean;
   skipBrowserInstall?: boolean;
 }
 
@@ -21,6 +22,7 @@ export function registerSetup(program: Command) {
     .description("Prepare project for first run (config + browsers)")
     .option("--skip-browser-install", "Skip Playwright browser installation")
     .option("--force-init", "Reinitialize config and sample test with defaults")
+    .option("--reconfigure", "Reconfigure settings interactively and rewrite ui-test.config.yaml")
     .action(async (opts: unknown) => {
       try {
         await runSetup(parseSetupOptions(opts));
@@ -34,26 +36,43 @@ async function runSetup(opts: SetupOptions = {}): Promise<void> {
   ui.heading("ui-test setup");
   console.log();
 
-  const existingConfigPath = await findExistingConfigPath();
-  if (opts.forceInit || !existingConfigPath) {
-    if (!opts.forceInit) {
-      const legacyConfigPath = await findLegacyConfigPath();
-      if (legacyConfigPath) {
-        throw new UserError(
-          `Legacy config file detected at ${legacyConfigPath}`,
-          "Rename it to ui-test.config.yaml, then rerun setup. If you want a fresh config instead, use: npx ui-test setup --force-init"
-        );
-      }
-    }
+  if (opts.forceInit && opts.reconfigure) {
+    throw new UserError("Cannot use --force-init and --reconfigure together.");
+  }
 
-    if (opts.forceInit && existingConfigPath) {
-      ui.info(`Config found at ${existingConfigPath}; reinitializing due to --force-init.`);
+  const existingConfigPath = await findExistingConfigPath();
+  if (!existingConfigPath && !opts.forceInit) {
+    const legacyConfigPath = await findLegacyConfigPath();
+    if (legacyConfigPath) {
+      throw new UserError(
+        `Legacy config file detected at ${legacyConfigPath}`,
+        "Rename it to ui-test.config.yaml, then rerun setup. If you want a fresh config instead, use: npx ui-test setup --force-init"
+      );
+    }
+  }
+
+  if (opts.forceInit || opts.reconfigure || !existingConfigPath) {
+    if (opts.forceInit) {
+      if (existingConfigPath) {
+        ui.info(`Config found at ${existingConfigPath}; reinitializing due to --force-init.`);
+      } else {
+        ui.info("No config found; initializing with defaults due to --force-init.");
+      }
+      await runInit({ yes: true, overwriteSample: true });
+    } else if (opts.reconfigure && existingConfigPath) {
+      ui.info(`Config found at ${existingConfigPath}; reconfiguring interactively due to --reconfigure.`);
+      await runInit({});
+    } else if (opts.reconfigure) {
+      ui.info("No config found; launching interactive configuration.");
+      await runInit({});
     } else {
       ui.info("No config found; initializing with defaults.");
+      await runInit({ yes: true });
     }
-    await runInit({ yes: true, ...(opts.forceInit ? { overwriteSample: true } : {}) });
   } else {
     ui.info(`Existing config detected at ${existingConfigPath}; keeping as-is.`);
+    ui.step("To update settings interactively: npx ui-test setup --reconfigure");
+    ui.step("To reset config/sample to defaults: npx ui-test setup --force-init");
     await loadConfig();
   }
 
@@ -173,6 +192,7 @@ function parseSetupOptions(value: unknown): SetupOptions {
   const record = value as Record<string, unknown>;
   return {
     forceInit: asOptionalBoolean(record.forceInit),
+    reconfigure: asOptionalBoolean(record.reconfigure),
     skipBrowserInstall: asOptionalBoolean(record.skipBrowserInstall),
   };
 }

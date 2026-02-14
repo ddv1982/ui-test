@@ -67,6 +67,7 @@ describe("runSetup", () => {
   it("keeps existing config by default", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     try {
       process.chdir(dir);
@@ -78,7 +79,9 @@ describe("runSetup", () => {
 
       await runSetup();
       expect(mockRunInit).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("npx ui-test setup --reconfigure"));
     } finally {
+      logSpy.mockRestore();
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });
     }
@@ -99,6 +102,42 @@ describe("runSetup", () => {
     }
   });
 
+  it("reinitializes defaults when --force-init is used without existing config", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
+    const prevCwd = process.cwd();
+
+    try {
+      process.chdir(dir);
+      await runSetup({ forceInit: true });
+      expect(mockRunInit).toHaveBeenCalledWith({ yes: true, overwriteSample: true });
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reconfigures existing config interactively when --reconfigure is used", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
+    const prevCwd = process.cwd();
+
+    try {
+      process.chdir(dir);
+      await fs.writeFile("ui-test.config.yaml", 'testDir: "e2e"\n', "utf-8");
+      await runSetup({ reconfigure: true });
+      expect(mockRunInit).toHaveBeenCalledWith({});
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects using --force-init and --reconfigure together", async () => {
+    const run = runSetup({ forceInit: true, reconfigure: true });
+    await expect(run).rejects.toBeInstanceOf(UserError);
+    await expect(run).rejects.toThrow(/Cannot use --force-init and --reconfigure together/);
+    expect(mockRunInit).not.toHaveBeenCalled();
+  });
+
   it("fails fast when only legacy easy-e2e config exists", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
     const prevCwd = process.cwd();
@@ -108,6 +147,24 @@ describe("runSetup", () => {
       await fs.writeFile("easy-e2e.config.yaml", 'testDir: "e2e"\n', "utf-8");
 
       const run = runSetup();
+      await expect(run).rejects.toBeInstanceOf(UserError);
+      await expect(run).rejects.toThrow(/Legacy config file detected/);
+      expect(mockRunInit).not.toHaveBeenCalled();
+    } finally {
+      process.chdir(prevCwd);
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails fast for --reconfigure when only legacy easy-e2e config exists", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-setup-test-"));
+    const prevCwd = process.cwd();
+
+    try {
+      process.chdir(dir);
+      await fs.writeFile("easy-e2e.config.yaml", 'testDir: "e2e"\n', "utf-8");
+
+      const run = runSetup({ reconfigure: true });
       await expect(run).rejects.toBeInstanceOf(UserError);
       await expect(run).rejects.toThrow(/Legacy config file detected/);
       expect(mockRunInit).not.toHaveBeenCalled();

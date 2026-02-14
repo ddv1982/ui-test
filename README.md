@@ -36,7 +36,7 @@ npx ui-test bootstrap quickstart
 ## What `bootstrap quickstart` Does
 
 1. Installs dependencies (`npm ci` when `package-lock.json` exists, otherwise `npm install`).
-2. Installs/verifies Playwright-CLI pinned to the installed Playwright version.
+2. Installs/verifies Playwright-CLI (`playwright-cli` first, then `npx -y @playwright/cli@latest` fallback).
 3. Creates `ui-test.config.yaml` and a sample test (if missing).
 4. Installs Chromium and verifies it can launch.
 5. Optionally runs `ui-test play` when `--run-play` is provided.
@@ -61,6 +61,12 @@ npx ui-test bootstrap quickstart -- --skip-browser-install
 | `npx ui-test improve <file>` | Analyze and suggest selector/assertion improvements |
 | `npx ui-test list` | List discovered tests |
 | `npx ui-test doctor` | Show invocation/version diagnostics |
+
+Reconfigure settings later (interactive):
+
+```bash
+npx ui-test setup --reconfigure
+```
 
 ## Typical Workflow
 
