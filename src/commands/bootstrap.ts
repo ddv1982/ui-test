@@ -209,24 +209,24 @@ function resolveUiTestCliEntry(): string {
 function runInstallPlaywrightCli() {
   const failures: string[] = [];
   try {
-    runCommand("Install/verify Playwright-CLI (playwright-cli)", "playwright-cli", ["--help"]);
+    runCommandQuiet("Verify Playwright-CLI (playwright-cli)", "playwright-cli", ["--version"]);
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    failures.push(`playwright-cli --help failed: ${message}`);
+    failures.push(`playwright-cli --version failed: ${message}`);
   }
 
   try {
     ensureCommandAvailable("npx");
-    runCommand(
-      "Install/verify Playwright-CLI (@latest)",
-      "npx",
-      ["-y", "@playwright/cli@latest", "--help"]
-    );
+    runCommandQuiet("Install/verify Playwright-CLI (@latest)", "npx", [
+      "-y",
+      "@playwright/cli@latest",
+      "--version",
+    ]);
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    failures.push(`npx -y @playwright/cli@latest --help failed: ${message}`);
+    failures.push(`npx -y @playwright/cli@latest --version failed: ${message}`);
   }
 
   console.warn(
@@ -255,6 +255,22 @@ function runCommand(label: string, command: string, args: string[]) {
   console.log(`[bootstrap] ${label}`);
   const result = spawnSync(command, args, {
     stdio: "inherit",
+    shell: process.platform === "win32",
+    env: process.env,
+  });
+
+  if (result.error) {
+    throw new UserError(`${label} failed: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new UserError(`${label} failed with exit code ${result.status ?? "unknown"}.`);
+  }
+}
+
+function runCommandQuiet(label: string, command: string, args: string[]) {
+  console.log(`[bootstrap] ${label}`);
+  const result = spawnSync(command, args, {
+    stdio: "ignore",
     shell: process.platform === "win32",
     env: process.env,
   });

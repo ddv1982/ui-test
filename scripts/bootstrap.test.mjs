@@ -79,8 +79,8 @@ describe("bootstrap playwright-cli provisioning", () => {
     const ok = runInstallPlaywrightCli();
     expect(ok).toBe(true);
     expect(mockSpawnSync).toHaveBeenCalledTimes(1);
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
-      stdio: "inherit",
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--version"], {
+      stdio: "ignore",
       shell: process.platform === "win32",
       env: process.env,
     });
@@ -94,8 +94,8 @@ describe("bootstrap playwright-cli provisioning", () => {
 
     const ok = runInstallPlaywrightCli();
     expect(ok).toBe(true);
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
-      stdio: "inherit",
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--version"], {
+      stdio: "ignore",
       shell: process.platform === "win32",
       env: process.env,
     });
@@ -107,9 +107,9 @@ describe("bootstrap playwright-cli provisioning", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       3,
       "npx",
-      ["-y", "@playwright/cli@latest", "--help"],
+      ["-y", "@playwright/cli@latest", "--version"],
       {
-        stdio: "inherit",
+        stdio: "ignore",
         shell: process.platform === "win32",
         env: process.env,
       }

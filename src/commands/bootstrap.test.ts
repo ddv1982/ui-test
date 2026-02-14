@@ -135,8 +135,8 @@ describe("bootstrap execution", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const ok = runInstallPlaywrightCli();
     expect(ok).toBe(false);
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
-      stdio: "inherit",
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--version"], {
+      stdio: "ignore",
       shell: process.platform === "win32",
       env: process.env,
     });
@@ -148,9 +148,9 @@ describe("bootstrap execution", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       3,
       "npx",
-      ["-y", "@playwright/cli@latest", "--help"],
+      ["-y", "@playwright/cli@latest", "--version"],
       {
-        stdio: "inherit",
+        stdio: "ignore",
         shell: process.platform === "win32",
         env: process.env,
       }
@@ -169,8 +169,8 @@ describe("bootstrap execution", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const ok = runInstallPlaywrightCli();
     expect(ok).toBe(true);
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--help"], {
-      stdio: "inherit",
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, "playwright-cli", ["--version"], {
+      stdio: "ignore",
       shell: process.platform === "win32",
       env: process.env,
     });
@@ -182,9 +182,9 @@ describe("bootstrap execution", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       3,
       "npx",
-      ["-y", "@playwright/cli@latest", "--help"],
+      ["-y", "@playwright/cli@latest", "--version"],
       {
-        stdio: "inherit",
+        stdio: "ignore",
         shell: process.platform === "win32",
         env: process.env,
       }
