@@ -62,15 +62,6 @@ function main() {
 }
 
 function parseArgs(argv) {
-  if (argv.includes("-h") || argv.includes("--help")) {
-    return {
-      mode: "quickstart",
-      runPlay: false,
-      setupArgs: [],
-      showHelp: true,
-    };
-  }
-
   let mode = "quickstart";
   let rest = argv;
 
@@ -84,6 +75,24 @@ function parseArgs(argv) {
     throw new Error(`Unknown mode: ${mode}`);
   }
 
+  if (mode === "setup") {
+    return {
+      mode,
+      runPlay: false,
+      setupArgs: rest,
+      showHelp: false,
+    };
+  }
+
+  if (rest.includes("-h") || rest.includes("--help")) {
+    return {
+      mode,
+      runPlay: false,
+      setupArgs: [],
+      showHelp: true,
+    };
+  }
+
   if (mode === "install") {
     if (rest.length > 0) {
       throw new Error("install mode does not accept extra arguments.");
@@ -92,15 +101,6 @@ function parseArgs(argv) {
       mode,
       runPlay: false,
       setupArgs: [],
-      showHelp: false,
-    };
-  }
-
-  if (mode === "setup") {
-    return {
-      mode,
-      runPlay: false,
-      setupArgs: rest,
       showHelp: false,
     };
   }

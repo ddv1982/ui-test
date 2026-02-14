@@ -72,7 +72,7 @@ Uses Playwright's native `locator.ariaSnapshot()` API to capture page state befo
 
 ### snapshot-cli
 
-Replays steps in a separate Playwright-CLI process and captures snapshots after each step. Requires `playwright-cli` or `npx @playwright/cli@latest`.
+Replays steps in a separate Playwright-CLI process and captures snapshots after each step. Requires `playwright-cli` or `npx -y @playwright/cli@<playwright-version> --help`.
 
 Both modes generate assertion candidates from snapshot deltas (`assertVisible`/`assertText`) and then runtime-validate before insertion.
 Reliability policy in apply mode:

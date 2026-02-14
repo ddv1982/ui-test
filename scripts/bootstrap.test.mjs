@@ -17,6 +17,14 @@ import {
 const mockSpawnSync = vi.mocked(spawnSync);
 
 describe("bootstrap argument parsing", () => {
+  it("shows bootstrap help for standalone --help", () => {
+    const parsed = parseArgs(["--help"]);
+    expect(parsed).toMatchObject({
+      mode: "quickstart",
+      showHelp: true,
+    });
+  });
+
   it("defaults to quickstart mode", () => {
     const parsed = parseArgs([]);
     expect(parsed).toMatchObject({
@@ -43,6 +51,15 @@ describe("bootstrap argument parsing", () => {
 
   it("rejects install mode with extra args", () => {
     expect(() => parseArgs(["install", "extra"])).toThrow(/does not accept extra arguments/);
+  });
+
+  it("passes through setup --help to ui-test setup", () => {
+    const parsed = parseArgs(["setup", "--help"]);
+    expect(parsed).toMatchObject({
+      mode: "setup",
+      showHelp: false,
+      setupArgs: ["--help"],
+    });
   });
 });
 

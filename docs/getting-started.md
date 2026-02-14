@@ -21,6 +21,12 @@ If you are adding `ui-test` to another project:
 npm install --save-dev ui-test
 ```
 
+If you want to install from GitHub directly (no local checkout of this repo):
+
+```bash
+npm install --save-dev github:ddv1982/easy-e2e-testing
+```
+
 ## Setup
 
 Repository checkout:
@@ -29,7 +35,7 @@ Repository checkout:
 npm run bootstrap:setup
 ```
 
-Npm consumer project:
+Npm or GitHub consumer project:
 
 ```bash
 npx ui-test setup
@@ -81,7 +87,7 @@ Repository checkout:
 npm run bootstrap:quickstart
 ```
 
-Npm consumer project:
+Npm or GitHub consumer project:
 
 ```bash
 npx ui-test setup

@@ -26,6 +26,14 @@ npx ui-test setup
 npx ui-test play
 ```
 
+If you want to install directly from GitHub (no repo checkout):
+
+```bash
+npm install --save-dev github:ddv1982/easy-e2e-testing
+npx ui-test setup
+npx ui-test play
+```
+
 ## Choose Your Path
 
 ### Beginner: run tests quickly
