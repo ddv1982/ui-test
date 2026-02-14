@@ -60,14 +60,6 @@ function isCallExpression(node: Expression): node is CallExpression {
   return node.type === "CallExpression";
 }
 
-function isIdentifier(node: Expression): node is Identifier {
-  return node.type === "Identifier";
-}
-
-function isMemberExpression(node: Expression): node is MemberExpression {
-  return node.type === "MemberExpression";
-}
-
 function isLiteral(node: Expression): node is Literal {
   return node.type === "Literal";
 }
@@ -78,6 +70,12 @@ function isObjectExpression(node: Expression): node is ObjectExpression {
 
 function isArrayExpression(node: Expression): node is ArrayExpression {
   return node.type === "ArrayExpression";
+}
+
+function isIdentifierNode(node: unknown): node is Identifier {
+  if (!node || typeof node !== "object") return false;
+  const candidate = node as { type?: unknown; name?: unknown };
+  return candidate.type === "Identifier" && typeof candidate.name === "string";
 }
 
 function literalValue(node: Literal): unknown {
@@ -158,7 +156,7 @@ function readMethod(member: MemberExpression, selector: string): string {
     );
   }
 
-  if (member.property.type !== "Identifier") {
+  if (!isIdentifierNode(member.property)) {
     throw new UserError(
       `Unsupported member access in locator expression: ${selector}`,
       EXPRESSION_HINT

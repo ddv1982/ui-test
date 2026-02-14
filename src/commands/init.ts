@@ -35,9 +35,9 @@ export function registerInit(program: Command) {
     .command("init")
     .description("Set up a new ui-test project")
     .option("-y, --yes", "Use defaults without interactive prompts")
-    .action(async (opts) => {
+    .action(async (opts: unknown) => {
       try {
-        await runInit(opts);
+        await runInit(parseInitOptions(opts));
       } catch (err) {
         handleError(err);
       }
@@ -275,7 +275,7 @@ async function migrateStockSample(samplePath: string): Promise<boolean> {
     }
 
     const rawSteps = sample.steps;
-    if (Array.isArray(rawSteps) && rawSteps.length > 1) {
+    if (isUnknownArray(rawSteps) && rawSteps.length > 1) {
       const assertVisibleStep = rawSteps[1];
       if (
         assertVisibleStep &&
@@ -318,6 +318,38 @@ async function migrateStockSample(samplePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function parseInitOptions(value: unknown): {
+  yes?: boolean;
+  promptApi?: PromptApi;
+  overwriteSample?: boolean;
+} {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    yes: asOptionalBoolean(record.yes),
+    promptApi: isPromptApi(record.promptApi) ? record.promptApi : undefined,
+    overwriteSample: asOptionalBoolean(record.overwriteSample),
+  };
+}
+
+function isPromptApi(value: unknown): value is PromptApi {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.input === "function" &&
+    typeof record.confirm === "function" &&
+    typeof record.select === "function"
+  );
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function asOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 export {

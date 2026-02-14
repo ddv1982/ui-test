@@ -5,7 +5,8 @@ export interface StaleAssertionFinding {
   reason: string;
 }
 
-export function findStaleAssertions(_steps: Step[]): StaleAssertionFinding[] {
+export function findStaleAssertions(steps: Step[]): StaleAssertionFinding[] {
+  void steps;
   // Coverage assertions intentionally allow adjacent click/press -> assertVisible pairs.
   return [];
 }

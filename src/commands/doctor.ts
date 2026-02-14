@@ -18,6 +18,7 @@ export function registerDoctor(program: Command) {
 }
 
 export async function runDoctor(): Promise<void> {
+  await Promise.resolve();
   const info = collectRuntimeInfo();
   const localEntrypoint = info.localPackageRoot
     ? path.join(info.localPackageRoot, "dist", "bin", "ui-test.js")

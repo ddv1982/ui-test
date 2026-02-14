@@ -11,6 +11,18 @@ import {
 } from "../app/options/record-profile.js";
 import { formatRecordingProfileSummary } from "../app/options/profile-summary.js";
 
+interface RecordCliOptions {
+  name?: string;
+  url?: string;
+  description?: string;
+  selectorPolicy?: string;
+  browser?: string;
+  device?: string;
+  testIdAttribute?: string;
+  loadStorage?: string;
+  saveStorage?: string;
+}
+
 export function registerRecord(program: Command) {
   program
     .command("record")
@@ -24,26 +36,16 @@ export function registerRecord(program: Command) {
     .option("--test-id-attribute <attr>", "Custom test-id attribute")
     .option("--load-storage <path>", "Path to storage state to preload")
     .option("--save-storage <path>", "Path to write resulting storage state")
-    .action(async (opts) => {
+    .action(async (opts: unknown) => {
       try {
-        await runRecord(opts);
+        await runRecord(parseRecordCliOptions(opts));
       } catch (err) {
         handleError(err);
       }
     });
 }
 
-async function runRecord(opts: {
-  name?: string;
-  url?: string;
-  description?: string;
-  selectorPolicy?: string;
-  browser?: string;
-  device?: string;
-  testIdAttribute?: string;
-  loadStorage?: string;
-  saveStorage?: string;
-}) {
+async function runRecord(opts: RecordCliOptions) {
   const config = await loadConfig();
 
   const name =
@@ -117,4 +119,24 @@ async function runRecord(opts: {
     `Selector quality: stable=${result.stats.stableSelectors}, fallback=${result.stats.fallbackSelectors}, frame-aware=${result.stats.frameAwareSelectors}`
   );
   ui.info("Run it with: npx ui-test play " + result.outputPath);
+}
+
+function parseRecordCliOptions(value: unknown): RecordCliOptions {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    name: asOptionalString(record.name),
+    url: asOptionalString(record.url),
+    description: asOptionalString(record.description),
+    selectorPolicy: asOptionalString(record.selectorPolicy),
+    browser: asOptionalString(record.browser),
+    device: asOptionalString(record.device),
+    testIdAttribute: asOptionalString(record.testIdAttribute),
+    loadStorage: asOptionalString(record.loadStorage),
+    saveStorage: asOptionalString(record.saveStorage),
+  };
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }

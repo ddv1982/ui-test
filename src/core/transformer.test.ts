@@ -38,7 +38,7 @@ describe("jsonlToSteps", () => {
       {
         action: "click",
         target: {
-          value: "getByRole(\'button\', { name: \'Save\' })",
+          value: "getByRole('button', { name: 'Save' })",
           kind: "locatorExpression",
           source: "codegen-jsonl",
         },

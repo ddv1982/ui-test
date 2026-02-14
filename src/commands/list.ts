@@ -39,7 +39,7 @@ async function runList() {
     try {
       const content = await fs.readFile(file, "utf-8");
       const data = yaml.load(content) as Record<string, unknown>;
-      const name = String(data?.name ?? "(unnamed)");
+      const name = formatTestName(data?.name);
       const steps = Array.isArray(data?.steps) ? String(data.steps.length) : "?";
       rows.push([file, name, steps]);
     } catch {
@@ -52,4 +52,12 @@ async function runList() {
   ui.table(rows);
   console.log();
   ui.dim(`${files.length} test${files.length > 1 ? "s" : ""} found`);
+}
+
+function formatTestName(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return "(unnamed)";
 }

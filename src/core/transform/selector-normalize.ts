@@ -163,7 +163,9 @@ function toGetByTextMethod(
 function toLiteral(value: unknown): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
   if (typeof value === "string") return quote(value);
   if (Array.isArray(value)) return `[${value.map((entry) => toLiteral(entry)).join(", ")}]`;
   if (isRegexLike(value)) return `/${escapeRegexBody(value.source)}/${value.flags}`;
@@ -173,7 +175,7 @@ function toLiteral(value: unknown): string {
     );
     return `{ ${entries.join(", ")} }`;
   }
-  return quote(String(value));
+  return quote(formatFallbackLiteral(value));
 }
 
 function quote(value: string): string {
@@ -203,4 +205,11 @@ function isRegexLike(value: unknown): value is { source: string; flags: string }
 
 function escapeRegexBody(value: string): string {
   return value.replace(/\//g, "\\/");
+}
+
+function formatFallbackLiteral(value: unknown): string {
+  if (typeof value === "symbol") {
+    return value.description ? `Symbol(${value.description})` : "Symbol()";
+  }
+  return Object.prototype.toString.call(value);
 }

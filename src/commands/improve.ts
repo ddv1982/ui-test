@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import path from "node:path";
 import { improveTestFile } from "../core/improve/improve.js";
 import { loadConfig } from "../utils/config.js";
-import { handleError } from "../utils/errors.js";
+import { handleError, UserError } from "../utils/errors.js";
 import { ui } from "../utils/ui.js";
 import {
   resolveImproveProfile,
@@ -14,6 +14,16 @@ import {
   formatAssertionApplyStatusCounts,
   formatAssertionSourceCounts,
 } from "./improve-output.js";
+
+interface ImproveCliOptions {
+  apply?: boolean;
+  applySelectors?: boolean;
+  applyAssertions?: boolean;
+  assertions?: string;
+  assertionSource?: string;
+  assertionApplyPolicy?: string;
+  report?: string;
+}
 
 export function registerImprove(program: Command) {
   program
@@ -36,9 +46,12 @@ export function registerImprove(program: Command) {
       "Assertion apply policy: reliable (default) or aggressive"
     )
     .option("--report <path>", "Write JSON report to a custom path")
-    .action(async (testFile, opts) => {
+    .action(async (testFile: unknown, opts: unknown) => {
       try {
-        await runImprove(testFile, opts);
+        await runImprove(
+          parseRequiredArgument(testFile, "test-file"),
+          parseImproveCliOptions(opts)
+        );
       } catch (err) {
         handleError(err);
       }
@@ -47,15 +60,7 @@ export function registerImprove(program: Command) {
 
 async function runImprove(
   testFile: string,
-  opts: {
-    apply?: boolean;
-    applySelectors?: boolean;
-    applyAssertions?: boolean;
-    assertions?: string;
-    assertionSource?: string;
-    assertionApplyPolicy?: string;
-    report?: string;
-  }
+  opts: ImproveCliOptions
 ): Promise<void> {
   const invocationWarning = buildExternalCliInvocationWarning(
     process.cwd(),
@@ -120,4 +125,31 @@ async function runImprove(
   if (!profile.applySelectors && !profile.applyAssertions && profile.assertions === "candidates") {
     ui.step(`Or apply selectively: --apply-selectors, --apply-assertions`);
   }
+}
+
+function parseImproveCliOptions(value: unknown): ImproveCliOptions {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    apply: asOptionalBoolean(record.apply),
+    applySelectors: asOptionalBoolean(record.applySelectors),
+    applyAssertions: asOptionalBoolean(record.applyAssertions),
+    assertions: asOptionalString(record.assertions),
+    assertionSource: asOptionalString(record.assertionSource),
+    assertionApplyPolicy: asOptionalString(record.assertionApplyPolicy),
+    report: asOptionalString(record.report),
+  };
+}
+
+function parseRequiredArgument(value: unknown, name: string): string {
+  if (typeof value === "string" && value.length > 0) return value;
+  throw new UserError(`Missing required argument: ${name}`);
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }

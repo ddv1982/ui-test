@@ -247,7 +247,7 @@ function expressionToTarget(expression: unknown, source: string): Target | null 
 }
 
 function firstStringArgument(argumentsList: unknown, source: string): string | null {
-  if (!Array.isArray(argumentsList) || argumentsList.length === 0) return null;
+  if (!isUnknownArray(argumentsList) || argumentsList.length === 0) return null;
   const first = argumentsList[0];
   if (!first || typeof first !== "object") return null;
 
@@ -282,13 +282,13 @@ function extractSelectOptionValue(argument: unknown, source: string): string {
   const node = argument as AstNode;
 
   if (node.type === "Literal" && node.value != null) {
-    return String(node.value);
+    return stringifyLiteralValue(node.value) ?? "";
   }
 
   if (node.type === "ArrayExpression" && Array.isArray(node.elements)) {
     const first = node.elements[0] as AstNode | undefined;
     if (first?.type === "Literal" && first.value != null) {
-      return String(first.value);
+      return stringifyLiteralValue(first.value) ?? "";
     }
     return "";
   }
@@ -306,7 +306,7 @@ function extractSelectOptionValue(argument: unknown, source: string): string {
 
     const valueNode = prop?.value as AstNode | undefined;
     if (valueNode?.type === "Literal" && valueNode.value != null) {
-      return String(valueNode.value);
+      return stringifyLiteralValue(valueNode.value) ?? "";
     }
   }
 
@@ -323,6 +323,23 @@ function isAstNode(value: unknown): value is AstNode {
     "type" in value &&
     typeof (value as { type?: unknown }).type === "string"
   );
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function stringifyLiteralValue(value: unknown): string | null {
+  if (value === null) return "null";
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+  return null;
 }
 
 function isCallExpression(value: unknown): value is CallExpressionNode {

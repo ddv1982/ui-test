@@ -21,9 +21,9 @@ export function registerSetup(program: Command) {
     .description("Prepare project for first run (config + browsers)")
     .option("--skip-browser-install", "Skip Playwright browser installation")
     .option("--force-init", "Reinitialize config and sample test with defaults")
-    .action(async (opts) => {
+    .action(async (opts: unknown) => {
       try {
-        await runSetup(opts);
+        await runSetup(parseSetupOptions(opts));
       } catch (err) {
         handleError(err);
       }
@@ -140,3 +140,16 @@ function isLikelyMissingLinuxDeps(message: string): boolean {
 }
 
 export { runSetup, buildLaunchFailureHint, isLikelyMissingLinuxDeps, findExistingConfigPath };
+
+function parseSetupOptions(value: unknown): SetupOptions {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    forceInit: asOptionalBoolean(record.forceInit),
+    skipBrowserInstall: asOptionalBoolean(record.skipBrowserInstall),
+  };
+}
+
+function asOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}

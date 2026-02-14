@@ -46,7 +46,8 @@ export async function generateAriaTargetCandidates(
   const nodes = parseSnapshotNodes(snapshotYaml);
   if (nodes.length === 0) return { candidates, diagnostics };
 
-  const node = nodes[0]!;
+  const node = nodes[0];
+  if (!node) return { candidates, diagnostics };
   if (USELESS_ROLES.has(node.role)) return { candidates, diagnostics };
 
   const name = node.name;

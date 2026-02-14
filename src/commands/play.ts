@@ -18,6 +18,17 @@ import { formatPlayProfileSummary } from "../app/options/profile-summary.js";
 const START_TIMEOUT_MS = 60_000;
 const START_POLL_MS = 500;
 
+interface PlayCliOptions {
+  headed?: boolean;
+  timeout?: string;
+  delay?: string;
+  waitNetworkIdle?: boolean;
+  networkIdleTimeout?: string;
+  saveFailureArtifacts?: boolean;
+  artifactsDir?: string;
+  start?: boolean;
+}
+
 export function registerPlay(program: Command) {
   program
     .command("play")
@@ -33,9 +44,9 @@ export function registerPlay(program: Command) {
     .option("--no-save-failure-artifacts", "Disable failure artifact capture")
     .option("--artifacts-dir <path>", "Directory for play failure artifacts")
     .option("--no-start", "Do not auto-start app even when startCommand is configured")
-    .action(async (testArg, opts) => {
+    .action(async (testArg: unknown, opts: unknown) => {
       try {
-        await runPlay(testArg, opts);
+        await runPlay(parseOptionalArgument(testArg), parsePlayCliOptions(opts));
       } catch (err) {
         handleError(err);
       }
@@ -44,16 +55,7 @@ export function registerPlay(program: Command) {
 
 async function runPlay(
   testArg: string | undefined,
-  opts: {
-    headed?: boolean;
-    timeout?: string;
-    delay?: string;
-    waitNetworkIdle?: boolean;
-    networkIdleTimeout?: string;
-    saveFailureArtifacts?: boolean;
-    artifactsDir?: string;
-    start?: boolean;
-  }
+  opts: PlayCliOptions
 ) {
   const config = await loadConfig();
   const profile = resolvePlayProfile(opts, config);
@@ -220,6 +222,33 @@ async function runPlay(
       await sleep(250);
     }
   }
+}
+
+function parsePlayCliOptions(value: unknown): PlayCliOptions {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    headed: asOptionalBoolean(record.headed),
+    timeout: asOptionalString(record.timeout),
+    delay: asOptionalString(record.delay),
+    waitNetworkIdle: asOptionalBoolean(record.waitNetworkIdle),
+    networkIdleTimeout: asOptionalString(record.networkIdleTimeout),
+    saveFailureArtifacts: asOptionalBoolean(record.saveFailureArtifacts),
+    artifactsDir: asOptionalString(record.artifactsDir),
+    start: asOptionalBoolean(record.start),
+  };
+}
+
+function parseOptionalArgument(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 async function waitForReachableBaseUrl(

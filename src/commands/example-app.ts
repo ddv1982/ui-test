@@ -19,22 +19,27 @@ const CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
 };
 
+interface ExampleAppOptions {
+  host?: string;
+  port?: string;
+}
+
 export function registerExampleApp(program: Command) {
   program
     .command("example-app")
     .description("Serve the built-in Vue example app")
     .option("--host <host>", "Host to bind", DEFAULT_HOST)
     .option("--port <port>", "Port to bind", String(DEFAULT_PORT))
-    .action(async (opts) => {
+    .action(async (opts: unknown) => {
       try {
-        await runExampleApp(opts);
+        await runExampleApp(parseExampleAppOptions(opts));
       } catch (err) {
         handleError(err);
       }
     });
 }
 
-async function runExampleApp(opts: { host?: string; port?: string }) {
+async function runExampleApp(opts: ExampleAppOptions) {
   const host = (opts.host ?? DEFAULT_HOST).trim();
   const port = Number(opts.port ?? String(DEFAULT_PORT));
 
@@ -45,8 +50,10 @@ async function runExampleApp(opts: { host?: string; port?: string }) {
     );
   }
 
-  const server = createServer(async (req, res) => {
-    await serveExampleAsset(req.url ?? "/", res);
+  const server = createServer((req, res) => {
+    void serveExampleAsset(req.url ?? "/", res).catch(() => {
+      writeResponse(res, 500, "text/plain; charset=utf-8", "Internal server error");
+    });
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -117,6 +124,19 @@ function writeResponse(
     "Cache-Control": "no-store",
   });
   res.end(body);
+}
+
+function parseExampleAppOptions(value: unknown): ExampleAppOptions {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    host: asOptionalString(record.host),
+    port: asOptionalString(record.port),
+  };
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 export { runExampleApp, normalizeRequestPath };
