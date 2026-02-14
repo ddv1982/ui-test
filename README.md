@@ -187,6 +187,8 @@ When a run fails, CLI output includes:
 - `--apply-assertions` writes only high-confidence, runtime-validated assertion candidates (max 1 applied assertion per source step).
 - By default (`--assertion-source snapshot-native`), assertions are generated from page state changes captured via native aria snapshots during the already-running replay — no external tool needed.
 - `--assertion-source snapshot-cli` enables external Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
+- Snapshot-derived `assertVisible` candidates are report-only in apply mode (`skipped_policy`) and are never auto-inserted.
+- Snapshot-derived `assertText` candidates can still be auto-inserted after runtime validation.
 - If a snapshot source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.
 - When a browser is available, improve uses `ariaSnapshot()` to generate semantic selector candidates (`getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`) for any element with an accessible role — replacing brittle CSS/XPath selectors automatically.
 - Runtime-failing assertion candidates are never force-applied.

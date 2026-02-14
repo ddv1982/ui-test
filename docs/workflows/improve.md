@@ -63,6 +63,9 @@ Uses Playwright's native `locator.ariaSnapshot()` API to capture page state befo
 Replays steps in a separate Playwright-CLI process and captures snapshots after each step. Requires `playwright-cli` or `npx @playwright/cli@latest`.
 
 Both modes generate assertion candidates from snapshot deltas (`assertVisible`/`assertText`) and then runtime-validate before insertion.
+Reliability policy in apply mode:
+- snapshot-derived `assertVisible` candidates are report-only (`skipped_policy`) and are never auto-inserted
+- snapshot-derived `assertText` candidates may still be auto-inserted after runtime validation
 
 Fallback behavior:
 - If the snapshot source is unavailable or fails, improve falls back to deterministic candidates.
@@ -81,6 +84,7 @@ Current scope:
 - Default assertion source is `snapshot-native`, which captures page state changes during replay. Use `--assertion-source deterministic` for conservative form-state-only assertions, or `--assertion-source snapshot-cli` for external Playwright-CLI snapshots.
 - Deterministic source focuses on stable form-state assertions and excludes click/press-derived visibility checks.
 - Snapshot sources (`snapshot-native`, `snapshot-cli`) can additionally propose `assertVisible`/`assertText` from snapshot deltas.
+- Snapshot `assertVisible` candidates are report-only in apply mode; snapshot `assertText` can be applied after runtime validation.
 - Playwright codegen can generate assertions interactively, but `improve` assertion apply is deterministic.
 
 ## Aria-Based Selector Improvement
@@ -105,6 +109,12 @@ The report includes:
 - assertion apply status (`applied`, `skipped_low_confidence`, `skipped_runtime_failure`, `skipped_policy`, `skipped_existing`, `not_requested`)
 - legacy `assertion_coverage_*` diagnostics are no longer emitted
 - diagnostics and degradations
+
+CLI output also includes:
+- assertion apply status breakdown by `applyStatus`
+- assertion candidate source breakdown
+- up to three concise skip details (with remaining count)
+- warning when the invoked `ui-test` binary is outside the current workspace path
 
 Default report path:
 - `<test-file>.improve-report.json`
