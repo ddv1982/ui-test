@@ -182,18 +182,18 @@ async function runInit(
   console.log();
   ui.info("Next steps:");
   if (config.startCommand) {
-    ui.step("Run tests (auto-starts app): npx ui-test play");
+    ui.step("Run tests (auto-starts app): ui-test play");
     ui.step(`Manual mode app start: ${config.startCommand}`);
-    ui.step("Manual mode test run: npx ui-test play --no-start");
+    ui.step("Manual mode test run: ui-test play --no-start");
   } else {
     ui.step("Start your app manually.");
-    ui.step("Run tests against running app: npx ui-test play --no-start");
+    ui.step("Run tests against running app: ui-test play --no-start");
     ui.dim(
-      "Tip: `npx ui-test play` without --no-start expects `startCommand` in config or a reachable baseUrl."
+      "Tip: `ui-test play` without --no-start expects `startCommand` in config or a reachable baseUrl."
     );
   }
-  ui.step("Record a test: npx ui-test record");
-  ui.step("List tests: npx ui-test list");
+  ui.step("Record a test: ui-test record");
+  ui.step("List tests: ui-test list");
   ui.dim("Tip: update ui-test.config.yaml baseUrl if your app runs on a different host or port.");
 }
 
@@ -248,7 +248,10 @@ function buildDefaultStartCommand(baseUrl: string): string {
     }
 
     const port = parsed.port || "80";
-    return `npx ui-test example-app --host ${parsed.hostname} --port ${port}`;
+    const localOrGlobalCommand = `ui-test example-app --host ${parsed.hostname} --port ${port}`;
+    const oneOffFallbackCommand =
+      `npx -y github:ddv1982/easy-e2e-testing example-app --host ${parsed.hostname} --port ${port}`;
+    return `${localOrGlobalCommand} || ${oneOffFallbackCommand}`;
   } catch {
     return "";
   }

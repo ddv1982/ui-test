@@ -55,7 +55,8 @@ describe("runPlay startup behavior", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       testDir: "e2e",
       baseUrl: "http://127.0.0.1:5173",
-      startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
+      startCommand:
+        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
       timeout: 10000,
       delay: 0,
       headed: false,
@@ -75,10 +76,13 @@ describe("runPlay startup behavior", () => {
 
     await runPlay("e2e/example.yaml", {});
 
-    expect(spawn).toHaveBeenCalledWith("npx ui-test example-app --host 127.0.0.1 --port 5173", {
-      shell: true,
-      stdio: "inherit",
-    });
+    expect(spawn).toHaveBeenCalledWith(
+      "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
+      {
+        shell: true,
+        stdio: "inherit",
+      }
+    );
     expect(play).toHaveBeenCalledTimes(1);
     expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
       headed: false,
@@ -127,7 +131,8 @@ describe("runPlay startup behavior", () => {
     vi.mocked(spawn).mockReturnValue(child);
     vi.mocked(loadConfig).mockResolvedValue({
       testDir: "e2e",
-      startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
+      startCommand:
+        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
       timeout: 10000,
       delay: 0,
       headed: false,
@@ -145,7 +150,8 @@ describe("runPlay startup behavior", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       testDir: "e2e",
       baseUrl: "http://127.0.0.1:5173",
-      startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
+      startCommand:
+        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
       timeout: 10000,
       delay: 0,
       headed: false,
@@ -174,7 +180,8 @@ describe("runPlay startup behavior", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       testDir: "e2e",
       baseUrl: "http://127.0.0.1:5173",
-      startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
+      startCommand:
+        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
       timeout: 10000,
       delay: 0,
       headed: false,

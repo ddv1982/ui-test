@@ -31,7 +31,7 @@ describe("init URL helpers", () => {
     expect(DEFAULT_HEADED).toBe(false);
     expect(DEFAULT_INIT_INTENT).toBe("example");
     expect(buildDefaultStartCommand("http://127.0.0.1:5173")).toBe(
-      "npx ui-test example-app --host 127.0.0.1 --port 5173"
+      "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173"
     );
   });
 
@@ -78,7 +78,7 @@ describe("init URL helpers", () => {
   describe("buildDefaultStartCommand", () => {
     it("builds local HTTP example server command", () => {
       expect(buildDefaultStartCommand("http://localhost:4000")).toBe(
-        "npx ui-test example-app --host localhost --port 4000"
+        "ui-test example-app --host localhost --port 4000 || npx -y github:ddv1982/easy-e2e-testing example-app --host localhost --port 4000"
       );
     });
 
@@ -154,7 +154,8 @@ describe("runInit --yes", () => {
       expect(config).toMatchObject({
         testDir: "e2e",
         baseUrl: "http://127.0.0.1:5173",
-        startCommand: "npx ui-test example-app --host 127.0.0.1 --port 5173",
+        startCommand:
+          "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173",
         headed: false,
         timeout: 10000,
       });
@@ -230,7 +231,9 @@ describe("runInit interactive intents", () => {
       const configPath = path.join(dir, "ui-test.config.yaml");
       const configText = await fs.readFile(configPath, "utf-8");
       const config = yaml.load(configText) as Record<string, unknown>;
-      expect(config.startCommand).toBe("npx ui-test example-app --host 127.0.0.1 --port 5173");
+      expect(config.startCommand).toBe(
+        "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173"
+      );
     } finally {
       process.chdir(prevCwd);
       await fs.rm(dir, { recursive: true, force: true });

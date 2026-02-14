@@ -24,11 +24,15 @@ export function getStandaloneInstallBlockMessage(env = process.env, cwd = proces
     "[ui-test] Standalone install policy: project-local installs are not supported.",
     "",
     "Install/run ui-test in standalone mode instead:",
-    "  npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart",
     "  npm i -g ui-test",
     "  ui-test bootstrap quickstart",
+    "  npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart",
     "",
-    "Do not add ui-test to dependencies/devDependencies of other projects.",
+    "If ui-test is already installed in this project, clean it up:",
+    "  1) Remove ui-test from dependencies/devDependencies in package.json",
+    "  2) Run: npm uninstall ui-test",
+    "  3) Run: npm i -g ui-test",
+    "  4) Re-run: ui-test bootstrap quickstart",
   ].join("\n");
 }
 

@@ -13,9 +13,14 @@ import { getCliVersion, isProjectLocalUiTestInvocation } from "./utils/runtime-i
 
 const STANDALONE_POLICY_HINT = [
   "Run ui-test in standalone mode instead:",
-  "  npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart",
   "  npm i -g ui-test",
   "  ui-test bootstrap quickstart",
+  "  npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart",
+  "",
+  "If ui-test is installed locally in this project:",
+  "  1) Remove ui-test from dependencies/devDependencies in package.json",
+  "  2) Run: npm uninstall ui-test",
+  "  3) Run: npm i -g ui-test",
 ].join("\n");
 
 export function run() {
@@ -40,14 +45,15 @@ export function run() {
     [
       "",
       "Examples:",
-      "  npx ui-test bootstrap quickstart",
-      "  npx ui-test improve e2e/login.yaml",
-      "  npx ui-test improve e2e/login.yaml --apply --apply-assertions",
-      "  npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli",
-      "  npx ui-test doctor",
+      "  ui-test bootstrap quickstart",
+      "  ui-test improve e2e/login.yaml",
+      "  ui-test improve e2e/login.yaml --apply --apply-assertions",
+      "  ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli",
+      "  ui-test doctor",
       "",
       "Tip:",
-      "  Run `npx ui-test improve --help` to see all improve flags (including assertion source options).",
+      "  Run `ui-test improve --help` to see all improve flags (including assertion source options).",
+      "  If not globally installed yet, use one-off execution: `npx -y github:ddv1982/easy-e2e-testing doctor`.",
     ].join("\n")
   );
 

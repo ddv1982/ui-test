@@ -20,13 +20,15 @@ npm i -g ui-test
 ui-test bootstrap quickstart
 ```
 
-### 3) Run directly from GitHub (no checkout, one-off)
+### 3) One-off run without global install
 
 ```bash
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
 Project dependency installs are intentionally unsupported.
+All command examples below use global `ui-test`; for one-off usage today, replace with
+`npx -y github:ddv1982/easy-e2e-testing <command>`.
 
 ## What `bootstrap quickstart` Does
 
@@ -39,50 +41,58 @@ Project dependency installs are intentionally unsupported.
 Use modes explicitly when needed:
 
 ```bash
-npx ui-test bootstrap install
-npx ui-test bootstrap setup
-npx ui-test bootstrap quickstart --run-play
-npx ui-test bootstrap quickstart -- --skip-browser-install
+ui-test bootstrap install
+ui-test bootstrap setup
+ui-test bootstrap quickstart --run-play
+ui-test bootstrap quickstart -- --skip-browser-install
+```
+
+Fallback for one-off execution:
+
+```bash
+npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
 ## Core Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npx ui-test bootstrap [mode]` | Onboarding/install/setup/play helper |
-| `npx ui-test setup` | Initialize config + browser dependencies |
-| `npx ui-test play [test]` | Run one YAML test or all tests |
-| `npx ui-test record` | Record browser interactions into YAML |
-| `npx ui-test improve <file>` | Analyze and suggest selector/assertion improvements |
-| `npx ui-test list` | List discovered tests |
-| `npx ui-test doctor` | Show invocation/version diagnostics |
+| `ui-test bootstrap [mode]` | Onboarding/install/setup/play helper |
+| `ui-test setup` | Initialize config + browser dependencies |
+| `ui-test play [test]` | Run one YAML test or all tests |
+| `ui-test record` | Record browser interactions into YAML |
+| `ui-test improve <file>` | Analyze and suggest selector/assertion improvements |
+| `ui-test list` | List discovered tests |
+| `ui-test doctor` | Show invocation/version diagnostics |
 
 Reconfigure settings later (interactive):
 
 ```bash
-npx ui-test setup --reconfigure
+ui-test setup --reconfigure
 ```
+
+`setup --reconfigure` updates runtime defaults (play + record) without re-running URL/start-command onboarding.
 
 ## Typical Workflow
 
 ### Record and replay
 
 ```bash
-npx ui-test record
-npx ui-test list
-npx ui-test play
+ui-test record
+ui-test list
+ui-test play
 ```
 
 ### Improve selectors/assertions (review-first)
 
 ```bash
-npx ui-test improve e2e/login.yaml
-npx ui-test improve e2e/login.yaml --apply
-npx ui-test improve e2e/login.yaml --apply-selectors
-npx ui-test improve e2e/login.yaml --apply-assertions
-npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
-npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
-npx ui-test improve e2e/login.yaml --apply --assertion-apply-policy aggressive
+ui-test improve e2e/login.yaml
+ui-test improve e2e/login.yaml --apply
+ui-test improve e2e/login.yaml --apply-selectors
+ui-test improve e2e/login.yaml --apply-assertions
+ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
+ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
+ui-test improve e2e/login.yaml --apply --assertion-apply-policy aggressive
 ```
 
 Defaults:
@@ -144,7 +154,7 @@ improveAssertions: candidates
 `startCommand` is optional. If omitted, start your app manually and run:
 
 ```bash
-npx ui-test play --no-start
+ui-test play --no-start
 ```
 
 ## Playwright-CLI Clarification
@@ -152,7 +162,7 @@ npx ui-test play --no-start
 Playwright-CLI is only required for:
 
 ```bash
-npx ui-test improve <file> --assertion-source snapshot-cli
+ui-test improve <file> --assertion-source snapshot-cli
 ```
 
 It is not required for default `setup`, `play`, `record`, or default `improve`.
@@ -168,7 +178,7 @@ npx -y @playwright/cli@latest --help
 
 - Browser missing: `npx playwright install chromium`
 - Linux dependencies missing: `npx playwright install-deps chromium`
-- App not reachable: verify `baseUrl` or run `npx ui-test play --no-start`
+- App not reachable: verify `baseUrl` or run `ui-test play --no-start`
 - Config filename must be `ui-test.config.yaml`
 
 Full guide: [Troubleshooting](docs/troubleshooting.md)

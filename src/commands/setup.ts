@@ -1,19 +1,30 @@
 import type { Command } from "commander";
+import * as prompts from "@inquirer/prompts";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+import yaml from "js-yaml";
 import { chromium } from "playwright";
-import { findLegacyConfigPath, loadConfig } from "../utils/config.js";
+import { findLegacyConfigPath, loadConfig, type UITestConfig } from "../utils/config.js";
 import { handleError, UserError } from "../utils/errors.js";
 import { ui } from "../utils/ui.js";
 import { runInit } from "./init.js";
 
 const CONFIG_FILENAMES = ["ui-test.config.yaml"];
+const require = createRequire(import.meta.url);
 
 interface SetupOptions {
   forceInit?: boolean;
   reconfigure?: boolean;
   skipBrowserInstall?: boolean;
+}
+
+interface SetupPromptApi {
+  input: typeof prompts.input;
+  confirm: typeof prompts.confirm;
+  select: typeof prompts.select;
 }
 
 export function registerSetup(program: Command) {
@@ -46,7 +57,7 @@ async function runSetup(opts: SetupOptions = {}): Promise<void> {
     if (legacyConfigPath) {
       throw new UserError(
         `Legacy config file detected at ${legacyConfigPath}`,
-        "Rename it to ui-test.config.yaml, then rerun setup. If you want a fresh config instead, use: npx ui-test setup --force-init"
+        "Rename it to ui-test.config.yaml, then rerun setup. If you want a fresh config instead, use: ui-test setup --force-init (or one-off: npx -y github:ddv1982/easy-e2e-testing setup --force-init)"
       );
     }
   }
@@ -61,31 +72,32 @@ async function runSetup(opts: SetupOptions = {}): Promise<void> {
       await runInit({ yes: true, overwriteSample: true });
     } else if (opts.reconfigure && existingConfigPath) {
       ui.info(`Config found at ${existingConfigPath}; reconfiguring interactively due to --reconfigure.`);
-      await runInit({});
+      await runReconfigureRuntimeDefaults();
     } else if (opts.reconfigure) {
-      ui.info("No config found; launching interactive configuration.");
-      await runInit({});
+      ui.info("No config found; initializing with defaults before runtime reconfigure.");
+      await runInit({ yes: true });
+      await runReconfigureRuntimeDefaults();
     } else {
       ui.info("No config found; initializing with defaults.");
       await runInit({ yes: true });
     }
   } else {
     ui.info(`Existing config detected at ${existingConfigPath}; keeping as-is.`);
-    ui.step("To update settings interactively: npx ui-test setup --reconfigure");
-    ui.step("To reset config/sample to defaults: npx ui-test setup --force-init");
+    ui.step("To update settings interactively: ui-test setup --reconfigure");
+    ui.step("To reset config/sample to defaults: ui-test setup --force-init");
     await loadConfig();
   }
 
   if (opts.skipBrowserInstall) {
     ui.warn("Skipping Playwright browser installation (--skip-browser-install).");
   } else {
-    runInstallStep("Install Playwright Chromium", "npx", ["playwright", "install", "chromium"]);
+    runInstallPlaywrightChromium();
     await verifyChromiumLaunch();
   }
 
   console.log();
   ui.success("Setup complete.");
-  ui.step("Run tests: npx ui-test play");
+  ui.step("Run tests: ui-test play");
 }
 
 async function findExistingConfigPath(): Promise<string | undefined> {
@@ -101,9 +113,141 @@ async function findExistingConfigPath(): Promise<string | undefined> {
   return undefined;
 }
 
-function runInstallStep(name: string, command: string, args: string[]): void {
+async function runReconfigureRuntimeDefaults(
+  promptApi: SetupPromptApi = prompts
+): Promise<void> {
+  const config = await loadConfig();
+
+  const headed = await promptApi.confirm({
+    message: "Run tests in headed mode by default? (visible browser)",
+    default: config.headed ?? false,
+  });
+
+  const timeoutInput = await promptApi.input({
+    message: "Default step timeout in milliseconds?",
+    default: String(config.timeout ?? 10_000),
+    validate: validatePositiveInteger,
+  });
+
+  const delayInput = await promptApi.input({
+    message: "Delay between steps in milliseconds? (optional, blank for no delay)",
+    default: config.delay === undefined ? "" : String(config.delay),
+    validate: validateDelayInput,
+  });
+
+  const waitForNetworkIdle = await promptApi.confirm({
+    message: "Wait for network idle after each step by default?",
+    default: config.waitForNetworkIdle ?? true,
+  });
+
+  const recordBrowser = await promptApi.select<"chromium" | "firefox" | "webkit">({
+    message: "Default record browser:",
+    default: config.recordBrowser ?? "chromium",
+    choices: [
+      { name: "Chromium", value: "chromium" },
+      { name: "Firefox", value: "firefox" },
+      { name: "WebKit", value: "webkit" },
+    ],
+  });
+
+  const recordSelectorPolicy = await promptApi.select<"reliable" | "raw">({
+    message: "Default record selector policy:",
+    default: config.recordSelectorPolicy ?? "reliable",
+    choices: [
+      { name: "Reliable", value: "reliable" },
+      { name: "Raw", value: "raw" },
+    ],
+  });
+
+  const nextConfig: UITestConfig = {
+    ...config,
+    headed,
+    timeout: Number(timeoutInput),
+    waitForNetworkIdle,
+    recordBrowser,
+    recordSelectorPolicy,
+  };
+
+  if (delayInput.trim().length > 0) {
+    nextConfig.delay = Number(delayInput);
+  } else {
+    delete nextConfig.delay;
+  }
+
+  const configPath = path.resolve(CONFIG_FILENAMES[0]);
+  await fs.writeFile(configPath, yaml.dump(nextConfig, { quotingType: '"' }), "utf-8");
+  ui.success(`Config updated: ${configPath}`);
+}
+
+function validatePositiveInteger(value: string): true | string {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return "Must be a positive integer";
+  }
+  return true;
+}
+
+function validateDelayInput(value: string): true | string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return true;
+
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    return "Must be a non-negative integer or blank";
+  }
+  return true;
+}
+
+function runInstallPlaywrightChromium(): void {
+  const playwrightPackageRoot = resolvePlaywrightPackageRoot();
+  const playwrightCliEntry = resolvePlaywrightCliEntry(playwrightPackageRoot);
+  if (playwrightCliEntry) {
+    runInstallStep(
+      "Install Playwright Chromium",
+      process.execPath,
+      buildPlaywrightCliRunArgs(playwrightCliEntry, ["install", "chromium"]),
+      playwrightPackageRoot
+    );
+    return;
+  }
+
+  runInstallStep("Install Playwright Chromium", "npx", ["playwright", "install", "chromium"]);
+}
+
+function resolvePlaywrightCliEntry(playwrightPackageRoot?: string): string | undefined {
+  if (!playwrightPackageRoot) return undefined;
+  const cliPath = path.join(playwrightPackageRoot, "cli.js");
+  return existsSync(cliPath) ? cliPath : undefined;
+}
+
+function buildPlaywrightCliRunArgs(playwrightCliEntry: string, args: string[]): string[] {
+  const shim = [
+    "const cliPath = process.argv[1];",
+    "const cliArgs = process.argv.slice(2);",
+    "process.argv = [process.execPath, 'playwright', ...cliArgs];",
+    "require(cliPath);",
+  ].join(" ");
+  return ["-e", shim, playwrightCliEntry, ...args];
+}
+
+function resolvePlaywrightPackageRoot(): string | undefined {
+  try {
+    const packageJsonPath = require.resolve("playwright/package.json");
+    return path.dirname(packageJsonPath);
+  } catch {
+    return undefined;
+  }
+}
+
+function runInstallStep(
+  name: string,
+  command: string,
+  args: string[],
+  cwd?: string
+): void {
   ui.info(`${name}...`);
   const result = spawnSync(command, args, {
+    cwd,
     stdio: "inherit",
     shell: process.platform === "win32",
     env: process.env,

@@ -29,6 +29,54 @@ npm run build
 npm run test:smoke
 ```
 
+Release preflight:
+
+```bash
+npm run check:npm-name
+npm pack --dry-run
+```
+
+## npm Trusted Publisher (One-Time Setup)
+
+1. Publish workflow file must exist at `.github/workflows/publish.yml`.
+2. In npm package settings, configure **Trusted Publisher** for:
+   - GitHub org/user: `ddv1982`
+   - Repository: `easy-e2e-testing`
+   - Workflow file: `publish.yml`
+3. (Recommended) Create GitHub Environment `npm-publish` and require reviewer approval for publish jobs.
+4. Ensure the package is configured for public distribution (`ui-test` unscoped, or `--access public` for scoped fallback).
+
+## Release Flow
+
+1. Merge to `main`.
+2. Confirm release checks pass (`CI` + `Release Verify` workflows).
+3. Create/publish a GitHub release from the default branch.
+4. `Publish` workflow runs and executes:
+   - lint
+   - full tests
+   - package dry-run
+   - `npm publish --provenance` (plus `--access public` when scoped)
+
+Post-release verification:
+
+```bash
+npm view ui-test version
+ui-test --version
+```
+
+## Rollback / Recovery
+
+If a bad version is published:
+
+1. Deprecate that version on npm:
+
+```bash
+npm deprecate ui-test@<bad-version> "Deprecated due to release issue. Use a newer version."
+```
+
+2. Cut a patch release with a fix.
+3. Re-run publish flow via new GitHub release (or manual `workflow_dispatch` on `main`).
+
 ## CI Runner Fallback
 
 If GitHub-hosted runners are unavailable, configure one of:
@@ -46,7 +94,7 @@ Recorder default path is JSONL with fallback to playwright-test parsing.
 To force fallback mode:
 
 ```bash
-UI_TEST_DISABLE_JSONL=1 npx ui-test record
+UI_TEST_DISABLE_JSONL=1 ui-test record
 ```
 
 ## Coverage Thresholds

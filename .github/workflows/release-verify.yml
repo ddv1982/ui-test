@@ -1,0 +1,61 @@
+name: Release Verify
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full test suite
+        run: npm test
+
+      - name: Run consumer smoke test
+        run: npm run test:smoke
+
+      - name: Verify tarball file list
+        run: |
+          PACK_JSON="$(npm pack --json)"
+          TARBALL="$(node -e "const out = JSON.parse(process.argv[1]); process.stdout.write(out[0].filename);" "$PACK_JSON")"
+
+          tar -tf "$TARBALL" | tee tarball-files.txt
+
+          grep -q '^package/dist/bin/ui-test.js$' tarball-files.txt
+          grep -q '^package/package.json$' tarball-files.txt
+          grep -q '^package/README.md$' tarball-files.txt
+          grep -q '^package/LICENSE$' tarball-files.txt
+          grep -q '^package/scripts/enforce-standalone-install.mjs$' tarball-files.txt
+
+          rm -f "$TARBALL" tarball-files.txt

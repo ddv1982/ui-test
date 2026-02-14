@@ -49,7 +49,8 @@ describe("enforce-standalone-install", () => {
       "/Users/dev/.npm/_cacache/tmp/git-clone"
     );
     expect(message).toContain("project-local installs are not supported");
-    expect(message).toContain("npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart");
     expect(message).toContain("npm i -g ui-test");
+    expect(message).toContain("npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart");
+    expect(message).toContain("npm uninstall ui-test");
   });
 });

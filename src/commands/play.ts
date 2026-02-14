@@ -83,7 +83,7 @@ async function runPlay(
     if (files.length === 0) {
       throw new UserError(
         `No test files found in ${profile.testDir}/`,
-        "Record a test first: npx ui-test record"
+        "Record a test first: ui-test record"
       );
     }
     files.sort();

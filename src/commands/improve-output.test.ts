@@ -94,7 +94,9 @@ describe("improve output helpers", () => {
     const out = buildExternalCliInvocationWarning(cwd, argv1, testFile);
 
     expect(out).toContain("outside this workspace");
-    expect(out).toContain("npx ui-test improve " + path.resolve(cwd, testFile));
+    expect(out).toContain(
+      "npx -y github:ddv1982/easy-e2e-testing improve " + path.resolve(cwd, testFile)
+    );
     expect(out).toContain(path.resolve(cwd, testFile));
   });
 
@@ -112,7 +114,9 @@ describe("improve output helpers", () => {
     const out = buildExternalCliInvocationWarning(cwd, argv1, "e2e/login.yaml");
 
     expect(out).toContain("Could not verify ui-test binary path");
-    expect(out).toContain("npx ui-test improve " + path.resolve(cwd, "e2e/login.yaml"));
+    expect(out).toContain(
+      "npx -y github:ddv1982/easy-e2e-testing improve " + path.resolve(cwd, "e2e/login.yaml")
+    );
   });
 
   it("supports file URL invocation paths", () => {

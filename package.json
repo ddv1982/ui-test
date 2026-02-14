@@ -42,7 +42,18 @@
     "no-code",
     "yaml"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ddv1982/easy-e2e-testing.git"
+  },
+  "homepage": "https://github.com/ddv1982/easy-e2e-testing#readme",
+  "bugs": {
+    "url": "https://github.com/ddv1982/easy-e2e-testing/issues"
+  },
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",
     "acorn": "^8.15.0",

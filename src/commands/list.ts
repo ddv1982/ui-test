@@ -27,7 +27,7 @@ async function runList() {
 
   if (files.length === 0) {
     ui.warn(`No test files found in ${testDir}/`);
-    ui.dim("Record a test: npx ui-test record");
+    ui.dim("Record a test: ui-test record");
     return;
   }
 

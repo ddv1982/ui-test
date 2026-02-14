@@ -5,7 +5,7 @@
 ## Default (Review First)
 
 ```bash
-npx ui-test improve e2e/login.yaml
+ui-test improve e2e/login.yaml
 ```
 
 This writes a JSON report and does not modify YAML.
@@ -13,7 +13,7 @@ This writes a JSON report and does not modify YAML.
 ## Apply All Improvements
 
 ```bash
-npx ui-test improve e2e/login.yaml --apply
+ui-test improve e2e/login.yaml --apply
 ```
 
 `--apply` writes both improved selectors and high-confidence assertion candidates to the YAML file.
@@ -21,7 +21,7 @@ npx ui-test improve e2e/login.yaml --apply
 ## Apply Selectors Only
 
 ```bash
-npx ui-test improve e2e/login.yaml --apply-selectors
+ui-test improve e2e/login.yaml --apply-selectors
 ```
 
 This applies only selector improvements without inserting assertion candidates.
@@ -29,7 +29,7 @@ This applies only selector improvements without inserting assertion candidates.
 ## Apply Assertions Only
 
 ```bash
-npx ui-test improve e2e/login.yaml --apply-assertions
+ui-test improve e2e/login.yaml --apply-assertions
 ```
 
 This inserts high-confidence assertion candidates into YAML after runtime validation, without updating selectors.
@@ -48,8 +48,8 @@ Improve no longer injects coverage fallback assertions.
 ## Assertion Apply Policy
 
 ```bash
-npx ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy reliable
-npx ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy aggressive
+ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy reliable
+ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy aggressive
 ```
 
 Policy matrix:
@@ -60,8 +60,8 @@ Policy matrix:
 ## Assertion Source (Opt-In Snapshot Mode)
 
 ```bash
-npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
-npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
+ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
+ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
 ```
 
 Two snapshot-based assertion sources are available:
@@ -86,8 +86,8 @@ Fallback behavior:
 ## Assertions Mode
 
 ```bash
-npx ui-test improve e2e/login.yaml --assertions candidates
-npx ui-test improve e2e/login.yaml --assertions none
+ui-test improve e2e/login.yaml --assertions candidates
+ui-test improve e2e/login.yaml --assertions none
 ```
 
 Current scope:
@@ -131,7 +131,7 @@ CLI output also includes:
 Doctor command for environment verification:
 
 ```bash
-npx ui-test doctor
+ui-test doctor
 ```
 
 `doctor` reports CLI version, node version, binary path, invocation classification, local package version, and actionable mismatch warnings.
@@ -142,7 +142,7 @@ Default report path:
 Custom path:
 
 ```bash
-npx ui-test improve e2e/login.yaml --report ./reports/login.improve.json
+ui-test improve e2e/login.yaml --report ./reports/login.improve.json
 ```
 
 ## Runtime Safety Notes

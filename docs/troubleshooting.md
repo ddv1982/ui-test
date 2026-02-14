@@ -13,24 +13,24 @@
 npm run bootstrap
 npm run bootstrap:setup
 
-# standalone CLI (global install or npx package execution)
-npx ui-test bootstrap install
-npx ui-test bootstrap setup
+# standalone CLI (global install)
+ui-test bootstrap install
+ui-test bootstrap setup
 ```
 
-If you are running directly from GitHub without installing:
+If you are using one-off execution:
 
 ```bash
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
 If you see `Standalone install policy: project-local installs are not supported`, remove any
-`ui-test` dependency entry from the project and use one-off (`npx -y github:...`) or global install (`npm i -g ui-test`) instead.
+`ui-test` dependency entry from the project, run `npm uninstall ui-test`, then use global install (`npm i -g ui-test`).
 
 If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and setup continues. `playwright-cli` is only required for:
 
 ```bash
-npx ui-test improve <file> --assertion-source snapshot-cli
+ui-test improve <file> --assertion-source snapshot-cli
 ```
 
 ## Browser Installation Issues
@@ -59,7 +59,7 @@ If `play` cannot reach your app:
 3. For manually started apps, run:
 
 ```bash
-npx ui-test play --no-start
+ui-test play --no-start
 ```
 
 ## Failure Artifacts Not Saved
@@ -72,13 +72,13 @@ If artifacts are missing:
 2. Override output path for the run:
 
 ```bash
-npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts
+ui-test play --artifacts-dir ./tmp/ui-test-artifacts
 ```
 
 3. If needed, disable capture for the run:
 
 ```bash
-npx ui-test play --no-save-failure-artifacts
+ui-test play --no-save-failure-artifacts
 ```
 
 Open a saved trace:
@@ -96,7 +96,7 @@ npx playwright show-trace .ui-test-artifacts/runs/<runId>/tests/<testSlug>/trace
 You can force fallback mode for debugging:
 
 ```bash
-UI_TEST_DISABLE_JSONL=1 npx ui-test record
+UI_TEST_DISABLE_JSONL=1 ui-test record
 ```
 
 ## Improve Apply Mode Fails
@@ -128,7 +128,7 @@ node dist/bin/ui-test.js improve <test-file> --apply
 You can inspect invocation/version details explicitly:
 
 ```bash
-npx ui-test doctor
+ui-test doctor
 ```
 
 Validation timing mirrors `play` post-step waiting (network idle, `2000ms` default). If that wait times out, candidates are skipped with `skipped_runtime_failure`.

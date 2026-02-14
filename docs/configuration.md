@@ -7,7 +7,7 @@ Create `ui-test.config.yaml` in project root.
 ```yaml
 testDir: e2e
 baseUrl: http://127.0.0.1:5173
-startCommand: npx ui-test example-app --host 127.0.0.1 --port 5173
+startCommand: ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173
 headed: false
 timeout: 10000
 delay: 0
@@ -39,6 +39,7 @@ improveAssertions: candidates
 - `delay`: delay between steps in milliseconds.
 - `waitForNetworkIdle`: wait for network idle after each step.
 - `networkIdleTimeout`: timeout for post-step network idle wait.
+  - `setup --reconfigure` lets you toggle `waitForNetworkIdle` but keeps `networkIdleTimeout` as an advanced manual config key.
 - `saveFailureArtifacts`: save JSON report + trace + screenshot when a play run fails.
 - `artifactsDir`: base directory for play failure artifacts (default `.ui-test-artifacts`).
 
@@ -76,17 +77,17 @@ CLI flags override config values for each run.
 Examples:
 
 ```bash
-npx ui-test play --headed --timeout 15000
-npx ui-test play --save-failure-artifacts
-npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts --no-save-failure-artifacts
-npx ui-test record --browser firefox --selector-policy raw
-npx ui-test improve e2e/login.yaml --apply
-npx ui-test improve e2e/login.yaml --apply-selectors
-npx ui-test improve e2e/login.yaml --apply-assertions
-npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
-npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
-npx ui-test improve e2e/login.yaml --apply --assertion-apply-policy aggressive
-npx ui-test doctor
+ui-test play --headed --timeout 15000
+ui-test play --save-failure-artifacts
+ui-test play --artifacts-dir ./tmp/ui-test-artifacts --no-save-failure-artifacts
+ui-test record --browser firefox --selector-policy raw
+ui-test improve e2e/login.yaml --apply
+ui-test improve e2e/login.yaml --apply-selectors
+ui-test improve e2e/login.yaml --apply-assertions
+ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
+ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
+ui-test improve e2e/login.yaml --apply --assertion-apply-policy aggressive
+ui-test doctor
 ```
 
 ## V2 YAML Step Contract

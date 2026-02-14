@@ -101,7 +101,7 @@ export function buildExternalCliInvocationWarning(
     : path.resolve(resolvedCwd, testFile);
   const recommendedCommand = localEntrypoint
     ? `node ${localEntrypoint} improve ${resolvedTestFile}`
-    : `npx ui-test improve ${resolvedTestFile}`;
+    : `npx -y github:ddv1982/easy-e2e-testing improve ${resolvedTestFile}`;
 
   const invocation = classifyInvocationPath(workspaceRoot, argv1);
   if (invocation.classification === "inside-workspace") return undefined;

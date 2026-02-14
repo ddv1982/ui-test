@@ -118,7 +118,7 @@ async function runRecord(opts: RecordCliOptions) {
   ui.info(
     `Selector quality: stable=${result.stats.stableSelectors}, fallback=${result.stats.fallbackSelectors}, frame-aware=${result.stats.frameAwareSelectors}`
   );
-  ui.info("Run it with: npx ui-test play " + result.outputPath);
+  ui.info("Run it with: ui-test play " + result.outputPath);
 }
 
 function parseRecordCliOptions(value: unknown): RecordCliOptions {

@@ -11,7 +11,7 @@ const HELP_TEXT = `
 ui-test bootstrap
 
 Usage:
-  npx ui-test bootstrap [mode] [options]
+  ui-test bootstrap [mode] [options]
 
 Modes:
   install       Install project dependencies and Playwright-CLI tooling
@@ -23,10 +23,12 @@ Options:
   -h, --help    Show help
 
 Examples:
-  npx ui-test bootstrap install
-  npx ui-test bootstrap setup --force-init
-  npx ui-test bootstrap quickstart --run-play
-  npx ui-test bootstrap quickstart -- --skip-browser-install
+  ui-test bootstrap install
+  ui-test bootstrap setup --force-init
+  ui-test bootstrap quickstart --run-play
+  ui-test bootstrap quickstart -- --skip-browser-install
+
+One-off fallback:
   npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 `.trim();
 

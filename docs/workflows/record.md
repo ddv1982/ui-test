@@ -5,7 +5,7 @@ Use `record` to capture interactions and produce V2 YAML steps.
 ## Basic Recording
 
 ```bash
-npx ui-test record
+ui-test record
 ```
 
 You will be prompted for:
@@ -16,11 +16,11 @@ You will be prompted for:
 ## Key Flags
 
 ```bash
-npx ui-test record --selector-policy reliable
-npx ui-test record --browser firefox
-npx ui-test record --device "iPhone 13"
-npx ui-test record --test-id-attribute data-qa
-npx ui-test record --load-storage .auth/in.json --save-storage .auth/out.json
+ui-test record --selector-policy reliable
+ui-test record --browser firefox
+ui-test record --device "iPhone 13"
+ui-test record --test-id-attribute data-qa
+ui-test record --load-storage .auth/in.json --save-storage .auth/out.json
 ```
 
 ## Selector Policy

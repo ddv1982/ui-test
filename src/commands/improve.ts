@@ -120,7 +120,7 @@ async function runImprove(
 
   ui.step(`Review report: ${result.reportPath}`);
   if (!result.outputPath) {
-    ui.step(`Apply all improvements: npx ui-test improve ${path.resolve(testFile)} --apply`);
+    ui.step(`Apply all improvements: ui-test improve ${path.resolve(testFile)} --apply`);
   }
   if (!profile.applySelectors && !profile.applyAssertions && profile.assertions === "candidates") {
     ui.step(`Or apply selectively: --apply-selectors, --apply-assertions`);
