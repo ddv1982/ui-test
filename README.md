@@ -79,12 +79,6 @@ npx ui-test improve e2e/login.yaml --apply-assertions
 npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
 ```
 
-Optional local LLM ranking (Ollama):
-
-```bash
-npx ui-test improve e2e/login.yaml --llm
-```
-
 See: [Improve Workflow](docs/workflows/improve.md)
 
 ## Core Commands
@@ -151,16 +145,10 @@ saveFailureArtifacts: true
 artifactsDir: .ui-test-artifacts
 recordSelectorPolicy: reliable
 recordBrowser: chromium
-improveProvider: auto
 improveApplyMode: review
 improveApplyAssertions: false
 improveAssertionSource: deterministic
 improveAssertions: candidates
-llm:
-  enabled: false
-  provider: ollama
-  baseUrl: http://127.0.0.1:11434
-  model: gemma3:4b
 ```
 
 `startCommand` is optional. If omitted, start your app manually and run `npx ui-test play --no-start`.
@@ -198,9 +186,10 @@ When a run fails, CLI output includes:
 - `--assertion-source snapshot-cli` enables opt-in headless replay + Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
 - If snapshot-cli source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.
 - Click/press assertions are intentionally not auto-generated to avoid false-positive postconditions.
+- In apply modes, stale adjacent self-visibility assertions are removed automatically (`click/press` followed by same-target `assertVisible`).
 - Assertion validation uses post-step network-idle timing like `play` (enabled by default, `2000ms` timeout).
 - Runtime validation is required for apply mode.
-- Optional Ollama ranking is best-effort; deterministic scoring/apply remain available with `--no-llm`.
+- Improve is deterministic-only (no local LLM dependency).
 
 ## Quick Troubleshooting
 

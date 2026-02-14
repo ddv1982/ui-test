@@ -7,28 +7,30 @@ import { UserError, ValidationError } from "../../utils/errors.js";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
 import { buildSnapshotCliAssertionCandidates } from "./assertion-candidates-snapshot-cli.js";
 import {
+  type AssertionApplyOutcome,
+  type AssertionCandidateRef,
   insertAppliedAssertions,
   selectCandidatesForApply,
   validateCandidatesAgainstRuntime,
 } from "./assertion-apply.js";
+import { findStaleAssertions, removeStaleAssertions } from "./assertion-cleanup.js";
 import { generateTargetCandidates } from "./candidate-generator.js";
-import { scoreTargetCandidates, shouldAdoptCandidate } from "./candidate-scorer.js";
-import type { OllamaConfig } from "./llm/ollama-client.js";
-import { rankSelectorCandidates } from "./llm/selector-ranker.js";
+import {
+  scoreTargetCandidates,
+  shouldAdoptCandidate,
+  type TargetCandidateScore,
+} from "./candidate-scorer.js";
 import { collectPlaywrightCliStepSnapshots } from "./providers/playwright-cli-replay.js";
-import { selectImproveProvider } from "./providers/provider-selector.js";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
 import {
   improveReportSchema,
   type AssertionApplyStatus,
   type AssertionCandidate,
   type ImproveDiagnostic,
-  type ImproveProviderUsed,
   type ImproveReport,
   type StepFinding,
 } from "./report-schema.js";
 
-export type ImproveProvider = "auto" | "playwright" | "playwright-cli";
 export type ImproveAssertionsMode = "none" | "candidates";
 export type ImproveAssertionSource = "deterministic" | "snapshot-cli";
 
@@ -36,12 +38,9 @@ export interface ImproveOptions {
   testFile: string;
   apply: boolean;
   applyAssertions: boolean;
-  provider: ImproveProvider;
   assertions: ImproveAssertionsMode;
   assertionSource?: ImproveAssertionSource;
-  llmEnabled: boolean;
   reportPath?: string;
-  llmConfig: OllamaConfig;
 }
 
 export interface ImproveResult {
@@ -77,10 +76,25 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
   }
 
   const wantsWrite = options.apply || options.applyAssertions;
-  const initialUrl = inferInitialUrl(test.steps, test.baseUrl);
-  const providerResult = await selectImproveProvider(options.provider, initialUrl);
-  diagnostics.push(...providerResult.diagnostics);
-
+  const staleAssertions = findStaleAssertions(test.steps);
+  for (const staleAssertion of staleAssertions) {
+    diagnostics.push({
+      code: "stale_assertion_detected",
+      level: "warn",
+      message: `Step ${staleAssertion.index + 1}: detected stale assertion (${staleAssertion.reason}).`,
+    });
+  }
+  const staleAssertionIndexes = staleAssertions.map((staleAssertion) => staleAssertion.index);
+  const shouldRemoveStaleAssertions = wantsWrite && staleAssertionIndexes.length > 0;
+  if (shouldRemoveStaleAssertions) {
+    for (const staleAssertion of staleAssertions) {
+      diagnostics.push({
+        code: "stale_assertion_removed",
+        level: "info",
+        message: `Step ${staleAssertion.index + 1}: removed stale assertion (${staleAssertion.reason}).`,
+      });
+    }
+  }
   let browser: Browser | undefined;
   let page: Page | undefined;
   try {
@@ -101,52 +115,59 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     }
   }
 
-  let outputSteps: Step[] = [...test.steps];
+  let outputSteps: Step[] = shouldRemoveStaleAssertions
+    ? removeStaleAssertions(test.steps, staleAssertionIndexes)
+    : [...test.steps];
+  const outputStepOriginalIndexes = buildOutputStepOriginalIndexes(
+    test.steps,
+    staleAssertionIndexes,
+    shouldRemoveStaleAssertions
+  );
   const findings: StepFinding[] = [];
-  let llmUsed = false;
 
   try {
-    for (let index = 0; index < test.steps.length; index += 1) {
-      const step = test.steps[index];
+    for (let index = 0; index < outputSteps.length; index += 1) {
+      const step = outputSteps[index];
+      if (!step) continue;
+      const originalIndex = outputStepOriginalIndexes[index] ?? index;
 
       if (step.action !== "navigate") {
         const candidates = generateTargetCandidates(step.target);
         const scored = await scoreTargetCandidates(page, candidates, DEFAULT_SCORING_TIMEOUT_MS);
         const current = scored.find((item) => item.candidate.source === "current") ?? scored[0];
+        if (!current) {
+          diagnostics.push({
+            code: "candidate_scoring_unavailable",
+            level: "warn",
+            message: `Step ${originalIndex + 1}: no selector candidates were available for scoring.`,
+          });
+          continue;
+        }
+        const selected = chooseDeterministicSelection(scored, current);
 
-        const ranked = await rankSelectorCandidates(scored, {
-          llmEnabled: options.llmEnabled,
-          llmConfig: options.llmConfig,
-          action: step.action,
-          currentCandidateId: current.candidate.id,
-          snapshotExcerpt: providerResult.snapshotExcerpt,
-        });
-        llmUsed = llmUsed || ranked.llmUsed;
-        diagnostics.push(...ranked.diagnostics);
-
-        const improveOpportunity = shouldAdoptCandidate(current, ranked.selected);
-        const runtimeValidatedSelection = ranked.selected.matchCount === 1;
+        const improveOpportunity = shouldAdoptCandidate(current, selected);
+        const runtimeValidatedSelection = selected.matchCount === 1;
         const adopt = improveOpportunity && (!options.apply || runtimeValidatedSelection);
-        const recommendedTarget = adopt ? ranked.selected.candidate.target : step.target;
-        const confidenceDelta = roundScore(ranked.selected.score - current.score);
-        const reasonCodes = [...new Set([...current.reasonCodes, ...ranked.selected.reasonCodes])];
+        const recommendedTarget = adopt ? selected.candidate.target : step.target;
+        const confidenceDelta = roundScore(selected.score - current.score);
+        const reasonCodes = [...new Set([...current.reasonCodes, ...selected.reasonCodes])];
 
         if (options.apply && !adopt && improveOpportunity) {
           diagnostics.push({
             code: "apply_requires_runtime_unique_match",
             level: "warn",
-            message: `Step ${index + 1}: skipped apply because candidate did not have a unique runtime match.`,
+            message: `Step ${originalIndex + 1}: skipped apply because candidate did not have a unique runtime match.`,
           });
         }
 
         findings.push({
-          index,
+          index: originalIndex,
           action: step.action,
           changed: adopt,
           oldTarget: step.target,
           recommendedTarget,
           oldScore: current.score,
-          recommendedScore: ranked.selected.score,
+          recommendedScore: selected.score,
           confidenceDelta,
           reasonCodes,
         });
@@ -161,7 +182,8 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
       if (page) {
         try {
-          await executeRuntimeStep(page, outputSteps[index] ?? step, {
+          const runtimeStep = outputSteps[index] ?? step;
+          await executeRuntimeStep(page, runtimeStep, {
             timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
             baseUrl: test.baseUrl,
             mode: "analysis",
@@ -172,15 +194,17 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
             level: "warn",
             message:
               err instanceof Error
-                ? `Runtime execution failed at step ${index + 1}; continuing with best-effort analysis. ${err.message}`
-                : `Runtime execution failed at step ${index + 1}; continuing with best-effort analysis.`,
+                ? `Runtime execution failed at step ${originalIndex + 1}; continuing with best-effort analysis. ${err.message}`
+                : `Runtime execution failed at step ${originalIndex + 1}; continuing with best-effort analysis.`,
           });
         }
       }
     }
 
     let rawAssertionCandidates =
-      options.assertions === "candidates" ? buildAssertionCandidates(outputSteps, findings) : [];
+      options.assertions === "candidates"
+        ? buildAssertionCandidates(outputSteps, findings, outputStepOriginalIndexes)
+        : [];
 
     if (options.assertions === "candidates" && assertionSource === "snapshot-cli") {
       const snapshotReplay = await collectPlaywrightCliStepSnapshots({
@@ -199,8 +223,11 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         });
       } else {
         try {
-          const snapshotCandidates = buildSnapshotCliAssertionCandidates(
-            snapshotReplay.stepSnapshots
+          const snapshotCandidates = buildSnapshotCliAssertionCandidates(snapshotReplay.stepSnapshots).map(
+            (candidate) => ({
+              ...candidate,
+              index: outputStepOriginalIndexes[candidate.index] ?? candidate.index,
+            })
           );
           rawAssertionCandidates = dedupeAssertionCandidates([
             ...rawAssertionCandidates,
@@ -232,8 +259,29 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     let skippedAssertions = 0;
 
     if (options.applyAssertions && page) {
+      const originalToRuntimeIndex = buildOriginalToRuntimeIndex(outputStepOriginalIndexes);
       const selection = selectCandidatesForApply(rawAssertionCandidates, ASSERTION_APPLY_MIN_CONFIDENCE);
-      const outcomes = await validateCandidatesAgainstRuntime(page, outputSteps, selection.selected, {
+      const runtimeSelection: AssertionCandidateRef[] = [];
+      const unmappedOutcomes: AssertionApplyOutcome[] = [];
+      for (const selectedCandidate of selection.selected) {
+        const runtimeIndex = originalToRuntimeIndex.get(selectedCandidate.candidate.index);
+        if (runtimeIndex === undefined) {
+          unmappedOutcomes.push({
+            candidateIndex: selectedCandidate.candidateIndex,
+            applyStatus: "skipped_runtime_failure",
+            applyMessage: `Candidate source step ${selectedCandidate.candidate.index + 1} could not be mapped to runtime replay index.`,
+          });
+          continue;
+        }
+        runtimeSelection.push({
+          candidateIndex: selectedCandidate.candidateIndex,
+          candidate: {
+            ...selectedCandidate.candidate,
+            index: runtimeIndex,
+          },
+        });
+      }
+      const outcomes = await validateCandidatesAgainstRuntime(page, outputSteps, runtimeSelection, {
         timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
         baseUrl: test.baseUrl,
       });
@@ -246,6 +294,14 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       >();
 
       for (const outcome of selection.skippedLowConfidence) {
+        outcomeByCandidate.set(outcome.candidateIndex, {
+          applyStatus: outcome.applyStatus,
+          applyMessage: outcome.applyMessage,
+        });
+        skippedAssertions += 1;
+      }
+
+      for (const outcome of unmappedOutcomes) {
         outcomeByCandidate.set(outcome.candidateIndex, {
           applyStatus: outcome.applyStatus,
           applyMessage: outcome.applyMessage,
@@ -280,8 +336,12 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           if (!candidate) {
             throw new UserError("Assertion candidate index was out of range during apply.");
           }
+          const runtimeIndex = originalToRuntimeIndex.get(candidate.index);
+          if (runtimeIndex === undefined) {
+            throw new UserError("Assertion candidate source index could not be mapped to runtime index during apply.");
+          }
           return {
-            sourceIndex: candidate.index,
+            sourceIndex: runtimeIndex,
             assertionStep: candidate.candidate,
           };
         });
@@ -306,8 +366,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     const report: ImproveReport = {
       testFile: absoluteTestPath,
       generatedAt: new Date().toISOString(),
-      providerUsed: effectiveProvider(providerResult.providerUsed, page),
-      llmUsed,
+      providerUsed: page ? "playwright" : "none",
       summary: {
         unchanged: findings.filter((item) => !item.changed).length,
         improved: findings.filter((item) => item.changed).length,
@@ -350,24 +409,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
   }
 }
 
-function inferInitialUrl(steps: Step[], baseUrl?: string): string | undefined {
-  const firstNavigate = steps.find((step): step is Extract<Step, { action: "navigate" }> => {
-    return step.action === "navigate";
-  });
-  if (!firstNavigate) return baseUrl;
-
-  const value = firstNavigate.url.trim();
-  if (!value) return baseUrl;
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
-  if (!baseUrl) return undefined;
-
-  try {
-    return new URL(value, baseUrl).toString();
-  } catch {
-    return undefined;
-  }
-}
-
 function isFallbackTarget(target: Target): boolean {
   return target.kind === "css" || target.kind === "xpath" || target.kind === "internal" || target.kind === "unknown";
 }
@@ -378,13 +419,54 @@ function defaultReportPath(testPath: string): string {
   return `${base}.improve-report.json`;
 }
 
-function effectiveProvider(providerUsed: ImproveProviderUsed, page: Page | undefined): ImproveProviderUsed {
-  if (page) return providerUsed === "none" ? "playwright" : providerUsed;
-  return providerUsed;
-}
-
 function roundScore(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function buildOriginalToRuntimeIndex(outputStepOriginalIndexes: number[]): Map<number, number> {
+  const out = new Map<number, number>();
+  for (let runtimeIndex = 0; runtimeIndex < outputStepOriginalIndexes.length; runtimeIndex += 1) {
+    const originalIndex = outputStepOriginalIndexes[runtimeIndex];
+    if (originalIndex === undefined) continue;
+    out.set(originalIndex, runtimeIndex);
+  }
+  return out;
+}
+
+function buildOutputStepOriginalIndexes(
+  steps: Step[],
+  staleAssertionIndexes: number[],
+  removeStaleAssertions: boolean
+): number[] {
+  if (!removeStaleAssertions || staleAssertionIndexes.length === 0) {
+    return steps.map((_, index) => index);
+  }
+
+  const staleIndexSet = new Set(staleAssertionIndexes);
+  const out: number[] = [];
+  for (let index = 0; index < steps.length; index += 1) {
+    if (staleIndexSet.has(index)) continue;
+    out.push(index);
+  }
+
+  return out;
+}
+
+function chooseDeterministicSelection(
+  scored: TargetCandidateScore[],
+  fallback: TargetCandidateScore
+): TargetCandidateScore {
+  if (scored.length === 0) return fallback;
+
+  let best = scored[0]!;
+  for (let index = 1; index < scored.length; index += 1) {
+    const candidate = scored[index];
+    if (!candidate) continue;
+    if (candidate.score > best.score) {
+      best = candidate;
+    }
+  }
+  return best;
 }
 
 function dedupeAssertionCandidates(

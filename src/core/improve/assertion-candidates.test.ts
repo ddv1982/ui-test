@@ -78,4 +78,34 @@ describe("buildAssertionCandidates", () => {
 
     expect(out).toHaveLength(0);
   });
+
+  it("uses original step indexes mapping when provided", () => {
+    const findings: StepFinding[] = [
+      {
+        index: 2,
+        action: "fill",
+        changed: true,
+        oldTarget: { value: "#name", kind: "css", source: "manual" },
+        recommendedTarget: { value: "getByRole('textbox', { name: 'Name' })", kind: "locatorExpression", source: "manual" },
+        oldScore: 0.4,
+        recommendedScore: 0.95,
+        confidenceDelta: 0.55,
+        reasonCodes: ["unique_match"],
+      },
+    ];
+
+    const out = buildAssertionCandidates(
+      [
+        { action: "click", target: { value: "#menu", kind: "css", source: "manual" } },
+        { action: "fill", target: { value: "#name", kind: "css", source: "manual" }, text: "Alice" },
+      ],
+      findings,
+      [1, 2]
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0]?.index).toBe(2);
+    expect(out[0]?.candidate.action).toBe("assertValue");
+    expect(out[0]?.candidate.target.value).toBe("getByRole('textbox', { name: 'Name' })");
+  });
 });

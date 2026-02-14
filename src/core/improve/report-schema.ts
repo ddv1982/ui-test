@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { stepSchema, targetSchema } from "../yaml-schema.js";
 
-export const improveProviderSchema = z.enum(["playwright", "playwright-cli", "none"]);
+export const improveProviderSchema = z.enum(["playwright", "none"]);
 
 export const improveDiagnosticSchema = z.object({
   code: z.string().min(1),
@@ -59,7 +59,6 @@ export const improveReportSchema = z.object({
   testFile: z.string().min(1),
   generatedAt: z.string().datetime(),
   providerUsed: improveProviderSchema,
-  llmUsed: z.boolean(),
   summary: improveSummarySchema,
   stepFindings: z.array(stepFindingSchema),
   assertionCandidates: z.array(assertionCandidateSchema),

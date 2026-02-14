@@ -120,19 +120,10 @@ recordDevice: "iPhone 13"
 recordTestIdAttribute: "data-qa"
 recordLoadStorage: ".auth/in.json"
 recordSaveStorage: ".auth/out.json"
-improveProvider: playwright-cli
 improveApplyMode: review
 improveApplyAssertions: true
 improveAssertionSource: snapshot-cli
 improveAssertions: candidates
-llm:
-  enabled: true
-  provider: ollama
-  baseUrl: http://127.0.0.1:11434
-  model: gemma3:4b
-  timeoutMs: 12000
-  temperature: 0
-  maxOutputTokens: 600
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 
@@ -153,20 +144,35 @@ llm:
     expect(config.recordTestIdAttribute).toBe("data-qa");
     expect(config.recordLoadStorage).toBe(".auth/in.json");
     expect(config.recordSaveStorage).toBe(".auth/out.json");
-    expect(config.improveProvider).toBe("playwright-cli");
     expect(config.improveApplyMode).toBe("review");
     expect(config.improveApplyAssertions).toBe(true);
     expect(config.improveAssertionSource).toBe("snapshot-cli");
     expect(config.improveAssertions).toBe("candidates");
-    expect(config.llm).toEqual({
-      enabled: true,
-      provider: "ollama",
-      baseUrl: "http://127.0.0.1:11434",
-      model: "gemma3:4b",
-      timeoutMs: 12000,
-      temperature: 0,
-      maxOutputTokens: 600,
-    });
+  });
+
+  it("should reject legacy llm config block", async () => {
+    const configContent = `
+testDir: e2e
+llm:
+  enabled: true
+`;
+    vi.mocked(fs.readFile).mockResolvedValue(configContent);
+
+    const run = loadConfig();
+    await expect(run).rejects.toBeInstanceOf(UserError);
+    await expect(run).rejects.toThrow(/local LLM config has been removed and must be deleted/);
+  });
+
+  it("should reject legacy improveProvider config key", async () => {
+    const configContent = `
+testDir: e2e
+improveProvider: auto
+`;
+    vi.mocked(fs.readFile).mockResolvedValue(configContent);
+
+    const run = loadConfig();
+    await expect(run).rejects.toBeInstanceOf(UserError);
+    await expect(run).rejects.toThrow(/improve provider config has been removed and must be deleted/);
   });
 
   it("should reject invalid config types", async () => {
@@ -181,13 +187,10 @@ saveFailureArtifacts: "yes"
 artifactsDir: 123
 recordSelectorPolicy: fast
 recordBrowser: safari
-improveProvider: cli
 improveApplyMode: merge
 improveApplyAssertions: "yes"
 improveAssertionSource: auto
 improveAssertions: all
-llm:
-  provider: unknown
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
 

@@ -87,23 +87,8 @@ vi.mock("./candidate-scorer.js", () => ({
   shouldAdoptCandidate: vi.fn(() => true),
 }));
 
-vi.mock("./llm/selector-ranker.js", () => ({
-  rankSelectorCandidates: vi.fn(async (scored) => ({
-    selected: scored[1],
-    llmUsed: false,
-    diagnostics: [],
-  })),
-}));
-
 vi.mock("./assertion-candidates.js", () => ({
   buildAssertionCandidates: buildAssertionCandidatesMock,
-}));
-
-vi.mock("./providers/provider-selector.js", () => ({
-  selectImproveProvider: vi.fn(async () => ({
-    providerUsed: "playwright",
-    diagnostics: [],
-  })),
 }));
 
 vi.mock("./providers/playwright-cli-replay.js", () => ({
@@ -157,16 +142,7 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: true,
       applyAssertions: false,
-      provider: "playwright",
       assertions: "none",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.outputPath).toBe(yamlPath);
@@ -222,16 +198,7 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.outputPath).toBe(yamlPath);
@@ -281,16 +248,7 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: true,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.outputPath).toBe(yamlPath);
@@ -339,16 +297,7 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.report.summary.appliedAssertions).toBe(0);
@@ -401,16 +350,7 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.report.summary.appliedAssertions).toBe(0);
@@ -459,32 +399,14 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     const second = await improveTestFile({
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(second.report.summary.appliedAssertions).toBe(0);
@@ -526,16 +448,7 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.report.summary.assertionCandidates).toBe(0);
@@ -586,17 +499,8 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: false,
-      provider: "playwright",
       assertions: "candidates",
       assertionSource: "snapshot-cli",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(collectPlaywrightCliStepSnapshotsMock).toHaveBeenCalledWith(
@@ -659,17 +563,8 @@ describe("improve apply runtime replay", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: false,
-      provider: "playwright",
       assertions: "candidates",
       assertionSource: "snapshot-cli",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.report.summary.assertionCandidates).toBe(1);
@@ -679,5 +574,200 @@ describe("improve apply runtime replay", () => {
         (diagnostic) => diagnostic.code === "assertion_source_snapshot_cli_fallback"
       )
     ).toBe(true);
+  });
+
+  it("removes stale adjacent click self-visibility assertions in apply modes", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-apply-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+        "  - action: assertVisible",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "stale_assertion_detected"
+      )
+    ).toBe(true);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "stale_assertion_removed"
+      )
+    ).toBe(true);
+
+    const saved = await fs.readFile(yamlPath, "utf-8");
+    expect(saved).not.toContain("action: assertVisible");
+  });
+
+  it("removes stale assertions before apply replay execution", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-apply-replay-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+        "  - action: assertVisible",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    await improveTestFile({
+      testFile: yamlPath,
+      apply: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    const replayedActions = executeRuntimeStepMock.mock.calls.map((call) => {
+      const step = call[1] as { action: string };
+      return step.action;
+    });
+    expect(replayedActions.includes("assertVisible")).toBe(false);
+
+    const saved = await fs.readFile(yamlPath, "utf-8");
+    expect(saved).not.toContain("action: assertVisible");
+  });
+
+  it("keeps finding indexes aligned after stale cleanup for assertion apply", async () => {
+    const { buildAssertionCandidates } = await vi.importActual<
+      typeof import("./assertion-candidates.js")
+    >("./assertion-candidates.js");
+    buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
+
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-indexes-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+        "  - action: assertVisible",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+        "  - action: fill",
+        "    target:",
+        '      value: "#name"',
+        "      kind: css",
+        "      source: manual",
+        "    text: Alice",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    expect(result.report.summary.appliedAssertions).toBe(1);
+    expect(result.report.assertionCandidates).toHaveLength(1);
+    expect(result.report.assertionCandidates[0]?.index).toBe(3);
+    expect(result.report.assertionCandidates[0]?.candidate.action).toBe("assertValue");
+    expect(result.report.assertionCandidates[0]?.candidate.target.value).toBe(
+      "getByRole('button', { name: 'Save' })"
+    );
+    const fillFinding = result.report.stepFindings.find((finding) => finding.action === "fill");
+    expect(fillFinding?.index).toBe(3);
+  });
+
+  it("reports stale assertions without mutating YAML in review mode", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-review-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: press",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+        "    key: Enter",
+        "  - action: assertVisible",
+        "    target:",
+        '      value: "#login"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      apply: false,
+      applyAssertions: false,
+      assertions: "candidates",
+    });
+
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "stale_assertion_detected"
+      )
+    ).toBe(true);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "stale_assertion_removed"
+      )
+    ).toBe(false);
+
+    const saved = await fs.readFile(yamlPath, "utf-8");
+    expect(saved).toContain("action: assertVisible");
   });
 });

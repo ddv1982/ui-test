@@ -29,6 +29,7 @@ Auto-apply uses a conservative deterministic mapping:
 - `fill/select -> assertValue`
 - `check/uncheck -> assertChecked`
 - click/press assertions are intentionally not auto-generated
+- stale adjacent self-visibility assertions are removed in apply modes (`click/press -> same-target assertVisible`)
 
 Validation uses post-step network-idle timing similar to `play` defaults (enabled, `2000ms` timeout).
 Runtime validation failures are skipped and reported as warnings.
@@ -46,31 +47,6 @@ Fallback behavior:
 - If snapshot-cli is unavailable or replay fails, improve falls back to deterministic candidates.
 - Diagnostics include fallback reason codes in the JSON report.
 
-## LLM-Optional Mode (Ollama)
-
-```bash
-npx ui-test improve e2e/login.yaml --llm
-```
-
-Disable explicitly per run:
-
-```bash
-npx ui-test improve e2e/login.yaml --no-llm
-```
-
-## Provider Selection
-
-```bash
-npx ui-test improve e2e/login.yaml --provider auto
-npx ui-test improve e2e/login.yaml --provider playwright
-npx ui-test improve e2e/login.yaml --provider playwright-cli
-```
-
-Behavior:
-- `auto`: prefer `playwright-cli`, degrade to direct Playwright when unavailable.
-- `playwright-cli`: best-effort CLI adapter; degrades safely.
-- `playwright`: direct Playwright runtime only.
-
 ## Assertions Mode
 
 ```bash
@@ -83,7 +59,7 @@ Current scope:
 - Assertions are auto-inserted only when `--apply-assertions` is enabled.
 - Default assertion source is `deterministic`; opt in to replay/snapshot generation with `--assertion-source snapshot-cli`.
 - Auto-insert focuses on stable form-state assertions and excludes click/press-derived visibility checks.
-- Playwright codegen can generate assertions interactively, but `improve` assertion apply is deterministic and does not require LLM.
+- Playwright codegen can generate assertions interactively, but `improve` assertion apply is deterministic.
 
 ## Report Contents
 

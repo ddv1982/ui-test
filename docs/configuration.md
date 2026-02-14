@@ -21,19 +21,10 @@ recordDevice: iPhone 13
 recordTestIdAttribute: data-testid
 recordLoadStorage: .auth/in.json
 recordSaveStorage: .auth/out.json
-improveProvider: auto
 improveApplyMode: review
 improveApplyAssertions: false
 improveAssertionSource: deterministic
 improveAssertions: candidates
-llm:
-  enabled: false
-  provider: ollama
-  baseUrl: http://127.0.0.1:11434
-  model: gemma3:4b
-  timeoutMs: 12000
-  temperature: 0
-  maxOutputTokens: 600
 ```
 
 ## Fields
@@ -67,20 +58,11 @@ llm:
 - `recordSaveStorage`: save resulting storage state path.
 
 ### Improve Defaults
-- `improveProvider`: `auto`, `playwright`, `playwright-cli`.
 - `improveApplyMode`: `review` or `apply`.
 - `improveApplyAssertions`: apply high-confidence assertion candidates when improve runs.
 - `improveAssertionSource`: `deterministic` (default) or `snapshot-cli` (opt-in replay + Playwright-CLI snapshot mode).
 - `improveAssertions`: `none` or `candidates`.
-
-### LLM Settings (Optional)
-- `llm.enabled`: enable local LLM ranking.
-- `llm.provider`: currently `ollama`.
-- `llm.baseUrl`: Ollama base URL.
-- `llm.model`: default `gemma3:4b`.
-- `llm.timeoutMs`: request timeout.
-- `llm.temperature`: sampling temperature.
-- `llm.maxOutputTokens`: output token budget.
+- `llm`: removed; if present in config, improve will raise a migration error.
 
 ## Command Overrides
 
@@ -93,7 +75,7 @@ npx ui-test play --headed --timeout 15000
 npx ui-test play --save-failure-artifacts
 npx ui-test play --artifacts-dir ./tmp/ui-test-artifacts --no-save-failure-artifacts
 npx ui-test record --browser firefox --selector-policy raw
-npx ui-test improve e2e/login.yaml --no-llm --apply
+npx ui-test improve e2e/login.yaml --apply
 npx ui-test improve e2e/login.yaml --apply-assertions
 npx ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli
 ```

@@ -7,7 +7,6 @@ describe("improveReportSchema", () => {
       testFile: "/tmp/sample.yaml",
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
-      llmUsed: false,
       summary: {
         unchanged: 1,
         improved: 1,

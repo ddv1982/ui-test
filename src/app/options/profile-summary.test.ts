@@ -23,19 +23,15 @@ describe("profile summary formatting", () => {
 
   it("formats improve summary", () => {
     const out = formatImproveProfileSummary({
-      provider: "auto",
       apply: false,
       applyAssertions: true,
       assertions: "candidates",
       assertionSource: "snapshot-cli",
-      llmEnabled: false,
-      llmModel: "gemma3:4b",
     });
 
-    expect(out).toContain("provider=auto");
+    expect(out).toContain("apply=no");
     expect(out).toContain("applyAssertions=yes");
     expect(out).toContain("assertionSource=snapshot-cli");
-    expect(out).toContain("llm=disabled");
   });
 
   it("formats play summary", () => {

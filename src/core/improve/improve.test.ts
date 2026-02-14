@@ -35,17 +35,8 @@ describe("improveTestFile", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: false,
-      provider: "playwright",
       assertions: "none",
-      llmEnabled: false,
       reportPath,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     expect(result.outputPath).toBeUndefined();
@@ -70,16 +61,7 @@ describe("improveTestFile", () => {
       testFile: yamlPath,
       apply: true,
       applyAssertions: false,
-      provider: "playwright",
       assertions: "none",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     await expect(run).rejects.toBeInstanceOf(UserError);
@@ -101,16 +83,7 @@ describe("improveTestFile", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "candidates",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     await expect(run).rejects.toBeInstanceOf(UserError);
@@ -132,16 +105,7 @@ describe("improveTestFile", () => {
       testFile: yamlPath,
       apply: false,
       applyAssertions: true,
-      provider: "playwright",
       assertions: "none",
-      llmEnabled: false,
-      llmConfig: {
-        baseUrl: "http://127.0.0.1:11434",
-        model: "gemma3:4b",
-        timeoutMs: 1000,
-        temperature: 0,
-        maxOutputTokens: 100,
-      },
     });
 
     await expect(run).rejects.toBeInstanceOf(UserError);

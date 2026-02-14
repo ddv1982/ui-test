@@ -12,15 +12,12 @@ import { formatImproveProfileSummary } from "../app/options/profile-summary.js";
 export function registerImprove(program: Command) {
   program
     .command("improve")
-    .description("Analyze and improve recorded selectors with an optional local LLM")
+    .description("Analyze and improve recorded selectors")
     .argument("<test-file>", "Path to the YAML test file to analyze")
     .option("--apply", "Apply approved selector improvements to the YAML file")
     .option("--no-apply", "Force review mode and do not write YAML changes")
     .option("--apply-assertions", "Apply high-confidence assertion candidates to the YAML file")
     .option("--no-apply-assertions", "Do not apply assertion candidates for this run")
-    .option("--llm", "Enable local LLM ranking (Ollama)")
-    .option("--no-llm", "Disable local LLM ranking for this run")
-    .option("--provider <provider>", "Context provider: auto, playwright, playwright-cli")
     .option("--assertions <mode>", "Assertion mode: none or candidates")
     .option(
       "--assertion-source <source>",
@@ -41,8 +38,6 @@ async function runImprove(
   opts: {
     apply?: boolean;
     applyAssertions?: boolean;
-    llm?: boolean;
-    provider?: string;
     assertions?: string;
     assertionSource?: string;
     report?: string;
@@ -53,13 +48,10 @@ async function runImprove(
 
   ui.info(
     formatImproveProfileSummary({
-      provider: profile.provider,
       apply: profile.apply,
       applyAssertions: profile.applyAssertions,
       assertions: profile.assertions,
       assertionSource: profile.assertionSource,
-      llmEnabled: profile.llmEnabled,
-      llmModel: profile.llmConfig.model,
     })
   );
 
@@ -67,12 +59,9 @@ async function runImprove(
     testFile,
     apply: profile.apply,
     applyAssertions: profile.applyAssertions,
-    provider: profile.provider,
     assertions: profile.assertions,
     assertionSource: profile.assertionSource,
-    llmEnabled: profile.llmEnabled,
     reportPath: profile.reportPath,
-    llmConfig: profile.llmConfig,
   });
 
   ui.success(`Improve report saved to ${result.reportPath}`);
@@ -90,8 +79,5 @@ async function runImprove(
   }
   if (!profile.applyAssertions && profile.assertions === "candidates") {
     ui.step(`Apply assertion candidates: npx ui-test improve ${path.resolve(testFile)} --apply-assertions`);
-  }
-  if (!profile.llmEnabled) {
-    ui.step(`Enable local LLM ranking: npx ui-test improve ${path.resolve(testFile)} --llm`);
   }
 }

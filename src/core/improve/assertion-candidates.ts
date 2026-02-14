@@ -3,7 +3,8 @@ import type { Step } from "../yaml-schema.js";
 
 export function buildAssertionCandidates(
   steps: Step[],
-  findings: StepFinding[]
+  findings: StepFinding[],
+  originalStepIndexes?: number[]
 ): AssertionCandidate[] {
   const byIndex = new Map<number, StepFinding>();
   for (const finding of findings) {
@@ -16,13 +17,14 @@ export function buildAssertionCandidates(
     const step = steps[index];
     if (step.action === "navigate") continue;
 
-    const finding = byIndex.get(index);
+    const originalIndex = originalStepIndexes?.[index] ?? index;
+    const finding = byIndex.get(originalIndex);
     const target = finding?.recommendedTarget ?? step.target;
     const confidence = finding ? clamp01(finding.recommendedScore) : 0.5;
 
     if (step.action === "fill") {
       out.push({
-        index,
+        index: originalIndex,
         afterAction: step.action,
         candidate: { action: "assertValue", target, value: step.text },
         confidence: Math.max(0.7, confidence),
@@ -34,7 +36,7 @@ export function buildAssertionCandidates(
 
     if (step.action === "select") {
       out.push({
-        index,
+        index: originalIndex,
         afterAction: step.action,
         candidate: { action: "assertValue", target, value: step.value },
         confidence: Math.max(0.7, confidence),
@@ -46,7 +48,7 @@ export function buildAssertionCandidates(
 
     if (step.action === "check" || step.action === "uncheck") {
       out.push({
-        index,
+        index: originalIndex,
         afterAction: step.action,
         candidate: {
           action: "assertChecked",
