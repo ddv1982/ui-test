@@ -36,6 +36,8 @@ export const assertionCandidateSourceSchema = z.enum([
   "snapshot_native",
 ]);
 
+export const assertionApplyPolicySchema = z.enum(["reliable", "aggressive"]);
+
 export const assertionCandidateSchema = z.object({
   index: z.number().int().nonnegative(),
   afterAction: z.string().min(1),
@@ -55,6 +57,13 @@ export const improveSummarySchema = z.object({
   assertionCandidates: z.number().int().nonnegative(),
   appliedAssertions: z.number().int().nonnegative(),
   skippedAssertions: z.number().int().nonnegative(),
+  assertionApplyPolicy: assertionApplyPolicySchema.optional(),
+  assertionApplyStatusCounts: z
+    .partialRecord(assertionApplyStatusSchema, z.number().int().nonnegative())
+    .optional(),
+  assertionCandidateSourceCounts: z
+    .partialRecord(assertionCandidateSourceSchema, z.number().int().nonnegative())
+    .optional(),
 });
 
 export const improveReportSchema = z.object({
@@ -72,6 +81,7 @@ export type ImproveDiagnostic = z.infer<typeof improveDiagnosticSchema>;
 export type StepFinding = z.infer<typeof stepFindingSchema>;
 export type AssertionApplyStatus = z.infer<typeof assertionApplyStatusSchema>;
 export type AssertionCandidateSource = z.infer<typeof assertionCandidateSourceSchema>;
+export type AssertionApplyPolicy = z.infer<typeof assertionApplyPolicySchema>;
 export type AssertionCandidate = z.infer<typeof assertionCandidateSchema>;
 export type ImproveSummary = z.infer<typeof improveSummarySchema>;
 export type ImproveReport = z.infer<typeof improveReportSchema>;

@@ -1,10 +1,14 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type {
   AssertionApplyStatus,
   AssertionCandidate,
   AssertionCandidateSource,
 } from "../core/improve/report-schema.js";
+import {
+  classifyInvocationPath,
+  resolveLocalUiTestPackageRoot,
+  resolveWorkspaceRoot,
+} from "../utils/runtime-info.js";
 
 const ASSERTION_APPLY_STATUS_ORDER: AssertionApplyStatus[] = [
   "applied",
@@ -87,58 +91,29 @@ export function buildExternalCliInvocationWarning(
   testFile: string
 ): string | undefined {
   const resolvedCwd = path.resolve(cwd);
-  const localEntrypoint = path.join(resolvedCwd, "dist", "bin", "ui-test.js");
+  const workspaceRoot = resolveWorkspaceRoot(resolvedCwd);
+  const localPackageRoot = resolveLocalUiTestPackageRoot(resolvedCwd);
+  const localEntrypoint = localPackageRoot
+    ? path.join(localPackageRoot, "dist", "bin", "ui-test.js")
+    : undefined;
   const resolvedTestFile = path.isAbsolute(testFile)
     ? testFile
     : path.resolve(resolvedCwd, testFile);
+  const recommendedCommand = localEntrypoint
+    ? `node ${localEntrypoint} improve ${resolvedTestFile}`
+    : `npx ui-test improve ${resolvedTestFile}`;
 
-  const resolvedArgv = resolveInvocationPath(argv1, resolvedCwd);
-  if (!resolvedArgv) {
+  const invocation = classifyInvocationPath(workspaceRoot, argv1);
+  if (invocation.classification === "inside-workspace") return undefined;
+
+  if (invocation.classification === "unverifiable") {
     if (!argv1) return undefined;
-    return `Could not verify ui-test binary path from invocation (${argv1}). Behavior may differ from local source. Run local build for consistency: node ${localEntrypoint} improve ${resolvedTestFile}`;
+    return `Could not verify ui-test binary path from invocation (${argv1}). Behavior may differ from local source. Re-run with: ${recommendedCommand}`;
   }
 
-  if (isPathInside(resolvedArgv, resolvedCwd)) return undefined;
-
-  return `ui-test binary path (${resolvedArgv}) is outside this workspace (${resolvedCwd}). Behavior may differ from local source. Run local build for consistency: node ${localEntrypoint} improve ${resolvedTestFile}`;
+  return `ui-test binary path (${invocation.resolvedInvocationPath ?? argv1}) is outside this workspace (${workspaceRoot}). Behavior may differ from local source. Re-run with: ${recommendedCommand}`;
 }
 
 function collapseWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
-}
-
-function isPathInside(targetPath: string, parentPath: string): boolean {
-  const relative = path.relative(parentPath, targetPath);
-  if (relative === "") return true;
-  if (relative === "..") return false;
-  if (relative.startsWith(`..${path.sep}`)) return false;
-  return !path.isAbsolute(relative);
-}
-
-function resolveInvocationPath(argv1: string | undefined, cwd: string): string | undefined {
-  if (!argv1) return undefined;
-
-  if (argv1.startsWith("file://")) {
-    try {
-      return path.resolve(fileURLToPath(argv1));
-    } catch {
-      return undefined;
-    }
-  }
-
-  if (path.isAbsolute(argv1)) {
-    return path.resolve(argv1);
-  }
-
-  // Relative script paths (for example: ./dist/bin/ui-test.js or dist/bin/ui-test.js)
-  if (
-    argv1.includes(path.sep) ||
-    argv1.includes("/") ||
-    argv1.includes("\\")
-  ) {
-    return path.resolve(cwd, argv1);
-  }
-
-  // Bare command token (for example: ui-test) cannot be verified reliably.
-  return undefined;
 }

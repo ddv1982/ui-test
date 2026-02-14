@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { UserError } from "../../utils/errors.js";
 import {
   parseImproveAssertions,
+  parseImproveAssertionApplyPolicy,
   parseImproveAssertionSource,
   resolveImproveProfile,
 } from "./improve-profile.js";
@@ -14,18 +15,21 @@ describe("resolveImproveProfile", () => {
         applyAssertions: true,
         assertions: "none",
         assertionSource: "snapshot-cli",
+        assertionApplyPolicy: "aggressive",
         report: "out.json",
       },
       {
         improveApplyMode: "apply",
         improveApplyAssertions: false,
         improveAssertionSource: "deterministic",
+        improveAssertionApplyPolicy: "reliable",
         improveAssertions: "candidates",
       }
     );
 
     expect(out.assertions).toBe("none");
     expect(out.assertionSource).toBe("snapshot-cli");
+    expect(out.assertionApplyPolicy).toBe("aggressive");
     expect(out.applySelectors).toBe(false);
     expect(out.applyAssertions).toBe(true);
     expect(out.reportPath).toBe("out.json");
@@ -35,6 +39,7 @@ describe("resolveImproveProfile", () => {
     const out = resolveImproveProfile({}, {});
     expect(out.assertions).toBe("candidates");
     expect(out.assertionSource).toBe("snapshot-native");
+    expect(out.assertionApplyPolicy).toBe("reliable");
     expect(out.applySelectors).toBe(false);
     expect(out.applyAssertions).toBe(false);
   });
@@ -84,10 +89,12 @@ describe("improve-profile parsing", () => {
   it("accepts valid values", () => {
     expect(parseImproveAssertions("CANDIDATES")).toBe("candidates");
     expect(parseImproveAssertionSource("SNAPSHOT-CLI")).toBe("snapshot-cli");
+    expect(parseImproveAssertionApplyPolicy("AGGRESSIVE")).toBe("aggressive");
   });
 
   it("rejects invalid values", () => {
     expect(() => parseImproveAssertions("all")).toThrow(UserError);
     expect(() => parseImproveAssertionSource("auto")).toThrow(UserError);
+    expect(() => parseImproveAssertionApplyPolicy("safe")).toThrow(UserError);
   });
 });

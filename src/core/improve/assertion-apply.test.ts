@@ -124,6 +124,30 @@ describe("assertion apply helpers", () => {
     expect(out.skippedPolicy[0]?.applyStatus).toBe("skipped_policy");
   });
 
+  it("allows snapshot-derived assertVisible candidates in aggressive mode", () => {
+    const out = selectCandidatesForApply(
+      [
+        {
+          index: 0,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "#status", kind: "css", source: "manual" },
+          },
+          confidence: 0.99,
+          rationale: "snapshot visible candidate",
+          candidateSource: "snapshot_native",
+        },
+      ],
+      0.75,
+      "aggressive"
+    );
+
+    expect(out.selected).toHaveLength(1);
+    expect(out.selected[0]?.candidate.candidate.action).toBe("assertVisible");
+    expect(out.skippedPolicy).toHaveLength(0);
+  });
+
   it("inserts applied assertions with stable offsets", () => {
     const steps: Step[] = [
       { action: "navigate", url: "https://example.com" },

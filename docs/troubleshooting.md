@@ -81,6 +81,7 @@ If assertions were listed as candidates but not written to YAML:
 4. Re-run in a stable test environment so runtime validation can pass.
 5. Note: with `--assertion-source deterministic`, click/press assertions are intentionally not auto-generated and auto-apply targets stable form-state checks (`assertValue`/`assertChecked`). The default source (`snapshot-native`) generates assertions from page state changes.
 6. If you use `--assertion-source snapshot-native` or `--assertion-source snapshot-cli`, improve can propose snapshot-derived `assertVisible`/`assertText` candidates. In apply mode, snapshot-derived `assertVisible` is report-only (`skipped_policy`), while snapshot-derived `assertText` can be inserted after runtime validation.
+   - You can opt in to aggressive behavior with `--assertion-apply-policy aggressive` (or config `improveAssertionApplyPolicy: aggressive`) to allow snapshot-derived `assertVisible` auto-apply after runtime validation.
 7. Runtime-failing assertion candidates are never force-applied. If they fail validation, they are reported as `skipped_runtime_failure`.
 8. Apply mode limits inserted assertions to one applied assertion per source step; additional candidates are reported as `skipped_policy`.
 9. Improve does not inject coverage fallback assertions.
@@ -89,6 +90,12 @@ If assertions were listed as candidates but not written to YAML:
 
 ```bash
 node dist/bin/ui-test.js improve <test-file> --apply
+```
+
+You can inspect invocation/version details explicitly:
+
+```bash
+npx ui-test doctor
 ```
 
 Validation timing mirrors `play` post-step waiting (network idle, `2000ms` default). If that wait times out, candidates are skipped with `skipped_runtime_failure`.

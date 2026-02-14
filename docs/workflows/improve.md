@@ -45,6 +45,18 @@ Runtime validation failures are skipped and reported as warnings.
 Runtime-failing assertions are never force-applied.
 Improve no longer injects coverage fallback assertions.
 
+## Assertion Apply Policy
+
+```bash
+npx ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy reliable
+npx ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy aggressive
+```
+
+Policy matrix:
+- `reliable` (default): snapshot-derived `assertVisible` is report-only (`skipped_policy`).
+- `aggressive`: snapshot-derived `assertVisible` is auto-eligible after runtime validation.
+- Snapshot-derived `assertText` remains auto-eligible in both policies.
+
 ## Assertion Source (Opt-In Snapshot Mode)
 
 ```bash
@@ -115,6 +127,14 @@ CLI output also includes:
 - assertion candidate source breakdown
 - up to three concise skip details (with remaining count)
 - warning when the invoked `ui-test` binary is outside the current workspace path
+
+Doctor command for environment verification:
+
+```bash
+npx ui-test doctor
+```
+
+`doctor` reports CLI version, node version, binary path, invocation classification, local package version, and actionable mismatch warnings.
 
 Default report path:
 - `<test-file>.improve-report.json`

@@ -123,6 +123,7 @@ recordSaveStorage: ".auth/out.json"
 improveApplyMode: review
 improveApplyAssertions: true
 improveAssertionSource: snapshot-cli
+improveAssertionApplyPolicy: aggressive
 improveAssertions: candidates
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);
@@ -147,6 +148,7 @@ improveAssertions: candidates
     expect(config.improveApplyMode).toBe("review");
     expect(config.improveApplyAssertions).toBe(true);
     expect(config.improveAssertionSource).toBe("snapshot-cli");
+    expect(config.improveAssertionApplyPolicy).toBe("aggressive");
     expect(config.improveAssertions).toBe("candidates");
   });
 
@@ -190,6 +192,7 @@ recordBrowser: safari
 improveApplyMode: merge
 improveApplyAssertions: "yes"
 improveAssertionSource: auto
+improveAssertionApplyPolicy: safe
 improveAssertions: all
 `;
     vi.mocked(fs.readFile).mockResolvedValue(configContent);

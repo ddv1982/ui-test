@@ -24,6 +24,7 @@ recordSaveStorage: .auth/out.json
 improveApplyMode: review
 improveApplyAssertions: false
 improveAssertionSource: snapshot-native
+improveAssertionApplyPolicy: reliable
 improveAssertions: candidates
 ```
 
@@ -61,6 +62,9 @@ improveAssertions: candidates
 - `improveApplyMode`: `review` or `apply`. Controls selector auto-apply. Note: CLI `--apply` enables both selectors and assertions; config keys control each independently.
 - `improveApplyAssertions`: apply high-confidence assertion candidates when improve runs.
 - `improveAssertionSource`: `snapshot-native` (default, native aria snapshot mode), `deterministic` (form-state only), or `snapshot-cli` (external Playwright-CLI snapshot mode).
+- `improveAssertionApplyPolicy`: `reliable` (default) or `aggressive`.
+  - `reliable`: snapshot-derived `assertVisible` is report-only.
+  - `aggressive`: snapshot-derived `assertVisible` can be auto-applied after runtime validation.
 - `improveAssertions`: `none` or `candidates`.
 - `improveProvider`: removed; if present in config, improve will raise a migration error.
 - `llm`: removed; if present in config, improve will raise a migration error.
@@ -81,6 +85,8 @@ npx ui-test improve e2e/login.yaml --apply-selectors
 npx ui-test improve e2e/login.yaml --apply-assertions
 npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
 npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
+npx ui-test improve e2e/login.yaml --apply --assertion-apply-policy aggressive
+npx ui-test doctor
 ```
 
 ## V2 YAML Step Contract

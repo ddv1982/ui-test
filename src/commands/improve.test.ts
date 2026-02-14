@@ -16,6 +16,8 @@ describe("improve command options", () => {
       "none",
       "--assertion-source",
       "snapshot-cli",
+      "--assertion-apply-policy",
+      "aggressive",
       "--report",
       "report.json",
       "e2e/sample.yaml",
@@ -26,6 +28,7 @@ describe("improve command options", () => {
     expect(opts.applyAssertions).toBe(true);
     expect(opts.assertions).toBe("none");
     expect(opts.assertionSource).toBe("snapshot-cli");
+    expect(opts.assertionApplyPolicy).toBe("aggressive");
     expect(opts.report).toBe("report.json");
   });
 

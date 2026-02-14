@@ -31,8 +31,10 @@ import {
 } from "../runtime/network-idle.js";
 import {
   improveReportSchema,
+  type AssertionApplyPolicy,
   type AssertionApplyStatus,
   type AssertionCandidate,
+  type AssertionCandidateSource,
   type ImproveDiagnostic,
   type ImproveReport,
   type StepFinding,
@@ -40,6 +42,7 @@ import {
 
 export type ImproveAssertionsMode = "none" | "candidates";
 export type ImproveAssertionSource = "deterministic" | "snapshot-cli" | "snapshot-native";
+export type ImproveAssertionApplyPolicy = AssertionApplyPolicy;
 
 export interface ImproveOptions {
   testFile: string;
@@ -47,6 +50,7 @@ export interface ImproveOptions {
   applyAssertions: boolean;
   assertions: ImproveAssertionsMode;
   assertionSource?: ImproveAssertionSource;
+  assertionApplyPolicy?: ImproveAssertionApplyPolicy;
   reportPath?: string;
 }
 
@@ -63,6 +67,7 @@ const ASSERTION_APPLY_MIN_CONFIDENCE = 0.75;
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
   const assertionSource = options.assertionSource ?? "snapshot-native";
+  const assertionApplyPolicy = options.assertionApplyPolicy ?? "reliable";
   const absoluteTestPath = path.resolve(options.testFile);
   const rawContent = await fs.readFile(absoluteTestPath, "utf-8");
   const parsedYaml = yamlToTest(rawContent);
@@ -372,7 +377,8 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       const originalToRuntimeIndex = buildOriginalToRuntimeIndex(outputStepOriginalIndexes);
       const selection = selectCandidatesForApply(
         rawAssertionCandidates,
-        ASSERTION_APPLY_MIN_CONFIDENCE
+        ASSERTION_APPLY_MIN_CONFIDENCE,
+        assertionApplyPolicy
       );
       const runtimeSelection: AssertionCandidateRef[] = [];
       const unmappedOutcomes: AssertionApplyOutcome[] = [];
@@ -496,6 +502,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         assertionCandidates: assertionCandidates.length,
         appliedAssertions,
         skippedAssertions,
+        assertionApplyPolicy,
+        assertionApplyStatusCounts: buildAssertionApplyStatusCounts(assertionCandidates),
+        assertionCandidateSourceCounts: buildAssertionCandidateSourceCounts(assertionCandidates),
       },
       stepFindings: findings,
       assertionCandidates,
@@ -632,4 +641,27 @@ function normalizeTargetKey(target: Target): string {
     target.value.trim().toLowerCase(),
     framePath.join(">"),
   ].join("|");
+}
+
+function buildAssertionApplyStatusCounts(
+  candidates: AssertionCandidate[]
+): Partial<Record<AssertionApplyStatus, number>> {
+  const counts: Partial<Record<AssertionApplyStatus, number>> = {};
+  for (const candidate of candidates) {
+    if (!candidate.applyStatus) continue;
+    counts[candidate.applyStatus] = (counts[candidate.applyStatus] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function buildAssertionCandidateSourceCounts(
+  candidates: AssertionCandidate[]
+): Partial<Record<AssertionCandidateSource, number>> {
+  const counts: Partial<Record<AssertionCandidateSource, number>> = {};
+  for (const candidate of candidates) {
+    if (!candidate.candidateSource) continue;
+    counts[candidate.candidateSource] =
+      (counts[candidate.candidateSource] ?? 0) + 1;
+  }
+  return counts;
 }

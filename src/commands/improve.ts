@@ -31,6 +31,10 @@ export function registerImprove(program: Command) {
       "--assertion-source <source>",
       "Assertion source: deterministic, snapshot-cli, or snapshot-native"
     )
+    .option(
+      "--assertion-apply-policy <policy>",
+      "Assertion apply policy: reliable (default) or aggressive"
+    )
     .option("--report <path>", "Write JSON report to a custom path")
     .action(async (testFile, opts) => {
       try {
@@ -49,6 +53,7 @@ async function runImprove(
     applyAssertions?: boolean;
     assertions?: string;
     assertionSource?: string;
+    assertionApplyPolicy?: string;
     report?: string;
   }
 ): Promise<void> {
@@ -70,6 +75,7 @@ async function runImprove(
       applyAssertions: profile.applyAssertions,
       assertions: profile.assertions,
       assertionSource: profile.assertionSource,
+      assertionApplyPolicy: profile.assertionApplyPolicy,
     })
   );
 
@@ -79,6 +85,7 @@ async function runImprove(
     applyAssertions: profile.applyAssertions,
     assertions: profile.assertions,
     assertionSource: profile.assertionSource,
+    assertionApplyPolicy: profile.assertionApplyPolicy,
     reportPath: profile.reportPath,
   });
 

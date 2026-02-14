@@ -79,6 +79,8 @@ npx ui-test improve e2e/login.yaml --apply-selectors
 npx ui-test improve e2e/login.yaml --apply-assertions
 npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
 npx ui-test improve e2e/login.yaml --apply --assertion-source snapshot-cli
+npx ui-test improve e2e/login.yaml --apply --assertion-apply-policy aggressive
+npx ui-test doctor
 ```
 
 See: [Improve Workflow](docs/workflows/improve.md)
@@ -92,6 +94,7 @@ See: [Improve Workflow](docs/workflows/improve.md)
 | `npx ui-test record` | Record browser interactions into YAML |
 | `npx ui-test improve <file>` | Analyze selector quality and produce report |
 | `npx ui-test list` | List discovered tests |
+| `npx ui-test doctor` | Show CLI/runtime invocation diagnostics |
 
 More flags:
 - `npx ui-test --help`
@@ -150,6 +153,7 @@ recordBrowser: chromium
 improveApplyMode: review
 improveApplyAssertions: false
 improveAssertionSource: snapshot-native
+improveAssertionApplyPolicy: reliable
 improveAssertions: candidates
 ```
 
@@ -185,6 +189,7 @@ When a run fails, CLI output includes:
 - `--apply` writes both recommended selector updates and high-confidence assertion candidates.
 - `--apply-selectors` writes only recommended selector updates.
 - `--apply-assertions` writes only high-confidence, runtime-validated assertion candidates (max 1 applied assertion per source step).
+- `--assertion-apply-policy reliable|aggressive` controls whether snapshot-derived `assertVisible` stays report-only (`reliable`) or becomes auto-eligible after runtime validation (`aggressive`).
 - By default (`--assertion-source snapshot-native`), assertions are generated from page state changes captured via native aria snapshots during the already-running replay — no external tool needed.
 - `--assertion-source snapshot-cli` enables external Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
 - Snapshot-derived `assertVisible` candidates are report-only in apply mode (`skipped_policy`) and are never auto-inserted.
@@ -197,6 +202,7 @@ When a run fails, CLI output includes:
 - Assertion validation uses post-step network-idle timing like `play` (enabled by default, `2000ms` timeout).
 - Runtime validation is required for apply mode.
 - Improve is deterministic (no local LLM dependency).
+- Use `npx ui-test doctor` to inspect CLI version, binary invocation path, workspace classification, and local package version mismatches.
 
 ## Quick Troubleshooting
 

@@ -1,5 +1,7 @@
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { AssertionCandidate } from "../core/improve/report-schema.js";
 import {
   buildExternalCliInvocationWarning,
@@ -23,6 +25,17 @@ function buildCandidate(partial: Partial<AssertionCandidate>): AssertionCandidat
 }
 
 describe("improve output helpers", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(
+      tempDirs.map(async (dir) => {
+        await fs.rm(dir, { recursive: true, force: true });
+      })
+    );
+    tempDirs.length = 0;
+  });
+
   it("formats assertion apply status counts in stable order", () => {
     const out = formatAssertionApplyStatusCounts([
       buildCandidate({ applyStatus: "skipped_runtime_failure" }),
@@ -81,7 +94,7 @@ describe("improve output helpers", () => {
     const out = buildExternalCliInvocationWarning(cwd, argv1, testFile);
 
     expect(out).toContain("outside this workspace");
-    expect(out).toContain("node " + path.join(cwd, "dist", "bin", "ui-test.js"));
+    expect(out).toContain("npx ui-test improve " + path.resolve(cwd, testFile));
     expect(out).toContain(path.resolve(cwd, testFile));
   });
 
@@ -99,7 +112,7 @@ describe("improve output helpers", () => {
     const out = buildExternalCliInvocationWarning(cwd, argv1, "e2e/login.yaml");
 
     expect(out).toContain("Could not verify ui-test binary path");
-    expect(out).toContain("node " + path.join(cwd, "dist", "bin", "ui-test.js"));
+    expect(out).toContain("npx ui-test improve " + path.resolve(cwd, "e2e/login.yaml"));
   });
 
   it("supports file URL invocation paths", () => {
@@ -108,5 +121,43 @@ describe("improve output helpers", () => {
     const out = buildExternalCliInvocationWarning(cwd, argv1, "e2e/login.yaml");
 
     expect(out).toBeUndefined();
+  });
+
+  it("does not warn when running from a workspace subdirectory", () => {
+    const workspaceRoot = process.cwd();
+    const cwd = path.join(workspaceRoot, "src");
+    const argv1 = path.join(workspaceRoot, "dist", "bin", "ui-test.js");
+    const out = buildExternalCliInvocationWarning(cwd, argv1, "e2e/login.yaml");
+
+    expect(out).toBeUndefined();
+  });
+
+  it("resolves warning paths correctly from nested cwd with relative test path", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-output-"));
+    tempDirs.push(root);
+    const subdir = path.join(root, "packages", "app");
+    const localEntrypoint = path.join(root, "dist", "bin", "ui-test.js");
+    const testFile = "../e2e/login.yaml";
+    await fs.mkdir(path.join(root, "dist", "bin"), { recursive: true });
+    await fs.mkdir(subdir, { recursive: true });
+    await fs.writeFile(localEntrypoint, "", "utf-8");
+    await fs.writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({
+        name: "ui-test",
+        version: "0.1.0",
+        bin: { "ui-test": "./dist/bin/ui-test.js" },
+      }),
+      "utf-8"
+    );
+    await fs.writeFile(
+      path.join(subdir, "package.json"),
+      JSON.stringify({ name: "app", version: "1.0.0" }),
+      "utf-8"
+    );
+
+    const out = buildExternalCliInvocationWarning(subdir, "/tmp/_npx/bin/ui-test", testFile);
+    expect(out).toContain(`outside this workspace (${root})`);
+    expect(out).toContain(`node ${localEntrypoint} improve ${path.resolve(subdir, testFile)}`);
   });
 });

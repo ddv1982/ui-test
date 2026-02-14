@@ -7,6 +7,7 @@ import {
 } from "../runtime/network-idle.js";
 import type { Step, Target } from "../yaml-schema.js";
 import type {
+  AssertionApplyPolicy,
   AssertionApplyStatus,
   AssertionCandidate,
 } from "./report-schema.js";
@@ -38,7 +39,8 @@ export interface AssertionInsertion {
 
 export function selectCandidatesForApply(
   candidates: AssertionCandidate[],
-  minConfidence: number
+  minConfidence: number,
+  policy: AssertionApplyPolicy = "reliable"
 ): {
   selected: AssertionCandidateRef[];
   skippedLowConfidence: AssertionApplyOutcome[];
@@ -52,12 +54,11 @@ export function selectCandidatesForApply(
     const candidate = candidates[candidateIndex];
     if (!candidate) continue;
 
-    if (!isAutoApplyAllowedByPolicy(candidate)) {
+    if (!isAutoApplyAllowedByPolicy(candidate, policy)) {
       skippedPolicy.push({
         candidateIndex,
         applyStatus: "skipped_policy",
-        applyMessage:
-          "Skipped by policy: snapshot-derived assertVisible candidates are report-only.",
+        applyMessage: `Skipped by policy (${policy}): snapshot-derived assertVisible candidates are report-only.`,
       });
       continue;
     }
@@ -325,7 +326,14 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
   }
 }
 
-function isAutoApplyAllowedByPolicy(candidate: AssertionCandidate): boolean {
+function isAutoApplyAllowedByPolicy(
+  candidate: AssertionCandidate,
+  policy: AssertionApplyPolicy
+): boolean {
+  if (policy !== "reliable") {
+    return true;
+  }
+
   if (
     (candidate.candidateSource === "snapshot_native" ||
       candidate.candidateSource === "snapshot_cli") &&

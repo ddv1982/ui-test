@@ -15,6 +15,15 @@ describe("improveReportSchema", () => {
         assertionCandidates: 2,
         appliedAssertions: 1,
         skippedAssertions: 1,
+        assertionApplyPolicy: "reliable",
+        assertionApplyStatusCounts: {
+          applied: 1,
+          skipped_policy: 1,
+        },
+        assertionCandidateSourceCounts: {
+          deterministic: 1,
+          snapshot_cli: 1,
+        },
       },
       stepFindings: [],
       assertionCandidates: [
@@ -48,6 +57,9 @@ describe("improveReportSchema", () => {
     });
 
     expect(parsed.summary.appliedAssertions).toBe(1);
+    expect(parsed.summary.assertionApplyPolicy).toBe("reliable");
+    expect(parsed.summary.assertionApplyStatusCounts?.applied).toBe(1);
+    expect(parsed.summary.assertionCandidateSourceCounts?.snapshot_cli).toBe(1);
     expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");
     expect(parsed.assertionCandidates[0]?.applyStatus).toBe("applied");
     expect(parsed.assertionCandidates[1]?.candidateSource).toBe("snapshot_cli");
