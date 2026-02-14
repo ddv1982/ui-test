@@ -20,6 +20,7 @@ export interface AssertionApplyOutcome {
   candidateIndex: number;
   applyStatus: AssertionApplyStatus;
   applyMessage?: string;
+  forcedByCoverage?: boolean;
 }
 
 export interface AssertionApplyValidationOptions {
@@ -27,6 +28,7 @@ export interface AssertionApplyValidationOptions {
   baseUrl?: string;
   waitForNetworkIdle?: boolean;
   networkIdleTimeout?: number;
+  forceApplyOnRuntimeFailureCandidateIndexes?: Set<number>;
 }
 
 export interface AssertionInsertion {
@@ -36,17 +38,27 @@ export interface AssertionInsertion {
 
 export function selectCandidatesForApply(
   candidates: AssertionCandidate[],
-  minConfidence: number
+  minConfidence: number,
+  alwaysApplyCandidateIndexes: Set<number> | number[] = []
 ): {
   selected: AssertionCandidateRef[];
   skippedLowConfidence: AssertionApplyOutcome[];
 } {
   const selected: AssertionCandidateRef[] = [];
   const skippedLowConfidence: AssertionApplyOutcome[] = [];
+  const alwaysApplySet =
+    alwaysApplyCandidateIndexes instanceof Set
+      ? alwaysApplyCandidateIndexes
+      : new Set(alwaysApplyCandidateIndexes);
 
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
     const candidate = candidates[candidateIndex];
     if (!candidate) continue;
+
+    if (alwaysApplySet.has(candidateIndex)) {
+      selected.push({ candidateIndex, candidate });
+      continue;
+    }
 
     if (candidate.confidence >= minConfidence) {
       selected.push({ candidateIndex, candidate });
@@ -73,13 +85,14 @@ export async function validateCandidatesAgainstRuntime(
   const candidatesByStepIndex = new Map<number, AssertionCandidateRef[]>();
   const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
   const networkIdleTimeout = options.networkIdleTimeout ?? DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
+  const forceApplySet = options.forceApplyOnRuntimeFailureCandidateIndexes ?? new Set<number>();
 
   for (const candidateRef of candidates) {
-    if (isDuplicateAdjacentAssertion(steps, candidateRef.candidate.index, candidateRef.candidate.candidate)) {
+    if (isDuplicateSourceOrAdjacentAssertion(steps, candidateRef.candidate.index, candidateRef.candidate.candidate)) {
       outcomes.push({
         candidateIndex: candidateRef.candidateIndex,
         applyStatus: "skipped_existing",
-        applyMessage: "Adjacent identical assertion already exists.",
+        applyMessage: "Equivalent assertion already exists at source step or adjacent position.",
       });
       continue;
     }
@@ -115,10 +128,14 @@ export async function validateCandidatesAgainstRuntime(
       );
       if (networkIdleTimedOut) {
         for (const candidateRef of candidatesByStepIndex.get(index) ?? []) {
+          const forceApply = forceApplySet.has(candidateRef.candidateIndex);
           outcomes.push({
             candidateIndex: candidateRef.candidateIndex,
-            applyStatus: "skipped_runtime_failure",
-            applyMessage: `Post-step network idle not reached within ${networkIdleTimeout}ms; assertion skipped.`,
+            applyStatus: forceApply ? "applied" : "skipped_runtime_failure",
+            applyMessage: forceApply
+              ? `Forced apply after runtime validation failure: post-step network idle not reached within ${networkIdleTimeout}ms.`
+              : `Post-step network idle not reached within ${networkIdleTimeout}ms; assertion skipped.`,
+            ...(forceApply ? { forcedByCoverage: true } : {}),
           });
         }
         continue;
@@ -128,10 +145,14 @@ export async function validateCandidatesAgainstRuntime(
       for (const [stepIndex, stepCandidates] of candidatesByStepIndex) {
         if (stepIndex < index) continue;
         for (const candidateRef of stepCandidates) {
+          const forceApply = forceApplySet.has(candidateRef.candidateIndex);
           outcomes.push({
             candidateIndex: candidateRef.candidateIndex,
-            applyStatus: "skipped_runtime_failure",
-            applyMessage: `Runtime replay failed at step ${index + 1}: ${message}`,
+            applyStatus: forceApply ? "applied" : "skipped_runtime_failure",
+            applyMessage: forceApply
+              ? `Forced apply after runtime validation failure: runtime replay failed at step ${index + 1}: ${message}`
+              : `Runtime replay failed at step ${index + 1}: ${message}`,
+            ...(forceApply ? { forcedByCoverage: true } : {}),
           });
         }
       }
@@ -151,10 +172,16 @@ export async function validateCandidatesAgainstRuntime(
           applyStatus: "applied",
         });
       } catch (err) {
+        const forceApply = forceApplySet.has(candidateRef.candidateIndex);
         outcomes.push({
           candidateIndex: candidateRef.candidateIndex,
-          applyStatus: "skipped_runtime_failure",
-          applyMessage: err instanceof Error ? err.message : "Assertion runtime validation failed.",
+          applyStatus: forceApply ? "applied" : "skipped_runtime_failure",
+          applyMessage: forceApply
+            ? `Forced apply after runtime validation failure: ${err instanceof Error ? err.message : "Assertion runtime validation failed."}`
+            : err instanceof Error
+              ? err.message
+              : "Assertion runtime validation failed.",
+          ...(forceApply ? { forcedByCoverage: true } : {}),
         });
       }
     }
@@ -190,6 +217,19 @@ export function isDuplicateAdjacentAssertion(
   const adjacent = steps[sourceIndex + 1];
   if (!adjacent) return false;
   return areEquivalentAssertions(adjacent, candidate);
+}
+
+function isDuplicateSourceOrAdjacentAssertion(
+  steps: Step[],
+  sourceIndex: number,
+  candidate: Step
+): boolean {
+  const source = steps[sourceIndex];
+  if (source && areEquivalentAssertions(source, candidate)) {
+    return true;
+  }
+
+  return isDuplicateAdjacentAssertion(steps, sourceIndex, candidate);
 }
 
 function areEquivalentAssertions(left: Step, right: Step): boolean {

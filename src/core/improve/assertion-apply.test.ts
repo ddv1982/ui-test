@@ -66,6 +66,28 @@ describe("assertion apply helpers", () => {
     expect(out.skippedLowConfidence[0]?.applyStatus).toBe("skipped_low_confidence");
   });
 
+  it("always selects required coverage candidates even below confidence threshold", () => {
+    const out = selectCandidatesForApply(
+      [
+        {
+          index: 0,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "#status", kind: "css", source: "manual" },
+          },
+          confidence: 0.3,
+          rationale: "fallback coverage assertion",
+        },
+      ],
+      0.75,
+      new Set([0])
+    );
+
+    expect(out.selected).toHaveLength(1);
+    expect(out.skippedLowConfidence).toHaveLength(0);
+  });
+
   it("inserts applied assertions with stable offsets", () => {
     const steps: Step[] = [
       { action: "navigate", url: "https://example.com" },
@@ -239,5 +261,39 @@ describe("assertion apply helpers", () => {
     expect(outcomes[0]?.applyStatus).toBe("skipped_runtime_failure");
     expect(outcomes[0]?.applyMessage).toContain("Post-step network idle not reached");
     expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("forces apply for required coverage candidate when runtime validation fails", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+    waitForPostStepNetworkIdleMock.mockResolvedValueOnce(true);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#save", kind: "css", source: "manual" },
+            },
+            confidence: 0.55,
+            rationale: "coverage fallback",
+          },
+        },
+      ],
+      {
+        timeout: 1000,
+        forceApplyOnRuntimeFailureCandidateIndexes: new Set([0]),
+      }
+    );
+
+    expect(outcomes).toHaveLength(1);
+    expect(outcomes[0]?.applyStatus).toBe("applied");
+    expect(outcomes[0]?.forcedByCoverage).toBe(true);
+    expect(outcomes[0]?.applyMessage).toContain("Forced apply");
   });
 });

@@ -57,6 +57,31 @@ describe("snapshot-native assertion candidates", () => {
     expect(out).toHaveLength(0);
   });
 
+  it("generates multiple candidates from a rich delta via native snapshots", () => {
+    const out = buildSnapshotNativeAssertionCandidates([
+      {
+        index: 1,
+        step: {
+          action: "click",
+          target: { value: "#login", kind: "css", source: "manual" },
+        },
+        preSnapshot: "- generic [ref=e1]:\n",
+        postSnapshot: [
+          "- generic [ref=e1]:",
+          '  - heading "Dashboard" [level=1] [ref=e2]',
+          '  - link "Settings" [ref=e3]',
+          '  - button "Log out" [ref=e4]',
+        ].join("\n") + "\n",
+      },
+    ]);
+
+    expect(out.length).toBeGreaterThan(1);
+    expect(out[0]?.candidate.action).toBe("assertText");
+    expect(out[0]?.candidateSource).toBe("snapshot_native");
+    const actions = out.map((c) => c.candidate.action);
+    expect(actions).toContain("assertVisible");
+  });
+
   it("preserves framePath from triggering step target", () => {
     const out = buildSnapshotNativeAssertionCandidates([
       {

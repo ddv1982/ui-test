@@ -324,6 +324,14 @@ describe("stepDescription", () => {
     expect(stepDescription(step, 0)).toBe("Step 1: click 'it's here'");
   });
 
+  it("does not treat quoted literal text as name option", () => {
+    const step: Step = {
+      action: "click",
+      target: makeTarget("getByText('name: \"foo\"')", "locatorExpression"),
+    };
+    expect(stepDescription(step, 0)).toBe("Step 1: click 'name: \"foo\"'");
+  });
+
   it("truncates long fill text", () => {
     const step: Step = {
       action: "fill",
@@ -331,6 +339,72 @@ describe("stepDescription", () => {
       text: "a-very-long-text-value-that-exceeds-the-limit",
     };
     expect(stepDescription(step, 0)).toBe('Step 1: fill \'input\' \u2192 "a-very-long-text-..."');
+  });
+
+  it("masks fill value for password fields", () => {
+    const step: Step = {
+      action: "fill",
+      target: makeTarget('input[name="user_password"]'),
+      text: "s3cret!",
+    };
+    expect(stepDescription(step, 0)).toBe(
+      'Step 1: fill \'input[name="user_password"]\' \u2192 "\u2022\u2022\u2022\u2022"'
+    );
+  });
+
+  it("masks assertValue for password fields", () => {
+    const step: Step = {
+      action: "assertValue",
+      target: makeTarget('input[name="password"]'),
+      value: "s3cret!",
+    };
+    expect(stepDescription(step, 0)).toBe(
+      'Step 1: assertValue \'input[name="password"]\' \u2192 "\u2022\u2022\u2022\u2022"'
+    );
+  });
+
+  it("does not mask assertText for sensitive-looking targets", () => {
+    const step: Step = {
+      action: "assertText",
+      target: makeTarget('#password-status'),
+      text: "Password updated",
+    };
+    expect(stepDescription(step, 0)).toBe(
+      'Step 1: assertText \'#password-status\' \u2192 "Password updated"'
+    );
+  });
+
+  it("masks fill value for credential fields", () => {
+    const step: Step = {
+      action: "fill",
+      target: makeTarget('input[name="USER_CREDENTIAL"]'),
+      text: "admin",
+    };
+    expect(stepDescription(step, 0)).toBe(
+      'Step 1: fill \'input[name="USER_CREDENTIAL"]\' \u2192 "\u2022\u2022\u2022\u2022"'
+    );
+  });
+
+  it("masks fill value for secret/token fields", () => {
+    const step: Step = {
+      action: "fill",
+      target: makeTarget('input[name="api_key"]'),
+      text: "abc123",
+    };
+    expect(stepDescription(step, 0)).toBe(
+      'Step 1: fill \'input[name="api_key"]\' \u2192 "\u2022\u2022\u2022\u2022"'
+    );
+  });
+
+  it("does not mask non-sensitive fill fields", () => {
+    const step: Step = {
+      action: "fill",
+      target: makeTarget('input[name="email"]'),
+      text: "user@example.com",
+    };
+    expect(stepDescription(step, 0)).toBe(
+      'Step 1: fill \'input[name="email"]\' \u2192 "user@example.com"'
+    );
   });
 });
 

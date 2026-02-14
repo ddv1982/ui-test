@@ -7,6 +7,7 @@ import { UserError, ValidationError } from "../../utils/errors.js";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
 import { buildSnapshotCliAssertionCandidates, type StepSnapshot } from "./assertion-candidates-snapshot-cli.js";
 import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
+import { planAssertionCoverage } from "./assertion-coverage-planner.js";
 import {
   type AssertionApplyOutcome,
   type AssertionCandidateRef,
@@ -24,6 +25,11 @@ import {
 } from "./candidate-scorer.js";
 import { collectPlaywrightCliStepSnapshots } from "./providers/playwright-cli-replay.js";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
+import {
+  waitForPostStepNetworkIdle,
+  DEFAULT_WAIT_FOR_NETWORK_IDLE,
+  DEFAULT_NETWORK_IDLE_TIMEOUT_MS,
+} from "../runtime/network-idle.js";
 import {
   improveReportSchema,
   type AssertionApplyStatus,
@@ -228,6 +234,32 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           });
         }
 
+        if (wantsNativeSnapshots) {
+          try {
+            const networkIdleTimedOut = await waitForPostStepNetworkIdle(
+              page,
+              DEFAULT_WAIT_FOR_NETWORK_IDLE,
+              DEFAULT_NETWORK_IDLE_TIMEOUT_MS
+            );
+            if (networkIdleTimedOut) {
+              diagnostics.push({
+                code: "runtime_network_idle_wait_timed_out",
+                level: "warn",
+                message: `Runtime network idle wait timed out at step ${originalIndex + 1}; capturing best-effort snapshot state.`,
+              });
+            }
+          } catch (err) {
+            diagnostics.push({
+              code: "runtime_network_idle_wait_failed",
+              level: "warn",
+              message:
+                err instanceof Error
+                  ? `Runtime network idle wait failed at step ${originalIndex + 1}; continuing with best-effort analysis. ${err.message}`
+                  : `Runtime network idle wait failed at step ${originalIndex + 1}; continuing with best-effort analysis.`,
+            });
+          }
+        }
+
         if (wantsNativeSnapshots && preSnapshot !== undefined) {
           const postSnapshot = await page
             .locator("body")
@@ -244,6 +276,8 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       options.assertions === "candidates"
         ? buildAssertionCandidates(outputSteps, findings, outputStepOriginalIndexes)
         : [];
+    let requiredCoverageCandidateIndexes = new Set<number>();
+    let fallbackCoverageCandidateIndexes = new Set<number>();
 
     if (options.assertions === "candidates" && assertionSource === "snapshot-native") {
       if (nativeStepSnapshots.length === 0) {
@@ -329,6 +363,28 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         }
       }
     }
+
+    if (options.assertions === "candidates") {
+      const coveragePlan = planAssertionCoverage(
+        outputSteps,
+        outputStepOriginalIndexes,
+        rawAssertionCandidates
+      );
+      rawAssertionCandidates = coveragePlan.candidates;
+      requiredCoverageCandidateIndexes = new Set(coveragePlan.requiredCandidateIndexes);
+      fallbackCoverageCandidateIndexes = new Set(coveragePlan.fallbackCandidateIndexes);
+
+      for (const candidateIndex of coveragePlan.fallbackCandidateIndexes) {
+        const candidate = rawAssertionCandidates[candidateIndex];
+        if (!candidate) continue;
+        diagnostics.push({
+          code: "assertion_coverage_fallback_generated",
+          level: "info",
+          message: `Step ${candidate.index + 1}: generated fallback coverage assertion (${candidate.candidate.action}).`,
+        });
+      }
+    }
+
     let assertionCandidates: AssertionCandidate[] = rawAssertionCandidates.map((candidate) => ({
       ...candidate,
       applyStatus: "not_requested" as const,
@@ -338,7 +394,11 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
     if (options.applyAssertions && page) {
       const originalToRuntimeIndex = buildOriginalToRuntimeIndex(outputStepOriginalIndexes);
-      const selection = selectCandidatesForApply(rawAssertionCandidates, ASSERTION_APPLY_MIN_CONFIDENCE);
+      const selection = selectCandidatesForApply(
+        rawAssertionCandidates,
+        ASSERTION_APPLY_MIN_CONFIDENCE,
+        requiredCoverageCandidateIndexes
+      );
       const runtimeSelection: AssertionCandidateRef[] = [];
       const unmappedOutcomes: AssertionApplyOutcome[] = [];
       for (const selectedCandidate of selection.selected) {
@@ -362,6 +422,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       const outcomes = await validateCandidatesAgainstRuntime(page, outputSteps, runtimeSelection, {
         timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
         baseUrl: test.baseUrl,
+        forceApplyOnRuntimeFailureCandidateIndexes: requiredCoverageCandidateIndexes,
       });
       const outcomeByCandidate = new Map<
         number,
@@ -394,10 +455,33 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         });
         if (outcome.applyStatus === "applied") {
           appliedAssertions += 1;
+          if (outcome.forcedByCoverage) {
+            diagnostics.push({
+              code: "assertion_coverage_forced_apply_after_runtime_failure",
+              level: "warn",
+              message:
+                outcome.applyMessage
+                  ? `Assertion candidate ${outcome.candidateIndex + 1} force-applied: ${outcome.applyMessage}`
+                  : `Assertion candidate ${outcome.candidateIndex + 1} force-applied after runtime validation failure.`,
+            });
+          }
           continue;
         }
 
         skippedAssertions += 1;
+        if (
+          outcome.applyStatus === "skipped_existing" &&
+          requiredCoverageCandidateIndexes.has(outcome.candidateIndex)
+        ) {
+          const candidate = rawAssertionCandidates[outcome.candidateIndex];
+          if (candidate) {
+            diagnostics.push({
+              code: "assertion_coverage_step_satisfied_by_existing_adjacent_assertion",
+              level: "info",
+              message: `Step ${candidate.index + 1}: coverage satisfied by existing adjacent assertion.`,
+            });
+          }
+        }
         if (outcome.applyStatus === "skipped_runtime_failure") {
           diagnostics.push({
             code: "assertion_apply_runtime_failure",
@@ -431,6 +515,12 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           return {
             ...candidate,
             applyStatus: "not_requested" as const,
+            ...(fallbackCoverageCandidateIndexes.has(candidateIndex)
+              ? {
+                  applyMessage:
+                    "Coverage fallback candidate generated for this step.",
+                }
+              : {}),
           };
         }
         return {

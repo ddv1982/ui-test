@@ -78,6 +78,55 @@ describe("snapshot-cli assertion candidates", () => {
     expect(out).toHaveLength(0);
   });
 
+  it("generates multiple candidates from a rich delta", () => {
+    const out = buildSnapshotCliAssertionCandidates([
+      {
+        index: 1,
+        step: {
+          action: "click",
+          target: { value: "#login", kind: "css", source: "manual" },
+        },
+        preSnapshot: "- generic [ref=e1]:\n",
+        postSnapshot: [
+          "- generic [ref=e1]:",
+          '  - heading "Dashboard" [level=1] [ref=e2]',
+          '  - link "Settings" [ref=e3]',
+          '  - button "Log out" [ref=e4]',
+        ].join("\n") + "\n",
+      },
+    ]);
+
+    expect(out.length).toBeGreaterThan(1);
+    expect(out[0]?.candidate.action).toBe("assertText");
+    const actions = out.map((c) => c.candidate.action);
+    expect(actions).toContain("assertVisible");
+  });
+
+  it("ranks headings before status in text candidates", () => {
+    const out = buildSnapshotCliAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: { value: "#go", kind: "css", source: "manual" },
+        },
+        preSnapshot: "- generic [ref=e1]:\n",
+        postSnapshot: [
+          "- generic [ref=e1]:",
+          '  - status "Online" [ref=e2]',
+          '  - heading "Welcome" [level=1] [ref=e3]',
+        ].join("\n") + "\n",
+      },
+    ]);
+
+    const textCandidates = out.filter((c) => c.candidate.action === "assertText");
+    expect(textCandidates.length).toBe(2);
+    expect(textCandidates[0]?.candidate.action).toBe("assertText");
+    if (textCandidates[0]?.candidate.action === "assertText") {
+      expect(textCandidates[0].candidate.text).toBe("Welcome");
+    }
+  });
+
   it("preserves framePath from triggering step target", () => {
     const out = buildSnapshotCliAssertionCandidates([
       {

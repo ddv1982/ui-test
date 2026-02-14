@@ -28,6 +28,9 @@ const VISIBLE_ROLE_ALLOWLIST = new Set([
 
 const TEXT_ROLE_ALLOWLIST = new Set(["heading", "status", "alert"]);
 
+const MAX_TEXT_CANDIDATES_PER_STEP = 2;
+const MAX_VISIBLE_CANDIDATES_PER_STEP = 3;
+
 export interface StepSnapshot {
   index: number;
   step: Step;
@@ -57,29 +60,41 @@ export function buildSnapshotAssertionCandidates(
     const framePath =
       snapshot.step.action === "navigate" ? undefined : snapshot.step.target.framePath;
 
-    const textCandidate = buildTextCandidate(
+    const textCandidates = buildTextCandidates(
       snapshot.index,
       snapshot.step.action,
       delta,
       actedTargetHint,
       framePath,
-      candidateSource
+      candidateSource,
+      MAX_TEXT_CANDIDATES_PER_STEP
     );
-    if (textCandidate) {
-      candidates.push(textCandidate);
-      continue;
-    }
+    candidates.push(...textCandidates);
 
-    const visibleCandidate = buildVisibleCandidate(
+    const textTargetValues = new Set(
+      textCandidates.map((c) =>
+        normalizeForCompare(
+          c.candidate.action !== "navigate" ? c.candidate.target.value : ""
+        )
+      )
+    );
+
+    const visibleCandidates = buildVisibleCandidates(
       snapshot.index,
       snapshot.step.action,
       delta,
       actedTargetHint,
       framePath,
-      candidateSource
+      candidateSource,
+      MAX_VISIBLE_CANDIDATES_PER_STEP
     );
-    if (visibleCandidate) {
-      candidates.push(visibleCandidate);
+    for (const vc of visibleCandidates) {
+      const vcTarget =
+        vc.candidate.action !== "navigate"
+          ? normalizeForCompare(vc.candidate.target.value)
+          : "";
+      if (textTargetValues.has(vcTarget)) continue;
+      candidates.push(vc);
     }
   }
 
@@ -124,62 +139,70 @@ function buildDeltaNodes(pre: SnapshotNode[], post: SnapshotNode[]): SnapshotNod
   return post.filter((node) => !preKeys.has(nodeSignature(node)));
 }
 
-function buildVisibleCandidate(
+function buildVisibleCandidates(
   index: number,
   afterAction: Step["action"],
   nodes: SnapshotNode[],
   actedTargetHint: string,
   framePath: string[] | undefined,
-  candidateSource: AssertionCandidateSource
-): AssertionCandidate | undefined {
+  candidateSource: AssertionCandidateSource,
+  maxCount: number
+): AssertionCandidate[] {
+  const qualifying: SnapshotNode[] = [];
   for (const node of nodes) {
     if (!VISIBLE_ROLE_ALLOWLIST.has(node.role)) continue;
     if (!node.name || isNoisyText(node.name)) continue;
     if (matchesActedTarget(node.name, actedTargetHint)) continue;
-
-    return {
-      index,
-      afterAction,
-      candidate: {
-        action: "assertVisible",
-        target: buildRoleTarget(node.role, node.name, framePath),
-      },
-      confidence: 0.78,
-      rationale: "Snapshot delta found a new role/name element after this step.",
-      candidateSource,
-    };
+    qualifying.push(node);
   }
-  return undefined;
+
+  qualifying.sort((a, b) => visibleRolePriority(a.role) - visibleRolePriority(b.role));
+
+  return qualifying.slice(0, maxCount).map((node) => ({
+    index,
+    afterAction,
+    candidate: {
+      action: "assertVisible" as const,
+      target: buildRoleTarget(node.role, node.name!, framePath),
+    },
+    confidence: 0.78,
+    rationale: "Snapshot delta found a new role/name element after this step.",
+    candidateSource,
+  }));
 }
 
-function buildTextCandidate(
+function buildTextCandidates(
   index: number,
   afterAction: Step["action"],
   nodes: SnapshotNode[],
   actedTargetHint: string,
   framePath: string[] | undefined,
-  candidateSource: AssertionCandidateSource
-): AssertionCandidate | undefined {
+  candidateSource: AssertionCandidateSource,
+  maxCount: number
+): AssertionCandidate[] {
+  const qualifying: { node: SnapshotNode; text: string }[] = [];
   for (const node of nodes) {
     if (!TEXT_ROLE_ALLOWLIST.has(node.role)) continue;
     const text = (node.text ?? node.name ?? "").trim();
     if (!text || isNoisyText(text)) continue;
     if (matchesActedTarget(text, actedTargetHint)) continue;
-
-    return {
-      index,
-      afterAction,
-      candidate: {
-        action: "assertText",
-        target: buildTextTarget(node, text, framePath),
-        text,
-      },
-      confidence: 0.82,
-      rationale: "Snapshot delta identified new high-signal text after this step.",
-      candidateSource,
-    };
+    qualifying.push({ node, text });
   }
-  return undefined;
+
+  qualifying.sort((a, b) => textRolePriority(a.node.role) - textRolePriority(b.node.role));
+
+  return qualifying.slice(0, maxCount).map(({ node, text }) => ({
+    index,
+    afterAction,
+    candidate: {
+      action: "assertText" as const,
+      target: buildTextTarget(node, text, framePath),
+      text,
+    },
+    confidence: 0.82,
+    rationale: "Snapshot delta identified new high-signal text after this step.",
+    candidateSource,
+  }));
 }
 
 function buildRoleTarget(
@@ -247,4 +270,25 @@ function isNoisyText(value: string): boolean {
 
 function normalizeForCompare(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function textRolePriority(role: string): number {
+  switch (role) {
+    case "heading": return 0;
+    case "alert": return 1;
+    case "status": return 2;
+    default: return 3;
+  }
+}
+
+function visibleRolePriority(role: string): number {
+  switch (role) {
+    case "heading": return 0;
+    case "dialog": return 1;
+    case "alert": return 2;
+    case "link": return 3;
+    case "button": return 4;
+    case "tab": return 5;
+    default: return 6;
+  }
 }
