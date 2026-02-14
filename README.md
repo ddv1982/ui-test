@@ -182,7 +182,7 @@ When a run fails, CLI output includes:
 - Default mode is review-first: writes report only.
 - `--apply` writes recommended selector updates.
 - `--apply-assertions` writes high-confidence, runtime-validated assertion candidates.
-- Auto-apply is conservative: it inserts deterministic form-state checks only (`fill/select -> assertValue`, `check/uncheck -> assertChecked`).
+- Auto-apply is conservative by default (`--assertion-source deterministic`): it inserts deterministic form-state checks (`fill/select -> assertValue`, `check/uncheck -> assertChecked`).
 - `--assertion-source snapshot-cli` enables opt-in headless replay + Playwright-CLI snapshot-delta candidates (`assertVisible`/`assertText`).
 - If snapshot-cli source is unavailable or fails, improve falls back to deterministic candidates and reports diagnostics.
 - Click/press assertions are intentionally not auto-generated to avoid false-positive postconditions.

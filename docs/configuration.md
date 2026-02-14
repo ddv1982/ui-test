@@ -62,6 +62,7 @@ improveAssertions: candidates
 - `improveApplyAssertions`: apply high-confidence assertion candidates when improve runs.
 - `improveAssertionSource`: `deterministic` (default) or `snapshot-cli` (opt-in replay + Playwright-CLI snapshot mode).
 - `improveAssertions`: `none` or `candidates`.
+- `improveProvider`: removed; if present in config, improve will raise a migration error.
 - `llm`: removed; if present in config, improve will raise a migration error.
 
 ## Command Overrides

@@ -79,8 +79,9 @@ If assertions were listed as candidates but not written to YAML:
 2. Keep `--assertions candidates` (not `--assertions none`).
 3. Check report `assertionCandidates[].applyStatus` for skip reasons.
 4. Re-run in a stable test environment so runtime validation can pass.
-5. Note: click/press assertions are intentionally not auto-generated in conservative mode; auto-apply targets stable form-state checks (`assertValue`/`assertChecked`).
-6. Apply modes also remove stale adjacent self-visibility assertions (`click/press` followed by same-target `assertVisible`).
+5. Note: with default `--assertion-source deterministic`, click/press assertions are intentionally not auto-generated and auto-apply targets stable form-state checks (`assertValue`/`assertChecked`).
+6. If you use `--assertion-source snapshot-cli`, improve can also propose/apply snapshot-derived `assertVisible`/`assertText` candidates after runtime validation.
+7. Apply modes also remove stale adjacent self-visibility assertions (`click/press` followed by same-target `assertVisible`).
 
 Validation timing mirrors `play` post-step waiting (network idle, `2000ms` default). If that wait times out, candidates are skipped with `skipped_runtime_failure`.
 

@@ -25,7 +25,7 @@ npx ui-test improve e2e/login.yaml --apply-assertions
 ```
 
 This inserts high-confidence assertion candidates into YAML after runtime validation.
-Auto-apply uses a conservative deterministic mapping:
+In the default deterministic source, auto-apply uses a conservative mapping:
 - `fill/select -> assertValue`
 - `check/uncheck -> assertChecked`
 - click/press assertions are intentionally not auto-generated
@@ -58,7 +58,8 @@ Current scope:
 - Assertions are reported as candidates.
 - Assertions are auto-inserted only when `--apply-assertions` is enabled.
 - Default assertion source is `deterministic`; opt in to replay/snapshot generation with `--assertion-source snapshot-cli`.
-- Auto-insert focuses on stable form-state assertions and excludes click/press-derived visibility checks.
+- Deterministic source focuses on stable form-state assertions and excludes click/press-derived visibility checks.
+- Snapshot-cli source can additionally propose `assertVisible`/`assertText` from snapshot deltas.
 - Playwright codegen can generate assertions interactively, but `improve` assertion apply is deterministic.
 
 ## Report Contents
