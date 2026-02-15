@@ -65,6 +65,7 @@ async function runExampleApp(opts: ExampleAppOptions) {
   });
 
   const close = () => {
+    server.closeAllConnections();
     server.close(() => process.exit(0));
   };
   process.once("SIGINT", close);

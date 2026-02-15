@@ -48,8 +48,17 @@ function createMockChildProcess() {
     .fn()
     .mockImplementation(() => {
       (child as ChildProcess & { killed: boolean }).killed = true;
+      queueMicrotask(() => child.emit("exit", 0, "SIGTERM"));
       return true;
     });
+
+  // Emit 'exit' asynchronously after process.kill(-pid) or child.kill() is called,
+  // so the wait-for-exit logic in stopStartedAppProcess resolves.
+  vi.spyOn(process, "kill").mockImplementation((() => {
+    queueMicrotask(() => child.emit("exit", 0, "SIGTERM"));
+    return true;
+  }) as typeof process.kill);
+
   return child;
 }
 
@@ -58,7 +67,6 @@ describe("runPlay startup behavior", () => {
     vi.resetAllMocks();
     process.exitCode = undefined;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
-    vi.spyOn(process, "kill").mockReturnValue(true as never);
     vi.mocked(globby).mockResolvedValue([]);
     vi.mocked(createPlayRunId).mockReturnValue("run-test-id");
     vi.mocked(writePlayRunReport).mockResolvedValue("/tmp/run-report.json");

@@ -192,7 +192,14 @@ export async function runPlay(
 }
 
 async function stopStartedAppProcess(appProcess: ChildProcess): Promise<void> {
+  let onExit: () => void;
+  const exitPromise = new Promise<void>((resolve) => {
+    onExit = () => resolve();
+    appProcess.once("exit", onExit);
+  });
+
   if (appProcess.exitCode !== null || appProcess.killed) {
+    appProcess.removeListener("exit", onExit!);
     return;
   }
 
@@ -203,12 +210,33 @@ async function stopStartedAppProcess(appProcess: ChildProcess): Promise<void> {
     typeof appProcess.pid === "number" &&
     tryKillProcessGroup(appProcess.pid, "SIGTERM")
   ) {
-    await sleep(250);
-    return;
+    // wait for exit, fall back to SIGKILL after 2s
+  } else {
+    appProcess.kill("SIGTERM");
   }
 
-  appProcess.kill("SIGTERM");
-  await sleep(250);
+  const ac1 = new AbortController();
+  const exited = await Promise.race([
+    exitPromise.then(() => { ac1.abort(); return true; }),
+    sleep(2000, undefined, { signal: ac1.signal }).then(() => false).catch(() => false),
+  ]);
+
+  if (!exited) {
+    ui.dim("App process did not exit after SIGTERM, sending SIGKILL...");
+    if (
+      process.platform !== "win32" &&
+      typeof appProcess.pid === "number"
+    ) {
+      tryKillProcessGroup(appProcess.pid, "SIGKILL");
+    } else {
+      appProcess.kill("SIGKILL");
+    }
+    const ac2 = new AbortController();
+    await Promise.race([
+      exitPromise.then(() => ac2.abort()),
+      sleep(1000, undefined, { signal: ac2.signal }).catch(() => {}),
+    ]);
+  }
 }
 
 function tryKillProcessGroup(pid: number, signal: NodeJS.Signals): boolean {
