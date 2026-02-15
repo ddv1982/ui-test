@@ -72,6 +72,7 @@ export async function runPlay(
       appProcess = spawn(profile.startCommand, {
         shell: true,
         stdio: "inherit",
+        detached: process.platform !== "win32",
       });
 
       appProcess.on("error", (err) => {
@@ -184,10 +185,38 @@ export async function runPlay(
       process.exitCode = 1;
     }
   } finally {
-    if (appProcess && appProcess.exitCode === null && !appProcess.killed) {
-      appProcess.kill("SIGTERM");
-      await sleep(250);
+    if (appProcess) {
+      await stopStartedAppProcess(appProcess);
     }
+  }
+}
+
+async function stopStartedAppProcess(appProcess: ChildProcess): Promise<void> {
+  if (appProcess.exitCode !== null || appProcess.killed) {
+    return;
+  }
+
+  // On Unix, kill the spawned process group to avoid orphaning the real app process
+  // behind the shell wrapper used for fallback command chaining.
+  if (
+    process.platform !== "win32" &&
+    typeof appProcess.pid === "number" &&
+    tryKillProcessGroup(appProcess.pid, "SIGTERM")
+  ) {
+    await sleep(250);
+    return;
+  }
+
+  appProcess.kill("SIGTERM");
+  await sleep(250);
+}
+
+function tryKillProcessGroup(pid: number, signal: NodeJS.Signals): boolean {
+  try {
+    process.kill(-pid, signal);
+    return true;
+  } catch {
+    return false;
   }
 }
 

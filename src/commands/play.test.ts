@@ -41,6 +41,7 @@ import { registerPlay, runPlay } from "./play.js";
 
 function createMockChildProcess() {
   const child = new EventEmitter() as ChildProcess;
+  (child as ChildProcess & { pid: number }).pid = 43210;
   (child as ChildProcess & { exitCode: number | null }).exitCode = null;
   (child as ChildProcess & { killed: boolean }).killed = false;
   (child as ChildProcess & { kill: ReturnType<typeof vi.fn> }).kill = vi
@@ -57,6 +58,7 @@ describe("runPlay startup behavior", () => {
     vi.resetAllMocks();
     process.exitCode = undefined;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    vi.spyOn(process, "kill").mockReturnValue(true as never);
     vi.mocked(globby).mockResolvedValue([]);
     vi.mocked(createPlayRunId).mockReturnValue("run-test-id");
     vi.mocked(writePlayRunReport).mockResolvedValue("/tmp/run-report.json");
@@ -80,6 +82,7 @@ describe("runPlay startup behavior", () => {
       {
         shell: true,
         stdio: "inherit",
+        detached: process.platform !== "win32",
       }
     );
     expect(play).toHaveBeenCalledTimes(1);
@@ -93,9 +96,13 @@ describe("runPlay startup behavior", () => {
       artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
       runId: "run-test-id",
     });
-    expect((child.kill as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
-      "SIGTERM"
-    );
+    if (process.platform !== "win32") {
+      expect(process.kill).toHaveBeenCalledWith(-43210, "SIGTERM");
+    } else {
+      expect((child.kill as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+        "SIGTERM"
+      );
+    }
   });
 
   it("ignores invalid ui-test.config.yaml if present", async () => {
@@ -182,9 +189,13 @@ describe("runPlay startup behavior", () => {
     vi.mocked(play).mockRejectedValue(new Error("boom"));
 
     await expect(runPlay("e2e/example.yaml", {})).rejects.toThrow("boom");
-    expect((child.kill as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
-      "SIGTERM"
-    );
+    if (process.platform !== "win32") {
+      expect(process.kill).toHaveBeenCalledWith(-43210, "SIGTERM");
+    } else {
+      expect((child.kill as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+        "SIGTERM"
+      );
+    }
   });
 
   it("writes run-level failure index when tests fail", async () => {
