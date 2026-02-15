@@ -24,6 +24,26 @@ export interface RuntimeInfo {
 }
 
 const VERSION_FALLBACK = "0.1.0";
+export const GITHUB_ONE_OFF_PREFIX = "npx -y github:ddv1982/easy-e2e-testing";
+const GITHUB_ONE_OFF_SPEC_PREFIX = "github:ddv1982/easy-e2e-testing";
+const GITHUB_ONE_OFF_SPEC_REPO_FRAGMENT = "github.com/ddv1982/easy-e2e-testing";
+const NPM_CACHE_SEGMENT = "/_npx/";
+
+export function isLikelyNpxCacheInvocation(argv1 = process.argv[1]): boolean {
+  if (!argv1) return false;
+  return argv1.replace(/\\/g, "/").toLowerCase().includes(NPM_CACHE_SEGMENT);
+}
+
+export function resolveCommandPrefix(argv1 = process.argv[1]): string {
+  if (!isLikelyNpxCacheInvocation(argv1)) return "ui-test";
+
+  const dependencySpec = readUiTestNpxDependencySpec(argv1);
+  if (dependencySpec && isGitHubOneOffDependencySpec(dependencySpec)) {
+    return GITHUB_ONE_OFF_PREFIX;
+  }
+
+  return "ui-test";
+}
 
 export function getCliVersion(): string {
   const runtimePath = fileURLToPath(import.meta.url);
@@ -210,4 +230,56 @@ function isUiTestPackage(packageJsonPath: string): boolean {
   if (typeof bin === "string") return parsed.name === "ui-test";
   if (!bin || typeof bin !== "object" || Array.isArray(bin)) return false;
   return Object.prototype.hasOwnProperty.call(bin, "ui-test");
+}
+
+function readUiTestNpxDependencySpec(argv1: string | undefined): string | undefined {
+  const npxCacheRoot = resolveNpxCacheRoot(argv1);
+  if (!npxCacheRoot) return undefined;
+
+  const packageLockPath = path.join(npxCacheRoot, "package-lock.json");
+  const parsed = readPackageJson(packageLockPath);
+  if (!parsed) return undefined;
+
+  const packages = parsed.packages;
+  if (!packages || typeof packages !== "object" || Array.isArray(packages)) return undefined;
+  const rootPackage = (packages as Record<string, unknown>)[""];
+  if (!rootPackage || typeof rootPackage !== "object" || Array.isArray(rootPackage)) {
+    return undefined;
+  }
+
+  const dependencies = (rootPackage as Record<string, unknown>).dependencies;
+  if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) {
+    return undefined;
+  }
+
+  for (const candidateName of ["ui-test", "@ddv1982/ui-test"]) {
+    const candidateSpec = (dependencies as Record<string, unknown>)[candidateName];
+    if (typeof candidateSpec === "string" && candidateSpec.trim().length > 0) {
+      return candidateSpec.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function resolveNpxCacheRoot(argv1: string | undefined): string | undefined {
+  if (!argv1) return undefined;
+  const normalized = path.resolve(argv1).replace(/\\/g, "/");
+  const segmentIndex = normalized.toLowerCase().indexOf(NPM_CACHE_SEGMENT);
+  if (segmentIndex < 0) return undefined;
+
+  const hashStart = segmentIndex + NPM_CACHE_SEGMENT.length;
+  const hashEnd = normalized.indexOf("/", hashStart);
+  if (hashEnd < 0) return undefined;
+
+  const rootNormalized = normalized.slice(0, hashEnd);
+  return path.resolve(rootNormalized);
+}
+
+function isGitHubOneOffDependencySpec(spec: string): boolean {
+  const normalized = spec.trim().toLowerCase();
+  return (
+    normalized.startsWith(GITHUB_ONE_OFF_SPEC_PREFIX) ||
+    normalized.includes(GITHUB_ONE_OFF_SPEC_REPO_FRAGMENT)
+  );
 }

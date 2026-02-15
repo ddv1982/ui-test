@@ -5,9 +5,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   classifyInvocationPath,
   collectRuntimeInfo,
+  GITHUB_ONE_OFF_PREFIX,
   getCliVersion,
+  isLikelyNpxCacheInvocation,
   isPathInside,
   isProjectLocalUiTestInvocation,
+  resolveCommandPrefix,
   resolveLocalUiTestPackageRoot,
   resolveInvocationPath,
   resolveWorkspaceRoot,
@@ -156,5 +159,65 @@ describe("runtime-info", () => {
     const cwd = "/repo/project";
     const invocation = "/tmp/_npx/abcd/node_modules/ui-test/dist/bin/ui-test.js";
     expect(isProjectLocalUiTestInvocation(cwd, invocation)).toBe(false);
+  });
+
+  it("detects likely npx cache invocations", () => {
+    expect(isLikelyNpxCacheInvocation("/tmp/_npx/abcd/node_modules/ui-test/dist/bin/ui-test.js"))
+      .toBe(true);
+    expect(isLikelyNpxCacheInvocation("/usr/local/lib/node_modules/ui-test/dist/bin/ui-test.js"))
+      .toBe(false);
+  });
+
+  it("resolves command prefix based on invocation context", () => {
+    expect(resolveCommandPrefix("/usr/local/lib/node_modules/ui-test/dist/bin/ui-test.js"))
+      .toBe("ui-test");
+  });
+
+  it("uses GitHub one-off prefix only when npx cache dependency spec points at repo", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-runtime-prefix-github-"));
+    tempDirs.push(root);
+    const cacheRoot = path.join(root, "_npx", "abcd1234");
+    const invocation = path.join(cacheRoot, "node_modules", "ui-test", "dist", "bin", "ui-test.js");
+    await fs.mkdir(path.dirname(invocation), { recursive: true });
+    await fs.writeFile(invocation, "", "utf-8");
+    await fs.writeFile(
+      path.join(cacheRoot, "package-lock.json"),
+      JSON.stringify({
+        packages: {
+          "": {
+            dependencies: {
+              "ui-test": "github:ddv1982/easy-e2e-testing",
+            },
+          },
+        },
+      }),
+      "utf-8"
+    );
+
+    expect(resolveCommandPrefix(invocation)).toBe(GITHUB_ONE_OFF_PREFIX);
+  });
+
+  it("does not force GitHub one-off prefix for generic npx cache paths", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-runtime-prefix-generic-"));
+    tempDirs.push(root);
+    const cacheRoot = path.join(root, "_npx", "efgh5678");
+    const invocation = path.join(cacheRoot, "node_modules", "ui-test", "dist", "bin", "ui-test.js");
+    await fs.mkdir(path.dirname(invocation), { recursive: true });
+    await fs.writeFile(invocation, "", "utf-8");
+    await fs.writeFile(
+      path.join(cacheRoot, "package-lock.json"),
+      JSON.stringify({
+        packages: {
+          "": {
+            dependencies: {
+              "ui-test": "^0.1.0",
+            },
+          },
+        },
+      }),
+      "utf-8"
+    );
+
+    expect(resolveCommandPrefix(invocation)).toBe("ui-test");
   });
 });

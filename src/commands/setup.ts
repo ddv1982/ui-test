@@ -9,6 +9,7 @@ import yaml from "js-yaml";
 import { chromium } from "playwright";
 import { findLegacyConfigPath, loadConfig, type UITestConfig } from "../utils/config.js";
 import { handleError, UserError } from "../utils/errors.js";
+import { resolveCommandPrefix } from "../utils/runtime-info.js";
 import { ui } from "../utils/ui.js";
 import { runInit } from "./init.js";
 
@@ -46,6 +47,7 @@ export function registerSetup(program: Command) {
 async function runSetup(opts: SetupOptions = {}): Promise<void> {
   ui.heading("ui-test setup");
   console.log();
+  const commandPrefix = resolveCommandPrefix();
 
   if (opts.forceInit && opts.reconfigure) {
     throw new UserError("Cannot use --force-init and --reconfigure together.");
@@ -57,7 +59,7 @@ async function runSetup(opts: SetupOptions = {}): Promise<void> {
     if (legacyConfigPath) {
       throw new UserError(
         `Legacy config file detected at ${legacyConfigPath}`,
-        "Rename it to ui-test.config.yaml, then rerun setup. If you want a fresh config instead, use: ui-test setup --force-init (or one-off: npx -y github:ddv1982/easy-e2e-testing setup --force-init)"
+        `Rename it to ui-test.config.yaml, then rerun setup. If you want a fresh config instead, use: ${commandPrefix} setup --force-init`
       );
     }
   }
@@ -83,8 +85,8 @@ async function runSetup(opts: SetupOptions = {}): Promise<void> {
     }
   } else {
     ui.info(`Existing config detected at ${existingConfigPath}; keeping as-is.`);
-    ui.step("To update settings interactively: ui-test setup --reconfigure");
-    ui.step("To reset config/sample to defaults: ui-test setup --force-init");
+    ui.step(`To update settings interactively: ${commandPrefix} setup --reconfigure`);
+    ui.step(`To reset config/sample to defaults: ${commandPrefix} setup --force-init`);
     await loadConfig();
   }
 
@@ -97,7 +99,7 @@ async function runSetup(opts: SetupOptions = {}): Promise<void> {
 
   console.log();
   ui.success("Setup complete.");
-  ui.step("Run tests: ui-test play");
+  ui.step(`Run tests: ${commandPrefix} play`);
 }
 
 async function findExistingConfigPath(): Promise<string | undefined> {
