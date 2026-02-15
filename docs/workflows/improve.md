@@ -149,4 +149,4 @@ ui-test improve e2e/login.yaml --report ./reports/login.improve.json
 
 - Runtime analysis may replay actions; use a safe test environment.
 - `improve` requires Chromium availability in CLI runs.
-- If Chromium is missing, provision it with `ui-test bootstrap quickstart` or `npx playwright install chromium`.
+- If Chromium is missing, provision it with `ui-test setup quickstart` or `npx playwright install chromium`.

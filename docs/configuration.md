@@ -1,6 +1,6 @@
 # Configuration
 
-Create `ui-test.config.yaml` in project root.
+`ui-test.config.yaml` is optional. Add it in project root only when you want to override defaults.
 
 ## Full Example
 
@@ -48,6 +48,7 @@ Runtime behavior is not configured in `ui-test.config.yaml`.
 
 Built-in defaults:
 - `play`: `headed=false`, `timeout=10000`, `delay=0`, `waitForNetworkIdle=true`, `saveFailureArtifacts=true`, `artifactsDir=.ui-test-artifacts`.
+- `play` project defaults: `testDir=e2e`, `baseUrl=http://127.0.0.1:5173`, `startCommand=ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173`.
 - Network-idle wait uses Playwright default timeout behavior (no custom timeout value is set by `ui-test`).
 - `record`: `browser=chromium`, `selectorPolicy=reliable`.
 

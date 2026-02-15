@@ -54,7 +54,7 @@ describe("runRecord browser preflight", () => {
     vi.mocked(ensureChromiumAvailable).mockRejectedValue(
       new UserError(
         "Chromium browser is not installed.",
-        "Run: ui-test bootstrap quickstart or npx playwright install chromium"
+        "Run: ui-test setup quickstart or npx playwright install chromium"
       )
     );
 
@@ -68,7 +68,7 @@ describe("runRecord browser preflight", () => {
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("Chromium browser is not installed.");
     await expect(run).rejects.toMatchObject({
-      hint: expect.stringContaining("ui-test bootstrap quickstart"),
+      hint: expect.stringContaining("ui-test setup quickstart"),
     });
     expect(record).not.toHaveBeenCalled();
   });

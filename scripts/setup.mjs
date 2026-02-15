@@ -11,10 +11,10 @@ function main() {
   try {
     ensureNodeVersion();
     ensureLocalCliBuilt();
-    runCliBootstrap(process.argv.slice(2));
+    runCliSetup(process.argv.slice(2));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[bootstrap] FAILED: ${message}`);
+    console.error(`[setup] FAILED: ${message}`);
     process.exitCode = 1;
   }
 }
@@ -41,11 +41,11 @@ function ensureLocalCliBuilt() {
   }
 }
 
-function runCliBootstrap(argv) {
+function runCliSetup(argv) {
   const cliEntry = resolveLocalCliEntry();
-  runCommand("Run local ui-test bootstrap", process.execPath, [
+  runCommand("Run local ui-test setup", process.execPath, [
     cliEntry,
-    "bootstrap",
+    "setup",
     ...argv,
   ]);
 }
@@ -55,7 +55,7 @@ function resolveLocalCliEntry() {
 }
 
 function runCommand(label, command, args) {
-  console.log(`[bootstrap] ${label}`);
+  console.log(`[setup] ${label}`);
   const result = spawnSync(command, args, {
     cwd: repoRoot,
     stdio: "inherit",
@@ -75,7 +75,7 @@ export {
   ensureLocalCliBuilt,
   ensureNodeVersion,
   resolveLocalCliEntry,
-  runCliBootstrap,
+  runCliSetup,
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

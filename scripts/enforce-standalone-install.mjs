@@ -25,14 +25,14 @@ export function getStandaloneInstallBlockMessage(env = process.env, cwd = proces
     "",
     "Install/run ui-test in standalone mode instead:",
     "  npm i -g ui-test",
-    "  ui-test bootstrap quickstart",
-    "  npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart",
+    "  ui-test setup quickstart",
+    "  npx -y github:ddv1982/easy-e2e-testing setup quickstart",
     "",
     "If ui-test is already installed in this project, clean it up:",
     "  1) Remove ui-test from dependencies/devDependencies in package.json",
     "  2) Run: npm uninstall ui-test",
     "  3) Run: npm i -g ui-test",
-    "  4) Re-run: ui-test bootstrap quickstart",
+    "  4) Re-run: ui-test setup quickstart",
   ].join("\n");
 }
 

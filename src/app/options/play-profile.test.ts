@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { UserError } from "../../utils/errors.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_BASE_URL,
   PLAY_DEFAULT_DELAY_MS,
   PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+  PLAY_DEFAULT_START_COMMAND,
+  PLAY_DEFAULT_TEST_DIR,
   PLAY_DEFAULT_TIMEOUT_MS,
   PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
 } from "../../core/play/play-defaults.js";
@@ -43,7 +46,9 @@ describe("resolvePlayProfile", () => {
     expect(out.waitForNetworkIdle).toBe(PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE);
     expect(out.saveFailureArtifacts).toBe(PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS);
     expect(out.artifactsDir).toBe(PLAY_DEFAULT_ARTIFACTS_DIR);
-    expect(out.testDir).toBe("e2e");
+    expect(out.testDir).toBe(PLAY_DEFAULT_TEST_DIR);
+    expect(out.baseUrl).toBe(PLAY_DEFAULT_BASE_URL);
+    expect(out.startCommand).toBe(PLAY_DEFAULT_START_COMMAND);
   });
 
   it("throws for invalid numeric CLI flags", () => {

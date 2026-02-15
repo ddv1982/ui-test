@@ -63,9 +63,9 @@ async function main() {
 
     runStep("Create temp workspace", "npm", ["init", "-y"], workspace);
     runStep(
-      "Run ui-test bootstrap quickstart",
+      "Run ui-test setup quickstart",
       "npm",
-      ["exec", "--yes", "--package", tarballPath, "ui-test", "bootstrap", "quickstart"],
+      ["exec", "--yes", "--package", tarballPath, "ui-test", "setup", "quickstart"],
       workspace,
       {
         printStdout: false,

@@ -6,8 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserError } from "../utils/errors.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_BASE_URL,
   PLAY_DEFAULT_DELAY_MS,
   PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+  PLAY_DEFAULT_START_COMMAND,
   PLAY_DEFAULT_TIMEOUT_MS,
   PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
 } from "../core/play/play-defaults.js";
@@ -100,6 +102,29 @@ describe("runPlay startup behavior", () => {
     });
   });
 
+  it("uses built-in project defaults when config is missing", async () => {
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+    vi.mocked(loadConfig).mockResolvedValue({});
+
+    await runPlay("e2e/example.yaml", {});
+
+    expect(spawn).toHaveBeenCalledWith(PLAY_DEFAULT_START_COMMAND, {
+      shell: true,
+      stdio: "inherit",
+    });
+    expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
+      headed: false,
+      timeout: PLAY_DEFAULT_TIMEOUT_MS,
+      baseUrl: PLAY_DEFAULT_BASE_URL,
+      delayMs: PLAY_DEFAULT_DELAY_MS,
+      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
+      runId: "run-test-id",
+    });
+  });
+
   it("skips startup when --no-start is used", async () => {
     await runPlay("e2e/example.yaml", { start: false });
 
@@ -129,7 +154,7 @@ describe("runPlay startup behavior", () => {
     );
   });
 
-  it("allows auto-start without baseUrl when tests use absolute URLs", async () => {
+  it("allows auto-start when startCommand is provided in config", async () => {
     const child = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(child);
     vi.mocked(loadConfig).mockResolvedValue({

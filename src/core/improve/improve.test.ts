@@ -101,7 +101,7 @@ describe("improveTestFile runner", () => {
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("Chromium browser is not installed.");
     await expect(run).rejects.toMatchObject({
-      hint: expect.stringContaining("ui-test bootstrap quickstart"),
+      hint: expect.stringContaining("ui-test setup quickstart"),
     });
   });
 

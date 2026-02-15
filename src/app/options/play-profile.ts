@@ -2,9 +2,12 @@ import type { UITestConfig } from "../../utils/config.js";
 import { UserError } from "../../utils/errors.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
+  PLAY_DEFAULT_BASE_URL,
   PLAY_DEFAULT_DELAY_MS,
   PLAY_DEFAULT_HEADED,
   PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+  PLAY_DEFAULT_START_COMMAND,
+  PLAY_DEFAULT_TEST_DIR,
   PLAY_DEFAULT_TIMEOUT_MS,
   PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
 } from "../../core/play/play-defaults.js";
@@ -27,8 +30,8 @@ export interface ResolvedPlayProfile {
   shouldAutoStart: boolean;
   saveFailureArtifacts: boolean;
   artifactsDir: string;
-  baseUrl?: string;
-  startCommand?: string;
+  baseUrl: string;
+  startCommand: string;
   testDir: string;
 }
 
@@ -81,6 +84,8 @@ export function resolvePlayProfile(
     );
   }
 
+  const startCommand = config.startCommand?.trim() || PLAY_DEFAULT_START_COMMAND;
+
   return {
     headed,
     timeout,
@@ -89,9 +94,9 @@ export function resolvePlayProfile(
     shouldAutoStart,
     saveFailureArtifacts,
     artifactsDir,
-    baseUrl: config.baseUrl,
-    startCommand: config.startCommand?.trim() || undefined,
-    testDir: config.testDir ?? "e2e",
+    baseUrl: config.baseUrl ?? PLAY_DEFAULT_BASE_URL,
+    startCommand,
+    testDir: config.testDir ?? PLAY_DEFAULT_TEST_DIR,
   };
 }
 

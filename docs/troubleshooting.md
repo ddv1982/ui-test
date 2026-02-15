@@ -1,8 +1,8 @@
 # Troubleshooting
 
-## Bootstrap Issues
+## Setup Issues
 
-### `ui-test bootstrap` (or repo `npm run bootstrap:*`) fails
+### `ui-test setup` (or repo `npm run setup:*`) fails
 
 1. Verify Node.js version (`node -v`) is 18 or newer.
 2. Verify npm and npx are available in PATH (`npm -v`, `npx -v`).
@@ -10,12 +10,12 @@
 
 ```bash
 # repo checkout
-npm run bootstrap
-npm run bootstrap:init
+npm run setup
+npm run setup:quickstart
 
 # standalone CLI (global install)
-ui-test bootstrap install
-ui-test bootstrap init --yes
+ui-test setup install
+ui-test setup quickstart
 ```
 
 Install globally if not yet installed (current):
@@ -27,16 +27,16 @@ npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
 If you are using one-off execution (current):
 
 ```bash
-npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
+npx -y github:ddv1982/easy-e2e-testing setup quickstart
 ```
 
 If you see `Standalone install policy: project-local installs are not supported`, use this cleanup flow:
 1. Remove `ui-test` from `dependencies`/`devDependencies` in `package.json`.
 2. Run `npm uninstall ui-test`.
 3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
-4. Re-run `ui-test bootstrap quickstart`.
+4. Re-run `ui-test setup quickstart`.
 
-If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and bootstrap continues. `playwright-cli` is only required for:
+If Playwright-CLI install/verify fails during setup, it is reported as a warning and setup continues. `playwright-cli` is only required for:
 
 ```bash
 ui-test improve <file> --assertion-source snapshot-cli
@@ -55,7 +55,7 @@ npx playwright install chromium
 Or run onboarding again:
 
 ```bash
-ui-test bootstrap quickstart
+ui-test setup quickstart
 ```
 
 ### Linux shared dependencies missing
@@ -118,7 +118,7 @@ UI_TEST_DISABLE_JSONL=1 ui-test record
 
 If you see runtime validation errors:
 - install Chromium (`npx playwright install chromium`)
-- rerun with `ui-test bootstrap quickstart` if needed
+- rerun with `ui-test setup quickstart` if needed
 
 ## Assertions Not Inserted by `improve`
 

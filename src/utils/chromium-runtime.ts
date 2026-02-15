@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import { UserError } from "./errors.js";
 
 export const CHROMIUM_INSTALL_HINT =
-  "Run: ui-test bootstrap quickstart or npx playwright install chromium";
+  "Run: ui-test setup quickstart or npx playwright install chromium";
 
 export function isLikelyMissingChromium(message: string): boolean {
   const normalized = message.toLowerCase();

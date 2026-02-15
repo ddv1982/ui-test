@@ -50,7 +50,7 @@ describe("enforce-standalone-install", () => {
     );
     expect(message).toContain("project-local installs are not supported");
     expect(message).toContain("npm i -g ui-test");
-    expect(message).toContain("npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart");
+    expect(message).toContain("npx -y github:ddv1982/easy-e2e-testing setup quickstart");
     expect(message).toContain("npm uninstall ui-test");
   });
 });

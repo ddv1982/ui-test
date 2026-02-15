@@ -12,92 +12,60 @@ vi.mock("playwright", () => ({
 }));
 
 import { spawnSync } from "node:child_process";
+import { UserError } from "../utils/errors.js";
 import {
-  parseBootstrapArgs,
-  registerBootstrap,
+  parseSetupMode,
+  registerSetup,
   resolveUiTestCliEntry,
-  runBootstrap,
+  runSetup,
   runInstallPlaywrightCli,
-} from "./bootstrap.js";
+} from "./setup.js";
 
 const mockSpawnSync = vi.mocked(spawnSync);
 
-describe("bootstrap command", () => {
+function createProgram(): Command {
+  const program = new Command();
+  registerSetup(program);
+  return program;
+}
+
+function getSetupCommand(program: Command): Command {
+  const command = program.commands.find((entry) => entry.name() === "setup");
+  if (!command) {
+    throw new Error("setup command is not registered");
+  }
+  return command;
+}
+
+describe("setup command registration", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("registers bootstrap command", () => {
-    const program = new Command();
-    registerBootstrap(program);
-    const command = program.commands.find((entry) => entry.name() === "bootstrap");
-    expect(command).toBeDefined();
+  it("registers setup command", () => {
+    const program = createProgram();
+    expect(getSetupCommand(program)).toBeDefined();
   });
 });
 
-describe("bootstrap argument parsing", () => {
-  it("defaults to quickstart mode", () => {
-    const parsed = parseBootstrapArgs([]);
-    expect(parsed).toMatchObject({
-      mode: "quickstart",
-      runPlay: false,
-      initArgs: [],
-      showHelp: false,
-    });
+describe("setup mode parsing", () => {
+  it("defaults to quickstart for empty mode", () => {
+    expect(parseSetupMode(undefined)).toBe("quickstart");
+    expect(parseSetupMode("")).toBe("quickstart");
   });
 
-  it("shows bootstrap help for standalone --help", () => {
-    const parsed = parseBootstrapArgs(["--help"]);
-    expect(parsed).toMatchObject({
-      mode: "quickstart",
-      showHelp: true,
-    });
+  it("accepts install and quickstart", () => {
+    expect(parseSetupMode("install")).toBe("install");
+    expect(parseSetupMode("quickstart")).toBe("quickstart");
   });
 
-  it("parses quickstart flags and init passthrough args", () => {
-    const parsed = parseBootstrapArgs(["quickstart", "--run-play", "--", "--yes"]);
-    expect(parsed).toMatchObject({
-      mode: "quickstart",
-      runPlay: true,
-      initArgs: ["--yes"],
-      showHelp: false,
-    });
-  });
-
-  it("passes through init --help to ui-test init", () => {
-    const parsed = parseBootstrapArgs(["init", "--help"]);
-    expect(parsed).toMatchObject({
-      mode: "init",
-      runPlay: false,
-      initArgs: ["--help"],
-      showHelp: false,
-    });
-  });
-
-  it("passes quickstart -- --help through to init", () => {
-    const parsed = parseBootstrapArgs(["quickstart", "--", "--help"]);
-    expect(parsed).toMatchObject({
-      mode: "quickstart",
-      runPlay: false,
-      initArgs: ["--help"],
-      showHelp: false,
-    });
-  });
-
-  it("rejects unknown quickstart options", () => {
-    expect(() => parseBootstrapArgs(["quickstart", "--unknown"])).toThrow(
-      /Unknown quickstart option/
-    );
-  });
-
-  it("rejects install mode with extra args", () => {
-    expect(() => parseBootstrapArgs(["install", "extra"])).toThrow(
-      /does not accept extra arguments/
-    );
+  it("rejects unknown mode", () => {
+    expect(() => parseSetupMode("init")).toThrow(UserError);
+    expect(() => parseSetupMode("init")).toThrow(/Unknown mode: init/);
   });
 });
 
-describe("bootstrap execution", () => {
+describe("setup execution", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockSpawnSync.mockReturnValue({
@@ -108,18 +76,8 @@ describe("bootstrap execution", () => {
     } as never);
   });
 
-  it("runs quickstart init and play via current ui-test binary", async () => {
-    await runBootstrap(["quickstart", "--run-play", "--", "--yes"]);
-
-    expect(mockSpawnSync).toHaveBeenCalledWith(
-      process.execPath,
-      [resolveUiTestCliEntry(), "init", "--yes"],
-      {
-        stdio: "inherit",
-        shell: process.platform === "win32",
-        env: process.env,
-      }
-    );
+  it("runs quickstart with runPlay when requested", async () => {
+    await runSetup("quickstart", { runPlay: true });
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
@@ -132,13 +90,43 @@ describe("bootstrap execution", () => {
     );
   });
 
-  it("runs init --help without provisioning side effects", async () => {
-    await runBootstrap(["init", "--help"]);
+  it("runs install mode", async () => {
+    await runSetup("install", {});
 
-    expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+    expect(mockSpawnSync).toHaveBeenCalledWith("npm", ["ci"], {
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: process.env,
+    });
+  });
+
+  it("rejects install mode with --run-play", async () => {
+    const run = runSetup("install", { runPlay: true });
+    await expect(run).rejects.toThrow(UserError);
+    await expect(run).rejects.toThrow("install mode does not support --run-play.");
+  });
+});
+
+describe("setup command parsing (commander path)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockSpawnSync.mockReturnValue({
+      status: 0,
+      error: undefined,
+      stdout: "",
+      stderr: "",
+    } as never);
+  });
+
+  it("accepts quickstart --run-play through commander parsing", async () => {
+    const program = createProgram();
+    await program.parseAsync(["node", "ui-test", "setup", "quickstart", "--run-play"], {
+      from: "node",
+    });
+
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
-      [resolveUiTestCliEntry(), "init", "--help"],
+      [resolveUiTestCliEntry(), "play"],
       {
         stdio: "inherit",
         shell: process.platform === "win32",
@@ -147,19 +135,34 @@ describe("bootstrap execution", () => {
     );
   });
 
-  it("runs quickstart -- --help as init help passthrough only", async () => {
-    await runBootstrap(["quickstart", "--", "--help"]);
+  it("shows top-level setup help without side effects", async () => {
+    const program = createProgram();
+    getSetupCommand(program).exitOverride();
+    await expect(
+      program.parseAsync(["node", "ui-test", "setup", "--help"], {
+        from: "node",
+      })
+    ).rejects.toMatchObject({ code: "commander.helpDisplayed" });
 
-    expect(mockSpawnSync).toHaveBeenCalledTimes(1);
-    expect(mockSpawnSync).toHaveBeenCalledWith(
-      process.execPath,
-      [resolveUiTestCliEntry(), "init", "--help"],
-      {
-        stdio: "inherit",
-        shell: process.platform === "win32",
-        env: process.env,
-      }
-    );
+    expect(mockSpawnSync).not.toHaveBeenCalled();
+  });
+
+  it("shows quickstart help without side effects", async () => {
+    const program = createProgram();
+    getSetupCommand(program).exitOverride();
+    await expect(
+      program.parseAsync(["node", "ui-test", "setup", "quickstart", "--help"], {
+        from: "node",
+      })
+    ).rejects.toMatchObject({ code: "commander.helpDisplayed" });
+
+    expect(mockSpawnSync).not.toHaveBeenCalled();
+  });
+});
+
+describe("setup playwright-cli provisioning", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
   });
 
   it("warns and continues when playwright-cli provisioning fails", () => {

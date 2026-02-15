@@ -17,13 +17,13 @@ import { existsSync } from "node:fs";
 import {
   ensureLocalCliBuilt,
   resolveLocalCliEntry,
-  runCliBootstrap,
-} from "./bootstrap.mjs";
+  runCliSetup,
+} from "./setup.mjs";
 
 const mockSpawnSync = vi.mocked(spawnSync);
 const mockExistsSync = vi.mocked(existsSync);
 
-describe("bootstrap maintainer wrapper", () => {
+describe("setup maintainer wrapper", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockSpawnSync.mockReturnValue({
@@ -61,13 +61,13 @@ describe("bootstrap maintainer wrapper", () => {
     expect(mockSpawnSync).toHaveBeenCalledTimes(1);
   });
 
-  it("forwards argv to local ui-test bootstrap entry", () => {
-    runCliBootstrap(["quickstart", "--run-play", "--", "--yes"]);
+  it("forwards argv to local ui-test setup entry", () => {
+    runCliSetup(["quickstart", "--run-play"]);
 
     expect(mockSpawnSync).toHaveBeenCalledTimes(1);
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
-      [resolveLocalCliEntry(), "bootstrap", "quickstart", "--run-play", "--", "--yes"],
+      [resolveLocalCliEntry(), "setup", "quickstart", "--run-play"],
       {
         cwd: expect.any(String),
         stdio: "inherit",

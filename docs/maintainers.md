@@ -5,9 +5,8 @@ This guide covers maintainer-focused workflows and CI details.
 ## Test Commands
 
 ```bash
-npm run bootstrap
-npm run bootstrap:init
-npm run bootstrap:quickstart
+npm run setup
+npm run setup:quickstart
 npm test
 npm run lint
 npm run lint:typed

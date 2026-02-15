@@ -7,12 +7,11 @@ import {
   verifyChromiumLaunch,
 } from "../../infra/playwright/chromium-provisioner.js";
 
-export type BootstrapMode = "install" | "init" | "quickstart";
+export type SetupMode = "install" | "quickstart";
 
 export interface OnboardingPlan {
-  mode: BootstrapMode;
+  mode: SetupMode;
   runPlay: boolean;
-  initArgs: string[];
 }
 
 export interface OnboardingContext {
@@ -23,27 +22,14 @@ export async function runOnboardingPlan(
   plan: OnboardingPlan,
   context: OnboardingContext
 ): Promise<void> {
-  if (isInitHelpRequest(plan.initArgs)) {
-    runUiTestCommand(context.uiTestCliEntry, "init", plan.initArgs);
-    return;
-  }
-
   if (plan.mode === "install") {
     runInstallDependencies();
     runInstallPlaywrightCli();
     return;
   }
 
-  if (plan.mode === "init") {
-    runUiTestCommand(context.uiTestCliEntry, "init", plan.initArgs);
-    installPlaywrightChromium();
-    await verifyChromiumLaunch();
-    return;
-  }
-
   runInstallDependencies();
   runInstallPlaywrightCli();
-  runUiTestCommand(context.uiTestCliEntry, "init", plan.initArgs);
   installPlaywrightChromium();
   await verifyChromiumLaunch();
   if (plan.runPlay) {
@@ -58,10 +44,6 @@ function runUiTestCommand(uiTestCliEntry: string, command: string, args: string[
     process.execPath,
     fullArgs
   );
-}
-
-function isInitHelpRequest(args: string[]): boolean {
-  return args.includes("--help") || args.includes("-h");
 }
 
 function runInstallDependencies() {
@@ -103,7 +85,7 @@ function runInstallPlaywrightCli() {
   }
 
   console.warn(
-    `[bootstrap] WARN: ${failures.join(" ")} ` +
+    `[setup] WARN: ${failures.join(" ")} ` +
     "Retry manually: playwright-cli --help or npx -y @playwright/cli@latest --help. " +
     "Continuing because Playwright-CLI is only required for improve --assertion-source snapshot-cli."
   );
@@ -125,7 +107,7 @@ function ensureCommandAvailable(command: string) {
 }
 
 function runCommand(label: string, command: string, args: string[]) {
-  console.log(`[bootstrap] ${label}`);
+  console.log(`[setup] ${label}`);
   const result = spawnSync(command, args, {
     stdio: "inherit",
     shell: process.platform === "win32",
@@ -141,7 +123,7 @@ function runCommand(label: string, command: string, args: string[]) {
 }
 
 function runCommandQuiet(label: string, command: string, args: string[]) {
-  console.log(`[bootstrap] ${label}`);
+  console.log(`[setup] ${label}`);
   const result = spawnSync(command, args, {
     stdio: "ignore",
     shell: process.platform === "win32",

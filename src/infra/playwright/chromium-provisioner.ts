@@ -53,7 +53,7 @@ function runInstallStep(
   args: string[],
   cwd?: string
 ): void {
-  console.log(`[bootstrap] ${name}...`);
+  console.log(`[setup] ${name}...`);
   const result = spawnSync(command, args, {
     cwd,
     stdio: "inherit",

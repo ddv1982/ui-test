@@ -10,46 +10,42 @@ Note: `ui-test` uses the V2 `target` selector contract. Legacy `selector:` field
 ### 1) Working inside this repository
 
 ```bash
-npm run bootstrap:quickstart
+npm run setup:quickstart
 ```
 
 ### 2) Global install (standalone, current)
 
 ```bash
 npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
-ui-test bootstrap quickstart
+ui-test setup quickstart
 ```
 
 ### 3) One-off run without global install (current)
 
 ```bash
-npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
+npx -y github:ddv1982/easy-e2e-testing setup quickstart
 ```
 
 Project dependency installs are intentionally unsupported.
 All command examples below use global `ui-test`.
 
-## Bootstrap Modes
+## Setup Modes
 
 ```bash
-ui-test bootstrap install
-ui-test bootstrap init --yes
-ui-test bootstrap quickstart
-ui-test bootstrap quickstart --run-play
-ui-test bootstrap quickstart -- --yes
+ui-test setup install
+ui-test setup quickstart
+ui-test setup quickstart --run-play
 ```
 
 Mode behavior:
 1. `install`: installs project dependencies and verifies Playwright-CLI.
-2. `init`: runs `ui-test init` and provisions Chromium.
-3. `quickstart` (default): runs `install` + `init`, with optional first `play` run.
+2. `quickstart` (default): runs `install` + Chromium provisioning, with optional first `play` run.
 
 ## Core Commands
 
 | Command | Purpose |
 | --- | --- |
-| `ui-test bootstrap [mode]` | Onboarding and provisioning helper |
-| `ui-test init` | Create `ui-test.config.yaml` and sample test |
+| `ui-test setup [mode]` | Onboarding and provisioning helper |
 | `ui-test play [test]` | Run one YAML test or all tests |
 | `ui-test record` | Record browser interactions into YAML |
 | `ui-test improve <file>` | Analyze and suggest selector/assertion improvements |
@@ -59,12 +55,15 @@ Mode behavior:
 ## Runtime Model (Flags-First)
 
 Runtime behavior is controlled by flags and built-in defaults.
-`ui-test.config.yaml` contains project settings only (`testDir`, `baseUrl`, `startCommand`, improve defaults).
+`ui-test.config.yaml` is optional and contains project overrides only (`testDir`, `baseUrl`, `startCommand`, improve defaults).
 
 `play` defaults:
 - headless (`--headed` opt-in)
 - `--delay 0`
 - `--wait-network-idle` enabled
+- `testDir=e2e`
+- `baseUrl=http://127.0.0.1:5173`
+- `startCommand=ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/easy-e2e-testing example-app --host 127.0.0.1 --port 5173`
 - network-idle wait uses Playwright default timeout behavior (`waitForLoadState("networkidle")` with no custom timeout)
 - failure artifacts enabled to `.ui-test-artifacts`
 
@@ -91,13 +90,13 @@ ui-test improve e2e/login.yaml --assertion-source snapshot-cli
 
 ## Browser Provisioning Contract
 
-Chromium provisioning is onboarding-only (`bootstrap` modes).
+Chromium provisioning is onboarding-only (`setup` modes).
 `play`, `record`, and `improve` do not auto-install browsers.
 
 If Chromium is missing, install with:
 
 ```bash
-ui-test bootstrap quickstart
+ui-test setup quickstart
 # or
 npx playwright install chromium
 ```

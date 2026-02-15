@@ -12,36 +12,34 @@ This guide is for first-time `ui-test` users.
 ### Repository checkout
 
 ```bash
-npm run bootstrap:quickstart
+npm run setup:quickstart
 ```
 
 ### Global install (standalone, current)
 
 ```bash
 npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
-ui-test bootstrap quickstart
+ui-test setup quickstart
 ```
 
 ### One-off run without global install (current)
 
 ```bash
-npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
+npx -y github:ddv1982/easy-e2e-testing setup quickstart
 ```
 
 Project dependency installs are intentionally unsupported.
 All command examples below use global `ui-test`.
 
-## Bootstrap Modes
+## Setup Modes
 
 ```bash
-ui-test bootstrap install
-ui-test bootstrap init --yes
-ui-test bootstrap quickstart
-ui-test bootstrap quickstart --run-play
-ui-test bootstrap quickstart -- --yes
+ui-test setup install
+ui-test setup quickstart
+ui-test setup quickstart --run-play
 ```
 
-`bootstrap quickstart` handles dependency install, project init, Chromium provisioning, and optionally a first `play` run.
+`setup quickstart` handles dependency install, Chromium provisioning, and optionally a first `play` run.
 
 ## Runtime Flags
 
