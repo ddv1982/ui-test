@@ -4,18 +4,11 @@
   "description": "No-code E2E testing framework - record and replay browser tests with YAML",
   "type": "module",
   "bin": {
-    "ui-test": "./dist/bin/ui-test.js"
+    "ui-test": "./bin/ui-test.js"
   },
   "files": [
     "dist",
-    "src",
-    "tsconfig.json",
-    "tsconfig.build.json",
-    "scripts/clean-dist.mjs",
-    "scripts/fix-bin-perms.mjs",
-    "scripts/prepare-build.mjs",
-    "scripts/run-tsc.mjs",
-    "scripts/postinstall-build-if-needed.mjs",
+    "bin/ui-test.js",
     "scripts/enforce-standalone-install.mjs",
     "examples/vue-app",
     "README.md",
@@ -29,8 +22,7 @@
     "preinstall": "node -e \"const path=require('node:path');const env=process.env;const isTrue=(v)=>String(v??'').toLowerCase()==='true';const isExec=String(env.npm_command??'').trim()==='exec';const isRepo=Boolean(env.INIT_CWD)&&path.resolve(env.INIT_CWD)===path.resolve(process.cwd());if(isExec||isTrue(env.npm_config_global)||isRepo)process.exit(0);const msg=['[ui-test] Standalone install policy: project-local installs are not supported.','','Install/run ui-test in standalone mode instead:','  npm i -g ui-test','  ui-test bootstrap quickstart','  npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart','','If ui-test is already installed in this project, clean it up:','  1) Remove ui-test from dependencies/devDependencies in package.json','  2) Run: npm uninstall ui-test','  3) Run: npm i -g ui-test','  4) Re-run: ui-test bootstrap quickstart'];console.error(msg.join('\\\\n'));process.exit(1);\"",
     "build": "node ./scripts/clean-dist.mjs && node ./scripts/run-tsc.mjs -p tsconfig.build.json && node ./scripts/fix-bin-perms.mjs",
     "help": "node ./scripts/help.mjs",
-    "postinstall": "node ./scripts/postinstall-build-if-needed.mjs",
-    "prepack": "node ./scripts/prepare-build.mjs",
+    "prepare": "node ./scripts/prepare-build.mjs",
     "dev": "tsc --watch",
     "lint": "eslint src --max-warnings=0",
     "lint:fix": "eslint src --fix",
