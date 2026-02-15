@@ -13,12 +13,12 @@
 npm run bootstrap
 npm run bootstrap:setup
 
-# standalone CLI (global install from GitHub, current)
+# standalone CLI (global install)
 ui-test bootstrap install
 ui-test bootstrap setup
 ```
 
-Install globally from GitHub if not yet installed:
+Install globally if not yet installed (current):
 
 ```bash
 npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
@@ -35,13 +35,6 @@ If you see `Standalone install policy: project-local installs are not supported`
 2. Run `npm uninstall ui-test`.
 3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
 4. Re-run `ui-test bootstrap quickstart`.
-
-After npm publish is live, equivalent commands are:
-
-```bash
-npm i -g ui-test
-npx ui-test bootstrap quickstart
-```
 
 If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and setup continues. `playwright-cli` is only required for:
 

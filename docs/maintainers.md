@@ -32,61 +32,20 @@ npm run test:smoke
 Release preflight:
 
 ```bash
-npm run check:npm-name
 npm pack --dry-run
 ```
 
-## npm Trusted Publisher (One-Time Setup)
+## CI Runner Selection
 
-1. Publish workflow file must exist at `.github/workflows/publish.yml`.
-2. In npm package settings, configure **Trusted Publisher** for:
-   - GitHub org/user: `ddv1982`
-   - Repository: `easy-e2e-testing`
-   - Workflow file: `publish.yml`
-3. (Recommended) Create GitHub Environment `npm-publish` and require reviewer approval for publish jobs.
-4. Ensure the package is configured for public distribution (`ui-test` unscoped, or `--access public` for scoped fallback).
-
-## Release Flow
-
-1. Merge to `main`.
-2. Confirm release checks pass (`CI` + `Release Verify` workflows).
-3. Create/publish a GitHub release from the default branch.
-4. `Publish` workflow runs and executes:
-   - lint
-   - full tests
-   - package dry-run
-   - `npm publish --provenance` (plus `--access public` when scoped)
-
-Post-release verification:
-
-```bash
-npm view ui-test version
-ui-test --version
-```
-
-## Rollback / Recovery
-
-If a bad version is published:
-
-1. Deprecate that version on npm:
-
-```bash
-npm deprecate ui-test@<bad-version> "Deprecated due to release issue. Use a newer version."
-```
-
-2. Cut a patch release with a fix.
-3. Re-run publish flow via new GitHub release (or manual `workflow_dispatch` on `main`).
-
-## CI Runner Fallback
-
-If GitHub-hosted runners are unavailable, configure one of:
+Configure one of the following repository variables:
 
 - `CI_RUNNER_LABELS_JSON` (preferred): JSON array of labels, for example:
   - `["self-hosted"]`
   - `["self-hosted","macOS","ARM64"]`
 - `CI_RUNNER_MODE=self-hosted` (fallback): strict labels `self-hosted`, `macOS`, `ARM64`
 
-When neither is set, CI defaults to `ubuntu-latest`.
+When neither is set, workflows default to `ubuntu-latest`.
+The labels in `CI_RUNNER_LABELS_JSON` must exactly match labels on your registered runner(s), and those runners must be assigned to this repository through the right runner group/repo access settings.
 
 ## Recorder Stability Override
 

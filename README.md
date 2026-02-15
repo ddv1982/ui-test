@@ -20,24 +20,10 @@ npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
 ui-test bootstrap quickstart
 ```
 
-After npm publish is live, you can switch to:
-
-```bash
-npm i -g ui-test
-```
-
 ### 3) One-off run without global install (current)
 
 ```bash
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
-```
-
-If your npm setup has issues with direct git-global installs, prefer the `npm pack ... && npm i -g <tarball>` flow above.
-
-After npm publish is live:
-
-```bash
-npx ui-test bootstrap quickstart
 ```
 
 Project dependency installs are intentionally unsupported.
