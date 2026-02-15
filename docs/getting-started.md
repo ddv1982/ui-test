@@ -24,13 +24,20 @@ ui-test bootstrap quickstart
 
 ### One-off run without global install
 
+After npm publish is live:
+
+```bash
+npx ui-test bootstrap quickstart
+```
+
+Pre-publish (or if registry access is unavailable), use:
+
 ```bash
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
 Project dependency installs are intentionally unsupported.
-All command examples below use global `ui-test`; for one-off usage today, replace with
-`npx -y github:ddv1982/easy-e2e-testing <command>`.
+All command examples below use global `ui-test`.
 
 ## Bootstrap Modes
 

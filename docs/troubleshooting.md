@@ -18,14 +18,23 @@ ui-test bootstrap install
 ui-test bootstrap setup
 ```
 
-If you are using one-off execution:
+If you are using one-off execution after npm publish is live:
+
+```bash
+npx ui-test bootstrap quickstart
+```
+
+If you see `Standalone install policy: project-local installs are not supported`, use this cleanup flow:
+1. Remove `ui-test` from `dependencies`/`devDependencies` in `package.json`.
+2. Run `npm uninstall ui-test`.
+3. Run `npm i -g ui-test`.
+4. Re-run `ui-test bootstrap quickstart`.
+
+If npm registry resolution fails (for example temporary 404/access issues), or before npm publish is live, use GitHub fallback:
 
 ```bash
 npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
-
-If you see `Standalone install policy: project-local installs are not supported`, remove any
-`ui-test` dependency entry from the project, run `npm uninstall ui-test`, then use global install (`npm i -g ui-test`).
 
 If Playwright-CLI install/verify fails during bootstrap, it is reported as a warning and setup continues. `playwright-cli` is only required for:
 
