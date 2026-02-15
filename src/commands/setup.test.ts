@@ -150,7 +150,6 @@ describe("setup execution", () => {
     expect(output).toContain("✔ Setup complete.");
     expect(output).toContain("Next:");
     expect(output).toContain("ui-test play");
-    expect(output).toContain("ui-test play --help");
     expect(output).toContain("ui-test --help");
   });
 
@@ -164,7 +163,7 @@ describe("setup execution", () => {
       .join("\n");
 
     expect(output).toContain("✔ Setup complete.");
-    expect(output).toContain("Tip: Explore play options with ui-test play --help.");
+    expect(output).toContain("Tip: Explore all options with ui-test --help.");
   });
 
   it("rejects install mode with --run-play", async () => {

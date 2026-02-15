@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Help } from "commander";
 import { registerRecord } from "./commands/record.js";
 import { registerPlay } from "./commands/play.js";
 import { registerList } from "./commands/list.js";
@@ -8,6 +8,7 @@ import { registerDoctor } from "./commands/doctor.js";
 import { registerSetup } from "./commands/setup.js";
 import { UserError, handleError } from "./utils/errors.js";
 import { getCliVersion, isProjectLocalUiTestInvocation } from "./utils/runtime-info.js";
+import { buildUnifiedHelp } from "./utils/unified-help.js";
 
 const STANDALONE_POLICY_HINT = [
   "Run ui-test in standalone mode instead:",
@@ -27,24 +28,16 @@ export function createProgram(): Command {
   program
     .name("ui-test")
     .description("No-code E2E testing — record and replay browser tests with YAML")
-    .version(getCliVersion());
-
-  program.addHelpText(
-    "after",
-    [
-      "",
-      "Examples:",
-      "  ui-test setup quickstart",
-      "  ui-test improve e2e/login.yaml",
-      "  ui-test improve e2e/login.yaml --apply --apply-assertions",
-      "  ui-test improve e2e/login.yaml --apply-assertions --assertion-source snapshot-cli",
-      "  ui-test doctor",
-      "",
-      "Tip:",
-      "  Run `ui-test improve --help` to see all improve flags (including assertion source options).",
-      "  If not globally installed yet, use one-off execution: `npx -y github:ddv1982/easy-e2e-testing doctor`.",
-    ].join("\n")
-  );
+    .version(getCliVersion())
+    .configureHelp({
+      formatHelp(cmd, helper) {
+        // Use unified help for root command only; subcommands use default
+        if (cmd.parent) {
+          return Help.prototype.formatHelp.call(this, cmd, helper);
+        }
+        return buildUnifiedHelp(cmd, helper);
+      },
+    });
 
   registerSetup(program);
   registerRecord(program);

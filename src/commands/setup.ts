@@ -115,13 +115,12 @@ function printSetupNextSteps(mode: SetupMode, runPlay: boolean) {
   console.log("");
 
   if (runPlay) {
-    console.log("Tip: Explore play options with ui-test play --help.");
+    console.log("Tip: Explore all options with ui-test --help.");
     return;
   }
 
   console.log("Next:");
   console.log("  ui-test play");
-  console.log("  ui-test play --help");
   console.log("  ui-test --help");
 }
 
