@@ -1,6 +1,6 @@
 import { input } from "@inquirer/prompts";
 import { record as runRecording } from "../../core/recorder.js";
-import { PLAY_DEFAULT_BASE_URL } from "../../core/play/play-defaults.js";
+import { PLAY_DEFAULT_BASE_URL, PLAY_DEFAULT_TEST_DIR } from "../../core/play/play-defaults.js";
 import { resolveRecordProfile, hasUrlProtocol, normalizeRecordUrl } from "../options/record-profile.js";
 import { formatRecordingProfileSummary } from "../options/profile-summary.js";
 import { ensureChromiumAvailable } from "../../utils/chromium-runtime.js";
@@ -11,6 +11,7 @@ export interface RecordCliOptions {
   name?: string;
   url?: string;
   description?: string;
+  outputDir?: string;
   selectorPolicy?: string;
   browser?: string;
   device?: string;
@@ -56,7 +57,14 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       message: "Description (optional):",
     }));
 
-  const profile = resolveRecordProfile(opts);
+  const outputDir =
+    opts.outputDir ??
+    (await input({
+      message: "Output directory:",
+      default: PLAY_DEFAULT_TEST_DIR,
+    }));
+
+  const profile = resolveRecordProfile({ ...opts, outputDir });
 
   if (profile.browser === "chromium") {
     await ensureChromiumAvailable();

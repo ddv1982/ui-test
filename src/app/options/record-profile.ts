@@ -11,6 +11,7 @@ export interface RecordProfileInput {
   testIdAttribute?: string;
   loadStorage?: string;
   saveStorage?: string;
+  outputDir?: string;
 }
 
 export interface ResolvedRecordProfile {
@@ -33,7 +34,7 @@ export function resolveRecordProfile(
     testIdAttribute: cleanOptional(input.testIdAttribute),
     loadStorage: cleanOptional(input.loadStorage),
     saveStorage: cleanOptional(input.saveStorage),
-    outputDir: PLAY_DEFAULT_TEST_DIR,
+    outputDir: input.outputDir ?? PLAY_DEFAULT_TEST_DIR,
   };
 }
 

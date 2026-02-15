@@ -53,6 +53,7 @@ describe("runRecord browser preflight", () => {
       name: "sample",
       url: "http://127.0.0.1:5173",
       description: "demo",
+      outputDir: "e2e",
       browser: "chromium",
     });
 
@@ -69,6 +70,7 @@ describe("runRecord browser preflight", () => {
       name: "sample",
       url: "http://127.0.0.1:5173",
       description: "demo",
+      outputDir: "e2e",
       browser: "firefox",
     });
 

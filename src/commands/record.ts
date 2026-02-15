@@ -13,6 +13,7 @@ export function registerRecord(program: Command) {
     .option("--browser <browser>", "Browser: chromium, firefox, or webkit")
     .option("--device <name>", "Playwright device name")
     .option("--test-id-attribute <attr>", "Custom test-id attribute")
+    .option("-o, --output-dir <dir>", "Output directory for recorded test")
     .option("--load-storage <path>", "Path to storage state to preload")
     .option("--save-storage <path>", "Path to write resulting storage state")
     .action(async (opts: unknown) => {
@@ -31,6 +32,7 @@ function parseRecordCliOptions(value: unknown): RecordCliOptions {
     name: asOptionalString(record.name),
     url: asOptionalString(record.url),
     description: asOptionalString(record.description),
+    outputDir: asOptionalString(record.outputDir),
     selectorPolicy: asOptionalString(record.selectorPolicy),
     browser: asOptionalString(record.browser),
     device: asOptionalString(record.device),
