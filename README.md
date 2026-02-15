@@ -13,25 +13,29 @@ Note: `ui-test` uses the V2 `target` selector contract. Legacy `selector:` field
 npm run bootstrap:quickstart
 ```
 
-### 2) Global install (standalone)
+### 2) Global install (standalone, current)
 
 ```bash
-npm i -g ui-test
+npm i -g github:ddv1982/easy-e2e-testing
 ui-test bootstrap quickstart
 ```
 
-### 3) One-off run without global install
+After npm publish is live, you can switch to:
+
+```bash
+npm i -g ui-test
+```
+
+### 3) One-off run without global install (current)
+
+```bash
+npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
+```
 
 After npm publish is live:
 
 ```bash
 npx ui-test bootstrap quickstart
-```
-
-Pre-publish (or if registry access is unavailable), use GitHub fallback:
-
-```bash
-npx -y github:ddv1982/easy-e2e-testing bootstrap quickstart
 ```
 
 Project dependency installs are intentionally unsupported.
@@ -54,8 +58,7 @@ ui-test bootstrap quickstart --run-play
 ui-test bootstrap quickstart -- --skip-browser-install
 ```
 
-If npm registry access is unavailable, or before npm publish is live, use the fallback commands in
-[Troubleshooting](docs/troubleshooting.md).
+Install and fallback details are in [Troubleshooting](docs/troubleshooting.md).
 
 ## Core Commands
 
