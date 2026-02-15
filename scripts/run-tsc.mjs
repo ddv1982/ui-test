@@ -81,6 +81,7 @@ export function runTsc(tscArgs = process.argv.slice(2), repoRootPath = repoRoot)
       "npm",
       [
         "install",
+        "--global=false",
         "--prefix",
         tempDir,
         "--no-save",
