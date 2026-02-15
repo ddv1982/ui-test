@@ -126,7 +126,7 @@ If you see runtime validation errors:
 ## Assertions Not Inserted by `improve`
 
 If assertions were listed as candidates but not written to YAML:
-1. Ensure you used `--apply` or `--apply-assertions`.
+1. Ensure you used `--apply`.
 2. Keep `--assertions candidates` (not `--assertions none`). If `--apply` is used with `--assertions none`, assertion apply is downgraded.
 3. Check report `assertionCandidates[].applyStatus` for skip reasons.
 4. Re-run in a stable test environment so runtime validation can pass.

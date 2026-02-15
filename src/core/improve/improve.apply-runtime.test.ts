@@ -178,7 +178,7 @@ describe("improve apply runtime replay", () => {
     expect(saved).toContain("getByRole('button', { name: 'Save' })");
   });
 
-  it("applies high-confidence assertion candidates with --apply-assertions", async () => {
+  it("applies high-confidence assertion candidates with --apply", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
     tempDirs.push(dir);
 
@@ -937,56 +937,4 @@ describe("improve apply runtime replay", () => {
     ).toBe(false);
   });
 
-  it("allows snapshot assertVisible candidates in aggressive apply policy", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-policy-aggressive-"));
-    tempDirs.push(dir);
-
-    const yamlPath = path.join(dir, "sample.yaml");
-    await fs.writeFile(
-      yamlPath,
-      [
-        "name: sample",
-        "steps:",
-        "  - action: navigate",
-        "    url: https://example.com",
-        "  - action: click",
-        "    target:",
-        '      value: "#submit"',
-        "      kind: css",
-        "      source: manual",
-      ].join("\n"),
-      "utf-8"
-    );
-
-    buildAssertionCandidatesMock.mockReturnValue([
-      {
-        index: 1,
-        afterAction: "click",
-        candidate: {
-          action: "assertVisible",
-          target: { value: "#status", kind: "css", source: "manual" },
-        },
-        confidence: 0.99,
-        rationale: "snapshot visible candidate",
-        candidateSource: "snapshot_native",
-      },
-    ]);
-
-    const result = await improveTestFile({
-      testFile: yamlPath,
-      applySelectors: false,
-      applyAssertions: true,
-      assertions: "candidates",
-      assertionApplyPolicy: "aggressive",
-    });
-
-    expect(result.report.summary.assertionApplyPolicy).toBe("aggressive");
-    expect(result.report.summary.assertionCandidates).toBe(1);
-    expect(result.report.summary.appliedAssertions).toBe(1);
-    expect(result.report.summary.skippedAssertions).toBe(0);
-    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
-
-    const saved = await fs.readFile(yamlPath, "utf-8");
-    expect(saved).toContain("action: assertVisible");
-  });
 });

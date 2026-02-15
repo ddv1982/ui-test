@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import yaml from "js-yaml";
-import { play } from "./player.js";
+import { play } from "./play/player-runner.js";
 import { createTestSlug } from "./play-failure-report.js";
 import { ui } from "../utils/ui.js";
 

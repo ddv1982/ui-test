@@ -21,7 +21,7 @@ vi.mock("globby", () => ({
   globby: vi.fn(),
 }));
 
-vi.mock("../core/player.js", () => ({
+vi.mock("../core/play/player-runner.js", () => ({
   play: vi.fn(),
 }));
 
@@ -34,7 +34,7 @@ vi.mock("node:child_process", () => ({
   spawn: vi.fn(),
 }));
 
-import { play } from "../core/player.js";
+import { play } from "../core/play/player-runner.js";
 import { createPlayRunId, writePlayRunReport } from "../core/play-failure-report.js";
 import { spawn } from "node:child_process";
 import { registerPlay, runPlay } from "./play.js";

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ui } from "../utils/ui.js";
 import { handleError, UserError } from "../utils/errors.js";
+import { asOptionalString } from "./parse-helpers.js";
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 5173;
@@ -26,7 +27,7 @@ interface ExampleAppOptions {
 
 export function registerExampleApp(program: Command) {
   program
-    .command("example-app")
+    .command("example-app", { hidden: true })
     .description("Serve the built-in Vue example app")
     .option("--host <host>", "Host to bind", DEFAULT_HOST)
     .option("--port <port>", "Port to bind", String(DEFAULT_PORT))
@@ -134,10 +135,6 @@ function parseExampleAppOptions(value: unknown): ExampleAppOptions {
     host: asOptionalString(record.host),
     port: asOptionalString(record.port),
   };
-}
-
-function asOptionalString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
 }
 
 export { runExampleApp, normalizeRequestPath };

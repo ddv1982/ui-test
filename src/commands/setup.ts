@@ -8,6 +8,7 @@ import {
   runInstallPlaywrightCli,
 } from "../app/services/onboarding-service.js";
 import { handleError, UserError } from "../utils/errors.js";
+import { asOptionalBoolean } from "./parse-helpers.js";
 
 const MIN_NODE_MAJOR = 18;
 
@@ -99,10 +100,6 @@ function ensureNodeVersion() {
 function resolveUiTestCliEntry(): string {
   const commandsDir = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(commandsDir, "..", "bin", "ui-test.js");
-}
-
-function asOptionalBoolean(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined;
 }
 
 function printSetupNextSteps(mode: SetupMode, runPlay: boolean) {

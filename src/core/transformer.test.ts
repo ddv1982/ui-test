@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
-import {
-  jsonlToSteps,
-  jsonlToRecordingSteps,
-  playwrightCodeToSteps,
-  stepsToYaml,
-  yamlToTest,
-} from "./transformer.js";
+import { jsonlToSteps, jsonlToRecordingSteps } from "./transform/jsonl-transform.js";
+import { playwrightCodeToSteps } from "./transform/playwright-ast-transform.js";
+import { stepsToYaml, yamlToTest } from "./transform/yaml-io.js";
 
 describe("jsonlToSteps", () => {
   it("parses navigate", () => {

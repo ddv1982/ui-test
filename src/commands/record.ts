@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { handleError } from "../utils/errors.js";
 import { runRecord, type RecordCliOptions } from "../app/services/record-service.js";
+import { asOptionalString } from "./parse-helpers.js";
 
 export function registerRecord(program: Command) {
   program
@@ -40,8 +41,4 @@ function parseRecordCliOptions(value: unknown): RecordCliOptions {
     loadStorage: asOptionalString(record.loadStorage),
     saveStorage: asOptionalString(record.saveStorage),
   };
-}
-
-function asOptionalString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
 }

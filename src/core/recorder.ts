@@ -4,11 +4,11 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import {
   jsonlToRecordingSteps,
-  playwrightCodeToSteps,
-  stepsToYaml,
   type RecordSelectorPolicy,
   type RecordingTransformStats,
-} from "./transformer.js";
+} from "./transform/jsonl-transform.js";
+import { playwrightCodeToSteps } from "./transform/playwright-ast-transform.js";
+import { stepsToYaml } from "./transform/yaml-io.js";
 import type { Step } from "./yaml-schema.js";
 import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";

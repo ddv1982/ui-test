@@ -37,7 +37,7 @@ describe("CLI command registration", () => {
     // record options
     expect(help).toContain("--selector-policy");
     // improve options
-    expect(help).toContain("--apply-assertions");
+    expect(help).toContain("--assertions");
     // setup options
     expect(help).toContain("--run-play");
     // All subcommand names present

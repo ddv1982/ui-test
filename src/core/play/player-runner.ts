@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext } from "playwright";
 import { testSchema } from "../yaml-schema.js";
-import { yamlToTest } from "../transformer.js";
+import { yamlToTest } from "../transform/yaml-io.js";
 import { ValidationError, UserError } from "../../utils/errors.js";
 import { chromiumNotInstalledError, isLikelyMissingChromium } from "../../utils/chromium-runtime.js";
 import {

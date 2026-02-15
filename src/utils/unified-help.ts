@@ -97,7 +97,7 @@ export function buildUnifiedHelp(cmd: Command, helper: Help): string {
   // Examples footer
   output.push(helper.styleTitle("Examples:"));
   output.push("  ui-test setup quickstart");
-  output.push("  ui-test improve e2e/login.yaml --apply --apply-assertions");
+  output.push("  ui-test improve e2e/login.yaml --apply");
   output.push("  ui-test doctor");
   output.push("");
   output.push(helper.styleTitle("Tip:"));

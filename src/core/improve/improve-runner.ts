@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import { stepsToYaml, yamlToTest } from "../transformer.js";
+import { stepsToYaml, yamlToTest } from "../transform/yaml-io.js";
 import { testSchema, type Step } from "../yaml-schema.js";
 import { ValidationError } from "../../utils/errors.js";
 import { chromiumNotInstalledError, isLikelyMissingChromium } from "../../utils/chromium-runtime.js";
@@ -16,7 +16,6 @@ import {
 import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 import { runImproveSelectorPass } from "./improve-selector-pass.js";
 import {
-  type ImproveAssertionApplyPolicy,
   type ImproveAssertionSource,
   type ImproveOptions,
   type ImproveResult,
@@ -29,8 +28,6 @@ import {
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
   const assertionSource: ImproveAssertionSource = options.assertionSource ?? "snapshot-native";
-  const assertionApplyPolicy: ImproveAssertionApplyPolicy =
-    options.assertionApplyPolicy ?? "reliable";
   const absoluteTestPath = path.resolve(options.testFile);
   const rawContent = await fs.readFile(absoluteTestPath, "utf-8");
   const parsedYaml = yamlToTest(rawContent);
@@ -112,7 +109,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     const assertionPass = await runImproveAssertionPass({
       assertions: effectiveOptions.assertions,
       assertionSource,
-      assertionApplyPolicy,
       applyAssertions: effectiveOptions.applyAssertions,
       page,
       outputSteps: selectorPass.outputSteps,
@@ -136,7 +132,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         assertionCandidates: assertionPass.assertionCandidates.length,
         appliedAssertions: assertionPass.appliedAssertions,
         skippedAssertions: assertionPass.skippedAssertions,
-        assertionApplyPolicy,
+        assertionApplyPolicy: "reliable",
         assertionApplyStatusCounts: buildAssertionApplyStatusCounts(
           assertionPass.assertionCandidates
         ),

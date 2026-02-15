@@ -2,7 +2,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { globby } from "globby";
-import { play, type TestResult } from "../../core/player.js";
+import { play } from "../../core/play/player-runner.js";
+import type { TestResult } from "../../core/play/play-types.js";
 import {
   createPlayRunId,
   writePlayRunReport,

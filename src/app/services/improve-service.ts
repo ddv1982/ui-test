@@ -12,11 +12,8 @@ import {
 
 export interface ImproveCliOptions {
   apply?: boolean;
-  applySelectors?: boolean;
-  applyAssertions?: boolean;
   assertions?: string;
   assertionSource?: string;
-  assertionApplyPolicy?: string;
   report?: string;
 }
 
@@ -41,7 +38,6 @@ export async function runImprove(
       applyAssertions: profile.applyAssertions,
       assertions: profile.assertions,
       assertionSource: profile.assertionSource,
-      assertionApplyPolicy: profile.assertionApplyPolicy,
     })
   );
 
@@ -51,7 +47,6 @@ export async function runImprove(
     applyAssertions: profile.applyAssertions,
     assertions: profile.assertions,
     assertionSource: profile.assertionSource,
-    assertionApplyPolicy: profile.assertionApplyPolicy,
     reportPath: profile.reportPath,
   });
 
@@ -84,6 +79,6 @@ export async function runImprove(
     ui.step(`Apply all improvements: ui-test improve ${path.resolve(testFile)} --apply`);
   }
   if (!profile.applySelectors && !profile.applyAssertions && profile.assertions === "candidates") {
-    ui.step("Or apply selectively: --apply-selectors, --apply-assertions");
+    ui.step("Or apply improvements: --apply");
   }
 }

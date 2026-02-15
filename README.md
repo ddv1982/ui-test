@@ -88,7 +88,7 @@ Useful `record` and `improve` flags:
 ```bash
 ui-test record --browser firefox --selector-policy raw
 ui-test improve e2e/login.yaml --apply
-ui-test improve e2e/login.yaml --apply-assertions
+ui-test improve e2e/login.yaml --assertions none --apply
 ui-test improve e2e/login.yaml --assertion-source snapshot-cli
 ```
 

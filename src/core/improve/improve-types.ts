@@ -1,8 +1,7 @@
-import type { AssertionApplyPolicy, ImproveReport } from "./report-schema.js";
+import type { ImproveReport } from "./report-schema.js";
 
 export type ImproveAssertionsMode = "none" | "candidates";
 export type ImproveAssertionSource = "deterministic" | "snapshot-cli" | "snapshot-native";
-export type ImproveAssertionApplyPolicy = AssertionApplyPolicy;
 
 export interface ImproveOptions {
   testFile: string;
@@ -10,7 +9,6 @@ export interface ImproveOptions {
   applyAssertions: boolean;
   assertions: ImproveAssertionsMode;
   assertionSource?: ImproveAssertionSource;
-  assertionApplyPolicy?: ImproveAssertionApplyPolicy;
   reportPath?: string;
 }
 

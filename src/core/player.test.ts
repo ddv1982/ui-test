@@ -5,10 +5,12 @@ import {
   resolveLocator,
   resolveLocatorContext,
   resolveNavigateUrl,
-  stepDescription,
+} from "./runtime/locator-runtime.js";
+import {
   waitForPostStepNetworkIdle,
   isPlaywrightTimeoutError,
-} from "./player.js";
+} from "./runtime/network-idle.js";
+import { stepDescription } from "./play/step-description.js";
 import type { Step, Target } from "./yaml-schema.js";
 
 function makeTarget(value: string, kind: Target["kind"] = "css"): Target {

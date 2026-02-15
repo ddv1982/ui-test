@@ -1,6 +1,11 @@
 import type { Command } from "commander";
 import { handleError } from "../utils/errors.js";
 import { runPlay, type PlayCliOptions } from "../app/services/play-service.js";
+import {
+  asOptionalBoolean,
+  asOptionalString,
+  parseOptionalArgument,
+} from "./parse-helpers.js";
 
 export function registerPlay(program: Command) {
   program
@@ -37,18 +42,6 @@ function parsePlayCliOptions(value: unknown): PlayCliOptions {
     artifactsDir: asOptionalString(record.artifactsDir),
     start: asOptionalBoolean(record.start),
   };
-}
-
-function parseOptionalArgument(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function asOptionalString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function asOptionalBoolean(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined;
 }
 
 export { runPlay };

@@ -17,7 +17,6 @@ import {
   ASSERTION_APPLY_MIN_CONFIDENCE,
   DEFAULT_RUNTIME_TIMEOUT_MS,
   SNAPSHOT_CLI_REPLAY_TIMEOUT_MS,
-  type ImproveAssertionApplyPolicy,
   type ImproveAssertionSource,
   type ImproveAssertionsMode,
 } from "./improve-types.js";
@@ -42,7 +41,6 @@ export interface AssertionPassResult {
 export async function runImproveAssertionPass(input: {
   assertions: ImproveAssertionsMode;
   assertionSource: ImproveAssertionSource;
-  assertionApplyPolicy: ImproveAssertionApplyPolicy;
   applyAssertions: boolean;
   page?: Page;
   outputSteps: import("../yaml-schema.js").Step[];
@@ -157,8 +155,7 @@ export async function runImproveAssertionPass(input: {
     );
     const selection = selectCandidatesForApply(
       rawAssertionCandidates,
-      ASSERTION_APPLY_MIN_CONFIDENCE,
-      input.assertionApplyPolicy
+      ASSERTION_APPLY_MIN_CONFIDENCE
     );
     const runtimeSelection: AssertionCandidateRef[] = [];
     const unmappedOutcomes: AssertionApplyOutcome[] = [];

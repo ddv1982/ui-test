@@ -11,13 +11,10 @@ describe("improve command options", () => {
 
     command?.parseOptions([
       "--apply",
-      "--apply-assertions",
       "--assertions",
       "none",
       "--assertion-source",
       "snapshot-cli",
-      "--assertion-apply-policy",
-      "aggressive",
       "--report",
       "report.json",
       "e2e/sample.yaml",
@@ -25,22 +22,19 @@ describe("improve command options", () => {
 
     const opts = command?.opts() as Record<string, string | boolean>;
     expect(opts.apply).toBe(true);
-    expect(opts.applyAssertions).toBe(true);
     expect(opts.assertions).toBe("none");
     expect(opts.assertionSource).toBe("snapshot-cli");
-    expect(opts.assertionApplyPolicy).toBe("aggressive");
     expect(opts.report).toBe("report.json");
   });
 
-  it("supports negative override flags for booleans", () => {
+  it("defaults apply to undefined when not specified", () => {
     const program = new Command();
     registerImprove(program);
     const command = program.commands.find((entry) => entry.name() === "improve");
     expect(command).toBeDefined();
 
-    command?.parseOptions(["--no-apply", "--no-apply-assertions", "e2e/sample.yaml"]);
-    const opts = command?.opts() as Record<string, boolean>;
-    expect(opts.apply).toBe(false);
-    expect(opts.applyAssertions).toBe(false);
+    command?.parseOptions(["e2e/sample.yaml"]);
+    const opts = command?.opts() as Record<string, string | boolean | undefined>;
+    expect(opts.apply).toBeUndefined();
   });
 });

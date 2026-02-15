@@ -18,21 +18,8 @@ ui-test improve e2e/login.yaml --apply
 
 `--apply` writes both improved selectors and high-confidence assertion candidates to the YAML file.
 
-## Apply Selectors Only
+For selectors-only (no assertions), use `--assertions none --apply`.
 
-```bash
-ui-test improve e2e/login.yaml --apply-selectors
-```
-
-This applies only selector improvements without inserting assertion candidates.
-
-## Apply Assertions Only
-
-```bash
-ui-test improve e2e/login.yaml --apply-assertions
-```
-
-This inserts high-confidence assertion candidates into YAML after runtime validation, without updating selectors.
 In the deterministic source (`--assertion-source deterministic`), auto-apply uses a conservative mapping:
 - `fill/select -> assertValue`
 - `check/uncheck -> assertChecked`
@@ -44,18 +31,6 @@ Validation uses post-step network-idle timing similar to `play` defaults (enable
 Runtime validation failures are skipped and reported as warnings.
 Runtime-failing assertions are never force-applied.
 Improve no longer injects coverage fallback assertions.
-
-## Assertion Apply Policy
-
-```bash
-ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy reliable
-ui-test improve e2e/login.yaml --apply-assertions --assertion-apply-policy aggressive
-```
-
-Policy matrix:
-- `reliable` (default): snapshot-derived `assertVisible` is report-only (`skipped_policy`).
-- `aggressive`: snapshot-derived `assertVisible` is auto-eligible after runtime validation.
-- Snapshot-derived `assertText` remains auto-eligible in both policies.
 
 ## Assertion Source (Opt-In Snapshot Mode)
 
@@ -92,7 +67,7 @@ ui-test improve e2e/login.yaml --assertions none
 
 Current scope:
 - Assertions are reported as candidates.
-- Assertions are auto-inserted when `--apply` or `--apply-assertions` is used.
+- Assertions are auto-inserted when `--apply` is used.
 - Default assertion source is `snapshot-native`, which captures page state changes during replay. Use `--assertion-source deterministic` for conservative form-state-only assertions, or `--assertion-source snapshot-cli` for external Playwright-CLI snapshots.
 - Deterministic source focuses on stable form-state assertions and excludes click/press-derived visibility checks.
 - Snapshot sources (`snapshot-native`, `snapshot-cli`) can additionally propose `assertVisible`/`assertText` from snapshot deltas.
