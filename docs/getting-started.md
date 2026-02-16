@@ -12,31 +12,32 @@ This guide is for first-time `ui-test` users.
 ### Repository checkout
 
 ```bash
-npm run setup:quickstart
+npm run setup
 ```
 
 ### Global install
 
 ```bash
 npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
-ui-test setup quickstart
+ui-test setup --browsers chromium
 ```
 
 ### One-off run (no install)
 
 ```bash
-npx -y github:ddv1982/easy-e2e-testing setup quickstart
+npx -y github:ddv1982/easy-e2e-testing setup --browsers chromium
 ```
 
 All command examples below use global `ui-test`.
 
-## Setup Modes
+## Setup
 
-`quickstart` (default) installs dependencies, provisions Chromium, and can optionally run the example test with `--run-play`.
+`ui-test setup` launches an interactive browser picker. For non-interactive use, pass `--browsers`:
 
 ```bash
-ui-test setup quickstart
-ui-test setup quickstart --run-play
+ui-test setup
+ui-test setup --browsers chromium
+ui-test setup --browsers chromium --run-play
 ```
 
 ## Test File Format

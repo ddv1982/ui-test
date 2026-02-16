@@ -9,7 +9,7 @@ This document tracks delivery status for the simplification effort.
 | Vue-first onboarding UX | Achieved | `play` built-in defaults target local example app flow. |
 | Runtime controls moved to flags-first | Achieved | Runtime settings are CLI flags with built-in defaults. |
 | Remove `init` command | Achieved | Onboarding uses `setup` modes only. |
-| Setup modes cleanup | Achieved | Modes are `install`, `quickstart`. |
+| Setup modes cleanup | Achieved | Single setup command with `--browsers` flag and interactive picker. |
 | Browser provisioning boundary | Achieved | Provisioning happens during onboarding, not runtime commands. |
 | Runtime defaults + flags | Achieved | Runtime behavior is built-in defaults with CLI overrides. |
 | Simplify `play` startup logic | Achieved | Keeps focused auto-start and reachability checks. |

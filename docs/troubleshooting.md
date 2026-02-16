@@ -11,7 +11,7 @@ If you see `Standalone install policy: project-local installs are not supported`
 1. Remove `ui-test` from `dependencies`/`devDependencies` in `package.json`.
 2. Run `npm uninstall ui-test`.
 3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
-4. Re-run `ui-test setup quickstart`.
+4. Re-run `ui-test setup`.
 
 Playwright-CLI is only needed for `--assertion-source snapshot-cli`. If its install fails during setup, setup continues with a warning.
 
@@ -74,7 +74,7 @@ npx playwright show-trace .ui-test-artifacts/runs/<runId>/tests/<testSlug>/trace
 
 If you see runtime validation errors:
 - Install Chromium (`npx playwright install chromium`).
-- Re-run with `ui-test setup quickstart` if needed.
+- Re-run with `ui-test setup` if needed.
 
 ## Assertions Not Inserted by `improve`
 

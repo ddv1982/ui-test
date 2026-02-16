@@ -6,7 +6,6 @@ This guide covers maintainer-focused workflows and CI details.
 
 ```bash
 npm run setup
-npm run setup:quickstart
 npm test
 npm run lint
 npm run lint:typed

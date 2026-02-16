@@ -7,18 +7,18 @@ Record flows, replay them, and improve selector/assertion quality with a review-
 
 **Repository checkout:**
 ```bash
-npm run setup:quickstart
+npm run setup
 ```
 
 **Global install:**
 ```bash
 npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
-ui-test setup quickstart
+ui-test setup --browsers chromium
 ```
 
 **One-off run (no install):**
 ```bash
-npx -y github:ddv1982/easy-e2e-testing setup quickstart
+npx -y github:ddv1982/easy-e2e-testing setup --browsers chromium
 ```
 
 All command examples below use global `ui-test`.
@@ -27,7 +27,7 @@ All command examples below use global `ui-test`.
 
 | Command | Purpose |
 | --- | --- |
-| `ui-test setup [mode]` | Onboarding and provisioning helper |
+| `ui-test setup` | Onboarding and provisioning helper |
 | `ui-test play [test]` | Run one YAML test or all tests |
 | `ui-test record` | Record browser interactions into YAML |
 | `ui-test improve <file>` | Analyze and suggest selector/assertion improvements |

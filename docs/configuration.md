@@ -7,5 +7,5 @@ Use:
 For first-run setup and browser provisioning:
 
 ```bash
-ui-test setup quickstart
+ui-test setup
 ```

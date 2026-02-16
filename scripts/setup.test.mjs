@@ -62,12 +62,12 @@ describe("setup maintainer wrapper", () => {
   });
 
   it("forwards argv to local ui-test setup entry", () => {
-    runCliSetup(["quickstart", "--run-play"]);
+    runCliSetup(["--browsers", "chromium", "--run-play"]);
 
     expect(mockSpawnSync).toHaveBeenCalledTimes(1);
     expect(mockSpawnSync).toHaveBeenCalledWith(
       process.execPath,
-      [resolveLocalCliEntry(), "setup", "quickstart", "--run-play"],
+      [resolveLocalCliEntry(), "setup", "--browsers", "chromium", "--run-play"],
       {
         cwd: expect.any(String),
         stdio: "inherit",
