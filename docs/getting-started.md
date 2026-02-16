@@ -15,39 +15,82 @@ This guide is for first-time `ui-test` users.
 npm run setup:quickstart
 ```
 
-### Global install (standalone, current)
+### Global install
 
 ```bash
 npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
 ui-test setup quickstart
 ```
 
-### One-off run without global install (current)
+### One-off run (no install)
 
 ```bash
 npx -y github:ddv1982/easy-e2e-testing setup quickstart
 ```
 
-Project dependency installs are intentionally unsupported.
 All command examples below use global `ui-test`.
 
 ## Setup Modes
 
+`quickstart` (default) installs dependencies, provisions Chromium, and can optionally run the example test with `--run-play`.
+
 ```bash
-ui-test setup install
 ui-test setup quickstart
 ui-test setup quickstart --run-play
 ```
 
-`setup quickstart` handles dependency install, Chromium provisioning, and optionally a first `play` run.
-With `--run-play`, it runs `ui-test play e2e/example.yaml`.
+## Test File Format
 
-## Runtime Flags
+Test files are YAML documents in the `e2e/` directory. Here is `e2e/example.yaml`:
 
-Runtime controls are flags-first. Use:
-- `ui-test play --help`
-- `ui-test record --help`
-- `ui-test improve --help`
+```yaml
+name: Example Test
+description: A visible sample flow to demonstrate headed execution
+steps:
+  - action: navigate
+    url: /
+    description: Open the example app
+  - action: assertVisible
+    description: App root is visible
+    target:
+      value: "#app"
+      kind: css
+      source: manual
+  - action: fill
+    description: Type a name into the input
+    target:
+      value: "[data-testid='name-input']"
+      kind: css
+      source: manual
+    text: "Codex"
+  - action: click
+    description: Click the greet button
+    target:
+      value: "[data-testid='greet-button']"
+      kind: css
+      source: manual
+  - action: assertText
+    description: Greeting message is updated
+    target:
+      value: "[data-testid='message']"
+      kind: css
+      source: manual
+    text: "Hello, Codex!"
+```
+
+Each step has an `action` type:
+
+- **`navigate`** — go to a URL (relative URLs use the configured `baseUrl`)
+- **`fill`** — type `text` into the element matched by `target`
+- **`click`** — click the element matched by `target`
+- **`assertVisible`** — verify the `target` element is visible
+- **`assertText`** — verify the `target` element contains `text`
+
+The `target` object identifies the element:
+
+- **`value`** — the selector string or locator expression
+- **`kind`** — selector type (`css`, `xpath`, `locatorExpression`, `playwrightSelector`, etc.)
+- **`source`** — how the selector was created (`manual`, `codegen-jsonl`, `improve`, etc.)
 
 ## Run Tests
 
@@ -61,8 +104,7 @@ If your app is already running and you do not want auto-start:
 ui-test play --no-start
 ```
 
-Auto-start note:
-- built-in example app auto-start runs only for `e2e/example.yaml` (or play-all with only that file).
+Auto-start launches the built-in example app for `e2e/example.yaml` only.
 
 ## Record and Replay
 
@@ -71,12 +113,16 @@ ui-test record
 ui-test play
 ```
 
+This opens a browser. Interact with your app, then close the browser to save the recording as a YAML file in the `e2e/` directory.
+
 ## Improve Selector Quality
 
 ```bash
 ui-test improve e2e/login.yaml
 ui-test improve e2e/login.yaml --apply
 ```
+
+Without `--apply`, improve writes a report only. With `--apply`, it updates selectors and inserts assertion candidates directly into the YAML file.
 
 For snapshot-cli assertions:
 

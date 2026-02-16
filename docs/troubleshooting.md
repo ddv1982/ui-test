@@ -4,58 +4,23 @@
 
 ### `ui-test setup` (or repo `npm run setup:*`) fails
 
-1. Verify Node.js version (`node -v`) is 18 or newer.
-2. Verify npm and npx are available in PATH (`npm -v`, `npx -v`).
-3. Re-run with explicit steps for your context:
+1. Verify Node.js 18+ (`node -v`) and npm (`npm -v`).
+2. Follow the install steps in [Getting Started](getting-started.md).
 
-```bash
-# repo checkout
-npm run setup
-npm run setup:quickstart
-
-# standalone CLI (global install)
-ui-test setup install
-ui-test setup quickstart
-```
-
-Install globally if not yet installed (current):
-
-```bash
-npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"
-```
-
-If you are using one-off execution (current):
-
-```bash
-npx -y github:ddv1982/easy-e2e-testing setup quickstart
-```
-
-If you see `Standalone install policy: project-local installs are not supported`, use this cleanup flow:
+If you see `Standalone install policy: project-local installs are not supported`:
 1. Remove `ui-test` from `dependencies`/`devDependencies` in `package.json`.
 2. Run `npm uninstall ui-test`.
 3. Run `npm i -g "$(npm pack github:ddv1982/easy-e2e-testing --silent)"`.
 4. Re-run `ui-test setup quickstart`.
 
-If Playwright-CLI install/verify fails during setup, it is reported as a warning and setup continues. `playwright-cli` is only required for:
-
-```bash
-ui-test improve <file> --assertion-source snapshot-cli
-```
+Playwright-CLI is only needed for `--assertion-source snapshot-cli`. If its install fails during setup, setup continues with a warning.
 
 ## Browser Installation Issues
 
 ### Chromium executable missing
 
-Run:
-
 ```bash
 npx playwright install chromium
-```
-
-Or run onboarding again:
-
-```bash
-ui-test setup quickstart
 ```
 
 ### Linux shared dependencies missing
@@ -70,15 +35,9 @@ npx playwright install-deps chromium
 
 If `play e2e/example.yaml` cannot reach the app:
 1. Verify the example app is running at `http://127.0.0.1:5173`.
-2. If you start the app manually, run:
+2. If you start the app manually, run `ui-test play --no-start`.
 
-```bash
-ui-test play --no-start
-```
-
-Current scope note:
-- built-in example app auto-start runs only for `e2e/example.yaml` (or play-all with only that file).
-- non-example test runs do not auto-start the example app and do not run default-URL preflight checks.
+Auto-start only applies to `e2e/example.yaml`. For other tests, start your app manually and use `--no-start`.
 
 ## Failure Artifacts Not Saved
 
@@ -107,69 +66,55 @@ npx playwright show-trace .ui-test-artifacts/runs/<runId>/tests/<testSlug>/trace
 
 ## Recorder Produces No Interactions
 
-- Ensure you actually click/type/interact before closing recording session.
-- Re-run recording and verify browser window is used.
+- Ensure you actually click/type/interact before closing the recording session.
+- Re-run recording and verify the browser window is used.
 - Check for fallback diagnostics in CLI output.
-
-You can force fallback mode for debugging:
-
-```bash
-UI_TEST_DISABLE_JSONL=1 ui-test record
-```
 
 ## Improve Apply Mode Fails
 
 If you see runtime validation errors:
-- install Chromium (`npx playwright install chromium`)
-- rerun with `ui-test setup quickstart` if needed
+- Install Chromium (`npx playwright install chromium`).
+- Re-run with `ui-test setup quickstart` if needed.
 
 ## Assertions Not Inserted by `improve`
 
-If assertions were listed as candidates but not written to YAML:
-1. Ensure you used `--apply`.
-2. Keep `--assertions candidates` (not `--assertions none`). If `--apply` is used with `--assertions none`, assertion apply is downgraded.
-3. Check report `assertionCandidates[].applyStatus` for skip reasons.
-4. Re-run in a stable test environment so runtime validation can pass.
-5. Note: with `--assertion-source deterministic`, click/press assertions are intentionally not auto-generated and auto-apply targets stable form-state checks (`assertValue`/`assertChecked`). The default source (`snapshot-native`) generates assertions from page state changes.
-6. If you use `--assertion-source snapshot-native` or `--assertion-source snapshot-cli`, improve can propose snapshot-derived `assertVisible`/`assertText` candidates. In apply mode, snapshot-derived `assertVisible` is report-only (`skipped_policy`), while snapshot-derived `assertText` can be inserted after runtime validation.
-7. Runtime-failing assertion candidates are never force-applied. If they fail validation, they are reported as `skipped_runtime_failure`.
-8. Apply mode limits inserted assertions to one applied assertion per source step; additional candidates are reported as `skipped_policy`.
-9. Improve does not inject coverage fallback assertions.
-10. Existing adjacent self-visibility assertions are preserved (no automatic cleanup).
-11. If CLI behavior seems different from local source, check for warning about binary path outside workspace. Use local build explicitly:
+### Common causes
+
+1. Use `--apply` — without it, improve writes a report only.
+2. Use `--assertions candidates` (not `none`) — with `none`, assertion generation is skipped.
+3. Check the report's `applyStatus` for skip reasons (see [Improve Workflow](workflows/improve.md#report-contents)).
+4. Re-run in a stable environment so runtime validation can pass.
+
+### Additional causes
+
+- **Deterministic source**: only generates `assertValue` (for fill/select) and `assertChecked` (for check/uncheck). Click/press assertions are intentionally not auto-generated.
+- **Snapshot `assertVisible`** is report-only. Snapshot `assertText` can be inserted after runtime validation.
+- **One assertion per step**: extras show as `skipped_policy`.
+- **Version mismatch?** Run `ui-test doctor` to check invocation/version details.
+
+If CLI behavior seems different from local source, check for warnings about binary path outside workspace:
 
 ```bash
 node dist/bin/ui-test.js improve <test-file> --apply
 ```
 
-You can inspect invocation/version details explicitly:
-
-```bash
-ui-test doctor
-```
-
-Validation timing mirrors `play` post-step waiting (network idle with Playwright default timeout behavior). If that wait times out, candidates are skipped with `skipped_runtime_failure`.
-
 ## Snapshot Assertion Source Fallback
 
 ### snapshot-native
 
-If you run `--assertion-source snapshot-native` and get no snapshot-driven candidates:
+If `--assertion-source snapshot-native` produces no snapshot-driven candidates:
 1. Ensure Chromium is installed (`npx playwright install chromium`).
-2. Check report diagnostics for `assertion_source_snapshot_native_empty` or `assertion_source_snapshot_native_parse_failed`.
+2. Check report diagnostics:
+   - `assertion_source_snapshot_native_empty` — no page state changes detected
+   - `assertion_source_snapshot_native_parse_failed` — snapshot could not be parsed
 3. Improve falls back to deterministic assertion candidates by design.
 
 ### snapshot-cli
 
-If you run `--assertion-source snapshot-cli` and get no snapshot-driven candidates:
-1. Verify `playwright-cli` or `npx -y @playwright/cli@latest --help` is available.
-2. Check report diagnostics for `assertion_source_snapshot_cli_unavailable` or `assertion_source_snapshot_cli_step_replay_failed`.
-3. Improve falls back to deterministic assertion candidates by design (`assertion_source_snapshot_cli_fallback`).
-
-## Runtime Controls
-
-Runtime behavior uses built-in defaults plus CLI flags.
-Use:
-- `ui-test play --help`
-- `ui-test record --help`
-- `ui-test improve --help`
+If `--assertion-source snapshot-cli` produces no snapshot-driven candidates:
+1. Verify `playwright-cli` is available (`playwright-cli --help` or `npx -y @playwright/cli@latest --help`).
+2. Check report diagnostics:
+   - `assertion_source_snapshot_cli_unavailable` — Playwright-CLI not installed
+   - `assertion_source_snapshot_cli_step_replay_failed` — step replay failed in CLI process
+   - `assertion_source_snapshot_cli_fallback` — fell back to deterministic candidates
+3. Improve falls back to deterministic assertion candidates by design.
