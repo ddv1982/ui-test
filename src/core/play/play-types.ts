@@ -17,6 +17,7 @@ export interface StepResult {
   step: Step;
   index: number;
   passed: boolean;
+  skipped?: boolean;
   error?: string;
   durationMs: number;
 }

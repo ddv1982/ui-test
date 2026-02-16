@@ -126,6 +126,7 @@ export async function captureFailureArtifacts(input: {
         index: stepResult.index,
         action: stepResult.step.action,
         passed: stepResult.passed,
+        skipped: stepResult.skipped,
         error: stepResult.error,
         durationMs: stepResult.durationMs,
       })),

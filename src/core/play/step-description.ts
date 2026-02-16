@@ -121,12 +121,13 @@ function stepDetail(step: Step): string {
 }
 
 export function stepDescription(step: Step, index: number): string {
-  const desc = "description" in step && step.description ? " - " + step.description : "";
+  const desc = step.description ? " - " + step.description : "";
+  const optionalTag = step.optional ? " [optional]" : "";
   if (step.action === "navigate") {
-    return "Step " + (index + 1) + ": navigate to " + step.url + desc;
+    return "Step " + (index + 1) + ": navigate to " + step.url + desc + optionalTag;
   }
   const label = targetLabel(step);
   const target = label ? " " + quote(label) : "";
   const detail = stepDetail(step);
-  return "Step " + (index + 1) + ": " + step.action + target + detail + desc;
+  return "Step " + (index + 1) + ": " + step.action + target + detail + desc + optionalTag;
 }

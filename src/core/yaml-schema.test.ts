@@ -69,6 +69,40 @@ describe("stepSchema - valid", () => {
   });
 });
 
+describe("stepSchema - optional", () => {
+  it("accepts optional: true on click step", () => {
+    const result = stepSchema.safeParse({
+      action: "click",
+      target: cssTarget,
+      optional: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.optional).toBe(true);
+    }
+  });
+
+  it("accepts optional: true on navigate step", () => {
+    const result = stepSchema.safeParse({
+      action: "navigate",
+      url: "/maybe",
+      optional: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts step without optional (backward compat)", () => {
+    const result = stepSchema.safeParse({
+      action: "click",
+      target: cssTarget,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.optional).toBeUndefined();
+    }
+  });
+});
+
 describe("stepSchema - invalid", () => {
   it("rejects selector-only legacy steps", () => {
     expect(stepSchema.safeParse({ action: "click", selector: "#submit" }).success).toBe(false);

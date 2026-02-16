@@ -17,15 +17,18 @@ export const targetSchema = z.object({
   warning: z.string().optional(),
 });
 
-const navigateStep = z.object({
-  action: z.literal("navigate"),
-  url: z.string(),
+const baseStep = z.object({
   description: z.string().optional(),
+  optional: z.boolean().optional(),
 });
 
-const targetStep = z.object({
+const navigateStep = baseStep.extend({
+  action: z.literal("navigate"),
+  url: z.string(),
+});
+
+const targetStep = baseStep.extend({
   target: targetSchema,
-  description: z.string().optional(),
 });
 
 const clickStep = targetStep.extend({ action: z.literal("click") });
