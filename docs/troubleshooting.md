@@ -2,7 +2,7 @@
 
 ## Setup Issues
 
-### `ui-test setup` (or repo `npm run setup:*`) fails
+### `ui-test setup` (or repo `npm run setup` / `npm run setup:play`) fails
 
 1. Verify Node.js 18+ (`node -v`) and npm (`npm -v`).
 2. Follow the install steps in [Getting Started](getting-started.md).

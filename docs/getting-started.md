@@ -82,16 +82,24 @@ steps:
 Each step has an `action` type:
 
 - **`navigate`** — go to a URL (relative URLs use the configured `baseUrl`)
-- **`fill`** — type `text` into the element matched by `target`
 - **`click`** — click the element matched by `target`
+- **`fill`** — type `text` into the element matched by `target`
+- **`press`** — press a keyboard `key` on the `target` element
+- **`check`** / **`uncheck`** — toggle a checkbox
+- **`hover`** — hover over the `target` element
+- **`select`** — pick an option by `value` from a dropdown
 - **`assertVisible`** — verify the `target` element is visible
 - **`assertText`** — verify the `target` element contains `text`
+- **`assertValue`** — verify the `target` input has a specific `value`
+- **`assertChecked`** — verify a checkbox is checked (or unchecked)
 
 The `target` object identifies the element:
 
 - **`value`** — the selector string or locator expression
 - **`kind`** — selector type (`css`, `xpath`, `locatorExpression`, `playwrightSelector`, etc.)
-- **`source`** — how the selector was created (`manual`, `codegen-jsonl`, `improve`, etc.)
+- **`source`** — how the selector was created (`manual`, `codegen-jsonl`, `codegen-fallback`)
+
+Any step can include `optional: true`. Optional steps that fail are skipped instead of failing the test.
 
 ## Run Tests
 

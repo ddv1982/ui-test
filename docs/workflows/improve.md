@@ -32,7 +32,7 @@ target:
 target:
   value: "getByRole('button', { name: 'Submit' })"
   kind: locatorExpression
-  source: improve
+  source: manual
 ```
 
 ### Selectors Only (No Assertions)
