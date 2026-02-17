@@ -2,22 +2,58 @@ import type { BrowserContext } from "playwright";
 
 const COOKIE_BANNER_DISMISS_SCRIPT = `
 (function() {
-  const SELECTORS = [
+  var SELECTORS = [
+    // OneTrust
     '#onetrust-accept-btn-handler',
+    // Cookiebot / Usercentrics (Cookiebot)
     '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
     '#CybotCookiebotDialogBodyButtonAccept',
+    // Didomi
+    '#didomi-notice-agree-button',
+    '.didomi-continue-without-agreeing',
+    // Osano
     '.osano-cm-accept-all',
-    '#cookie-accept', '#accept-cookies', '#consent-accept',
+    // CookieYes
+    '.cky-btn-accept',
+    '#cookie_action_close_header',
+    // CookieConsent (Insites)
     '.cc-accept', '.cc-allow', '.cc-dismiss-button',
+    // Klaro
+    '.cm-btn-accept', '.cm-btn-accept-all',
+    // Complianz (WordPress)
+    '.cmplz-accept',
+    // TrustArc / TRUSTe
+    '.trustarc-agree-btn',
+    '#truste-consent-button',
+    // Iubenda
+    '.iubenda-cs-accept-btn',
+    // Termly
+    '.termly-consent-accept',
+    // HubSpot
+    '#hs-eu-confirmation-button',
+    // consentmanager.net
+    '#cmpbntyestxt',
+    '.cmp-button-accept',
+    // Sourcepoint
+    '.sp_choice_type_11',
+    // Borlabs Cookie (WordPress)
+    '.BorlabsCookie ._brlbs-btn-accept-all',
+    // Moove GDPR (WordPress)
+    '.moove-gdpr-infobar-allow-all',
+    // CIVIC Cookie Control
+    '.ccc-accept-settings',
+    // Generic selectors
+    '#cookie-accept', '#accept-cookies', '#consent-accept',
     '[data-testid="cookie-accept"]',
     '[data-action="accept-cookies"]',
     'button[class*="cookie"][class*="accept"]',
     'button[class*="consent"][class*="accept"]',
     '.cookie-consent-accept', '.consent-accept',
     '#gdpr-accept', '.gdpr-accept',
-    '.termly-consent-accept',
-    '.iubenda-cs-accept-btn',
   ];
+
+  // Multilingual patterns for fallback text matching (anchored to avoid false positives)
+  var ACCEPT_PATTERNS = /^(accept|agree|allow|ok|got it|i agree|accept all|allow all|accept cookies|akkoord|accepteren|alle cookies accepteren|alles accepteren|cookies toestaan|akzeptieren|alle akzeptieren|einverstanden|zustimmen|accepter|accepter alle|j['\u2019]accepte|tout accepter|aceptar|aceptar todo|acepto|accetta|accetta tutto|accetto|aceitar|aceitar tudo|aceito|acceptera|godk[\u00e4a]nn|godk[\u00e4a]nn alla|aksepter|godta alle|hyv[\u00e4a]ksy|hyv[\u00e4a]ksy kaikki|akceptuj|akceptuj wszystkie|elfogadom|p\u0159ijmout|p\u0159ijmout v\u0161e)$/i;
 
   var dismissed = false;
 
@@ -35,13 +71,13 @@ const COOKIE_BANNER_DISMISS_SCRIPT = `
     }
     // Fallback: text matching inside cookie/consent containers
     var containers = document.querySelectorAll(
-      '[class*="cookie"], [class*="consent"], [id*="cookie"], [id*="consent"], [role="dialog"]'
+      '[class*="cookie"], [class*="consent"], [id*="cookie"], [id*="consent"], [class*="gdpr"], [id*="gdpr"], [class*="cmp-"], [id*="cmp-"], [class*="cmp_"], [id*="cmp_"], [role="dialog"], [role="alertdialog"]'
     );
     for (var c = 0; c < containers.length; c++) {
       var buttons = containers[c].querySelectorAll('button, [role="button"], a');
       for (var b = 0; b < buttons.length; b++) {
         var text = (buttons[b].textContent || '').trim();
-        if (/^(accept|agree|allow|ok|got it|i agree)/i.test(text)) {
+        if (ACCEPT_PATTERNS.test(text)) {
           buttons[b].click();
           dismissed = true;
           return true;
