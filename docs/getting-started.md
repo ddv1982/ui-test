@@ -124,11 +124,11 @@ ui-test play
 
 This opens a browser. Interact with your app, then close the browser to save the recording as a YAML file in the `e2e/` directory.
 
-After recording, `ui-test` automatically improves selectors, adds assertion candidates, and marks transient steps as optional. Use `--no-improve` to skip this.
+After recording, `ui-test` automatically improves selectors, adds assertion candidates, and removes transient steps that fail at runtime. Use `--no-improve` to skip this.
 
 ## Improve Tests
 
-`improve` upgrades selectors, generates assertion candidates, and marks transient steps that fail at runtime as optional.
+`improve` upgrades selectors, generates assertion candidates, and removes transient steps that fail at runtime.
 
 ```bash
 ui-test improve e2e/login.yaml

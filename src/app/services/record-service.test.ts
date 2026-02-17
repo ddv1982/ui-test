@@ -165,9 +165,9 @@ describe("runRecord auto-improve", () => {
         assertionCandidates: [],
         diagnostics: [
           {
-            code: "runtime_failing_step_marked_optional",
+            code: "runtime_failing_step_removed",
             level: "info",
-            message: "Step 4: marked optional because it failed at runtime.",
+            message: "Step 4: removed because it failed at runtime.",
           },
         ],
       },
@@ -183,7 +183,7 @@ describe("runRecord auto-improve", () => {
     });
 
     expect(ui.success).toHaveBeenCalledWith(
-      "Auto-improve: 2 selectors improved, 1 assertions applied, 1 transient steps marked optional"
+      "Auto-improve: 2 selectors improved, 1 assertions applied, 1 transient steps removed"
     );
   });
 

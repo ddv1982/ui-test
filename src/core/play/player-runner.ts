@@ -24,6 +24,7 @@ import {
   type TraceCaptureState,
 } from "./artifact-writer.js";
 import { runPlayStepLoop } from "./step-loop.js";
+import { installCookieBannerDismisser } from "../runtime/cookie-banner.js";
 import type { PlayOptions, TestResult } from "./play-types.js";
 
 export async function play(
@@ -72,6 +73,7 @@ export async function play(
   try {
     browser = await launchBrowser(options.headed, options.browser);
     context = await browser.newContext();
+    await installCookieBannerDismisser(context);
     const page = await context.newPage();
 
     if (artifactPaths) {

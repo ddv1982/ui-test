@@ -87,11 +87,11 @@ These rules govern how assertions are inserted:
 4. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
 5. Existing adjacent assertions are preserved (no automatic cleanup).
 6. Applied assertions are marked `optional: true` so they don't hard-fail tests when page content changes.
-7. Interaction steps that fail at runtime are marked `optional: true` with a short timeout so they execute when the element is present but skip quickly when it's not.
+7. Interaction steps that fail at runtime are removed from the test file. Cookie banners and similar transient elements are handled automatically during playback.
 
 ### Auto-Improve After Recording
 
-After recording, `ui-test record` automatically runs `improve` to upgrade selectors, add assertion candidates, and mark transient steps as optional. Use `--no-improve` to skip this:
+After recording, `ui-test record` automatically runs `improve` to upgrade selectors, add assertion candidates, and remove transient steps that fail at runtime. Use `--no-improve` to skip this:
 
 ```bash
 ui-test record --name login --url https://example.com --no-improve

@@ -19,7 +19,6 @@ import {
   type ImproveAssertionSource,
   type ImproveOptions,
   type ImproveResult,
-  OPTIONAL_STEP_TIMEOUT_MS,
 } from "./improve-types.js";
 import {
   improveReportSchema,
@@ -107,37 +106,65 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       diagnostics,
     });
 
-    const failedIndexesToMark = new Set(
+    const failedIndexesToRemove = new Set(
       selectorPass.failedStepIndexes.filter((index) => {
         const step = selectorPass.outputSteps[index];
         return step && step.action !== "navigate";
       })
     );
 
-    if (wantsWrite && failedIndexesToMark.size > 0) {
-      for (const index of failedIndexesToMark) {
+    let postRemovalOutputSteps = selectorPass.outputSteps;
+    let postRemovalOriginalIndexes = outputStepOriginalIndexes;
+    let postRemovalSnapshots = selectorPass.nativeStepSnapshots;
+
+    if (wantsWrite && failedIndexesToRemove.size > 0) {
+      for (const index of failedIndexesToRemove) {
         const originalIndex = outputStepOriginalIndexes[index] ?? index;
-        // Mutate in place -- these same step objects are passed to the assertion pass below.
-        const step = selectorPass.outputSteps[index];
-        step.optional = true;
-        step.timeout = step.timeout ?? OPTIONAL_STEP_TIMEOUT_MS;
         diagnostics.push({
-          code: "runtime_failing_step_marked_optional",
+          code: "runtime_failing_step_removed",
           level: "info",
-          message: `Step ${originalIndex + 1}: marked optional because it failed at runtime.`,
+          message: `Step ${originalIndex + 1}: removed because it failed at runtime.`,
         });
       }
+
+      // Splice steps in reverse order to preserve earlier indexes
+      const sortedRemoveIndexes = [...failedIndexesToRemove].sort((a, b) => b - a);
+      postRemovalOutputSteps = [...selectorPass.outputSteps];
+      for (const idx of sortedRemoveIndexes) {
+        postRemovalOutputSteps.splice(idx, 1);
+      }
+
+      // Rebuild original-index mapping
+      postRemovalOriginalIndexes = outputStepOriginalIndexes.filter(
+        (_, i) => !failedIndexesToRemove.has(i)
+      );
+
+      // Remap snapshot indexes
+      postRemovalSnapshots = selectorPass.nativeStepSnapshots
+        .filter((s) => !failedIndexesToRemove.has(s.index))
+        .map((s) => {
+          const offset = [...failedIndexesToRemove].filter((r) => r < s.index).length;
+          return { ...s, index: s.index - offset };
+        });
     }
+
+    const removedOriginalIndexes = new Set(
+      [...failedIndexesToRemove].map((i) => outputStepOriginalIndexes[i] ?? i)
+    );
+    const postRemovalFindings =
+      wantsWrite && removedOriginalIndexes.size > 0
+        ? selectorPass.findings.filter((f) => !removedOriginalIndexes.has(f.index))
+        : selectorPass.findings;
 
     const assertionPass = await runImproveAssertionPass({
       assertions: effectiveOptions.assertions,
       assertionSource,
       applyAssertions: effectiveOptions.applyAssertions,
       page,
-      outputSteps: selectorPass.outputSteps,
-      findings: selectorPass.findings,
-      outputStepOriginalIndexes,
-      nativeStepSnapshots: selectorPass.nativeStepSnapshots,
+      outputSteps: postRemovalOutputSteps,
+      findings: postRemovalFindings,
+      outputStepOriginalIndexes: postRemovalOriginalIndexes,
+      nativeStepSnapshots: postRemovalSnapshots,
       testBaseUrl: test.baseUrl,
       diagnostics,
     });
@@ -147,9 +174,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
       summary: {
-        unchanged: selectorPass.findings.filter((item) => !item.changed).length,
-        improved: selectorPass.findings.filter((item) => item.changed).length,
-        fallback: selectorPass.findings.filter((item) => isFallbackTarget(item.recommendedTarget))
+        unchanged: postRemovalFindings.filter((item) => !item.changed).length,
+        improved: postRemovalFindings.filter((item) => item.changed).length,
+        fallback: postRemovalFindings.filter((item) => isFallbackTarget(item.recommendedTarget))
           .length,
         warnings: diagnostics.filter((item) => item.level !== "info").length,
         assertionCandidates: assertionPass.assertionCandidates.length,
@@ -163,7 +190,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           assertionPass.assertionCandidates
         ),
       },
-      stepFindings: selectorPass.findings,
+      stepFindings: postRemovalFindings,
       assertionCandidates: assertionPass.assertionCandidates,
       diagnostics,
     };

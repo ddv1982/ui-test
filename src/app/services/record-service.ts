@@ -118,14 +118,14 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       });
 
       const summary = improveResult.report.summary;
-      const markedOptionalSteps = improveResult.report.diagnostics.filter(
-        (d) => d.code === "runtime_failing_step_marked_optional"
+      const removedSteps = improveResult.report.diagnostics.filter(
+        (d) => d.code === "runtime_failing_step_removed"
       ).length;
 
       const parts: string[] = [];
       if (summary.improved > 0) parts.push(summary.improved + " selectors improved");
       if (summary.appliedAssertions > 0) parts.push(summary.appliedAssertions + " assertions applied");
-      if (markedOptionalSteps > 0) parts.push(markedOptionalSteps + " transient steps marked optional");
+      if (removedSteps > 0) parts.push(removedSteps + " transient steps removed");
 
       if (parts.length > 0) {
         ui.success("Auto-improve: " + parts.join(", "));

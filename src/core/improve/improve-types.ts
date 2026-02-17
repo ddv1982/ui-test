@@ -19,6 +19,5 @@ export interface ImproveResult {
 }
 
 export const DEFAULT_RUNTIME_TIMEOUT_MS = 3_000;
-export const OPTIONAL_STEP_TIMEOUT_MS = 2_000;
 export const DEFAULT_SCORING_TIMEOUT_MS = 1_200;
 export const ASSERTION_APPLY_MIN_CONFIDENCE = 0.75;
