@@ -149,14 +149,14 @@ describe("setup execution", () => {
     }
   });
 
-  it("runs setup with --browsers flag", async () => {
+  it("does not run npm install during setup", async () => {
     await runSetup({ browsers: "chromium" });
 
-    expect(mockSpawnSync).toHaveBeenCalledWith("npm", ["ci"], {
-      stdio: "inherit",
-      shell: process.platform === "win32",
-      env: process.env,
-    });
+    expect(mockSpawnSync).not.toHaveBeenCalledWith(
+      "npm",
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it("prints next-step help after setup", async () => {

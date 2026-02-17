@@ -30,7 +30,7 @@ export interface SetupCliOptions {
 export function registerSetup(program: Command) {
   program
     .command("setup")
-    .description("Install dependencies, provision browsers, and run onboarding")
+    .description("Provision browsers and run onboarding")
     .option("--browsers <list>", "Comma-separated browsers to install: chromium, firefox, webkit")
     .option("--run-play", "Run ui-test play e2e/example.yaml after setup")
     .addHelpText("after", HELP_APPENDIX)

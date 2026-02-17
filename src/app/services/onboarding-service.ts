@@ -22,7 +22,6 @@ export async function runOnboardingPlan(
   plan: OnboardingPlan,
   context: OnboardingContext
 ): Promise<void> {
-  runInstallDependencies();
   installPlaywrightBrowsers(plan.browsers);
   await verifyBrowserLaunch(plan.browsers[0]);
 
@@ -46,35 +45,6 @@ function runUiTestCommand(uiTestCliEntry: string, command: string, args: string[
     process.execPath,
     fullArgs
   );
-}
-
-function runInstallDependencies() {
-  ensureCommandAvailable("npm");
-  const installArgs = resolveInstallArgs();
-  runCommand(
-    `Install dependencies (npm ${installArgs.join(" ")})`,
-    "npm",
-    installArgs
-  );
-}
-
-export function resolveInstallArgs() {
-  const lockFilePath = path.resolve("package-lock.json");
-  return existsSync(lockFilePath) ? ["ci"] : ["install"];
-}
-
-function ensureCommandAvailable(command: string) {
-  const result = spawnSync(command, ["--version"], {
-    stdio: "ignore",
-    shell: process.platform === "win32",
-    env: process.env,
-  });
-
-  if (result.error || result.status !== 0) {
-    throw new UserError(
-      `Required command "${command}" is unavailable in PATH.`
-    );
-  }
 }
 
 function runCommand(label: string, command: string, args: string[], options?: { quiet?: boolean }) {
