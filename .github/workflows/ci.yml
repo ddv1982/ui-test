@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
         run: npm run lint
 
   build:
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +49,7 @@ jobs:
 
   framework-tests:
     needs: build
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,7 +70,7 @@ jobs:
 
   consumer-smoke:
     needs: build
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4

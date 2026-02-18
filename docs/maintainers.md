@@ -33,17 +33,9 @@ Release preflight:
 npm pack --dry-run
 ```
 
-## CI Runner Selection
+## CI Runner
 
-Configure one of the following repository variables:
-
-- `CI_RUNNER_LABELS_JSON` (preferred): JSON array of labels, for example:
-  - `["self-hosted"]`
-  - `["self-hosted","macOS","ARM64"]`
-- `CI_RUNNER_MODE=self-hosted` (fallback): strict labels `self-hosted`, `macOS`, `ARM64`
-
-When neither is set, workflows default to `ubuntu-latest`.
-The labels in `CI_RUNNER_LABELS_JSON` must exactly match labels on your registered runner(s), and those runners must be assigned to this repository through the right runner group/repo access settings.
+Workflows run on GitHub-hosted `ubuntu-latest` runners.
 
 ## Recorder Stability Override
 

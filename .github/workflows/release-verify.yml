@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS_JSON != '' && vars.CI_RUNNER_LABELS_JSON || (vars.CI_RUNNER_MODE == 'self-hosted' && '["self-hosted","macOS","ARM64"]' || '["ubuntu-latest"]')) }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
