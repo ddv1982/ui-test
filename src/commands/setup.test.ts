@@ -204,6 +204,7 @@ describe("setup execution", () => {
 describe("setup command parsing (commander path)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockExistsSync.mockReturnValue(true);
     mockSpawnSync.mockReturnValue({
       status: 0,
       error: undefined,
@@ -243,4 +244,3 @@ describe("setup command parsing (commander path)", () => {
     expect(mockSpawnSync).not.toHaveBeenCalled();
   });
 });
-
