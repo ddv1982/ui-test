@@ -42,117 +42,6 @@ function makeClickStep(index: number): Step {
   };
 }
 
-function makeOptionalClickStep(index: number): Step {
-  return {
-    action: "click",
-    target: {
-      value: `#button-${index}`,
-      kind: "css",
-      source: "manual",
-    },
-    optional: true,
-  };
-}
-
-describe("runPlayStepLoop optional step behavior", () => {
-  beforeEach(() => {
-    executeRuntimeStepMock.mockClear();
-    waitForPostStepNetworkIdleMock.mockClear();
-    warnMock.mockClear();
-    successMock.mockClear();
-    errorMock.mockClear();
-  });
-
-  it("skips optional step on failure and continues", async () => {
-    executeRuntimeStepMock
-      .mockResolvedValueOnce(undefined) // step 1 passes
-      .mockRejectedValueOnce(new Error("Element not found")) // step 2 (optional) fails
-      .mockResolvedValueOnce(undefined); // step 3 passes
-
-    const steps: Step[] = [
-      makeClickStep(1),
-      makeOptionalClickStep(2),
-      makeClickStep(3),
-    ];
-
-    const result = await runPlayStepLoop({
-      page: {} as Page,
-      context: {} as BrowserContext,
-      steps,
-      timeout: 1_000,
-      delayMs: 0,
-      waitForNetworkIdle: false,
-      runId: "run-opt-1",
-      absoluteFilePath: "/tmp/test.yaml",
-      testName: "Optional Skip Test",
-      traceState: { tracingStarted: false, tracingStopped: false },
-      artifactWarnings: [],
-    });
-
-    expect(result.stepResults).toHaveLength(3);
-    expect(result.stepResults[0].passed).toBe(true);
-    expect(result.stepResults[0].skipped).toBeUndefined();
-    expect(result.stepResults[1].passed).toBe(true);
-    expect(result.stepResults[1].skipped).toBe(true);
-    expect(result.stepResults[2].passed).toBe(true);
-    expect(result.stepResults[2].skipped).toBeUndefined();
-    expect(warnMock).toHaveBeenCalledWith(expect.stringContaining("skipped (optional)"));
-    expect(errorMock).not.toHaveBeenCalled();
-  });
-
-  it("records optional step as passed when element is found", async () => {
-    executeRuntimeStepMock.mockResolvedValue(undefined);
-
-    const steps: Step[] = [makeOptionalClickStep(1)];
-
-    const result = await runPlayStepLoop({
-      page: {} as Page,
-      context: {} as BrowserContext,
-      steps,
-      timeout: 1_000,
-      delayMs: 0,
-      waitForNetworkIdle: false,
-      runId: "run-opt-2",
-      absoluteFilePath: "/tmp/test.yaml",
-      testName: "Optional Pass Test",
-      traceState: { tracingStarted: false, tracingStopped: false },
-      artifactWarnings: [],
-    });
-
-    expect(result.stepResults).toHaveLength(1);
-    expect(result.stepResults[0].passed).toBe(true);
-    expect(result.stepResults[0].skipped).toBeUndefined();
-  });
-
-  it("still fails on non-optional step failure", async () => {
-    executeRuntimeStepMock
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error("Element not found"));
-
-    const steps: Step[] = [makeClickStep(1), makeClickStep(2)];
-
-    const result = await runPlayStepLoop({
-      page: {} as Page,
-      context: {} as BrowserContext,
-      steps,
-      timeout: 1_000,
-      delayMs: 0,
-      waitForNetworkIdle: false,
-      runId: "run-opt-3",
-      absoluteFilePath: "/tmp/test.yaml",
-      testName: "Non-Optional Fail Test",
-      traceState: { tracingStarted: false, tracingStopped: false },
-      artifactWarnings: [],
-    });
-
-    expect(result.stepResults).toHaveLength(2);
-    expect(result.stepResults[0].passed).toBe(true);
-    expect(result.stepResults[1].passed).toBe(false);
-    expect(result.stepResults[1].error).toBe("Element not found");
-    expect(errorMock).toHaveBeenCalled();
-  });
-});
-
 describe("runPlayStepLoop per-step timeout", () => {
   beforeEach(() => {
     executeRuntimeStepMock.mockClear();
@@ -172,7 +61,6 @@ describe("runPlayStepLoop per-step timeout", () => {
         kind: "css",
         source: "manual",
       },
-      optional: true,
       timeout: 2000,
     };
 
@@ -192,7 +80,7 @@ describe("runPlayStepLoop per-step timeout", () => {
 
     expect(executeRuntimeStepMock).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ timeout: 2000, optional: true }),
+      expect.objectContaining({ timeout: 2000 }),
       expect.objectContaining({ timeout: 10_000 })
     );
   });

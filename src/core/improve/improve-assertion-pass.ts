@@ -140,7 +140,6 @@ export async function runImproveAssertionPass(input: {
 
     const allOutcomes = [
       ...selection.skippedLowConfidence,
-      ...selection.skippedPolicy,
       ...unmappedOutcomes,
       ...outcomes,
     ];
@@ -186,7 +185,7 @@ export async function runImproveAssertionPass(input: {
         }
         return {
           sourceIndex: runtimeIndex,
-          assertionStep: { ...candidate.candidate, optional: true },
+          assertionStep: { ...candidate.candidate },
         };
       });
 

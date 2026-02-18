@@ -67,39 +67,14 @@ describe("stepSchema - valid", () => {
       stepSchema.safeParse({ action: "assertChecked", target: cssTarget, checked: false }).success
     ).toBe(true);
   });
-});
 
-describe("stepSchema - optional", () => {
-  it("accepts optional: true on click step", () => {
+  it("accepts unrelated unknown step keys", () => {
     const result = stepSchema.safeParse({
       action: "click",
       target: cssTarget,
-      optional: true,
+      unknownKey: true,
     });
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.optional).toBe(true);
-    }
-  });
-
-  it("accepts optional: true on navigate step", () => {
-    const result = stepSchema.safeParse({
-      action: "navigate",
-      url: "/maybe",
-      optional: true,
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts step without optional (backward compat)", () => {
-    const result = stepSchema.safeParse({
-      action: "click",
-      target: cssTarget,
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.optional).toBeUndefined();
-    }
   });
 });
 
@@ -120,6 +95,24 @@ describe("stepSchema - invalid", () => {
         target: { ...cssTarget, kind: "cssXpath" },
       }).success
     ).toBe(false);
+  });
+
+  it("rejects deprecated optional field with migration guidance", () => {
+    const result = stepSchema.safeParse({
+      action: "click",
+      target: cssTarget,
+      optional: true,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) =>
+            issue.path.join(".") === "optional" &&
+            issue.message.includes("`optional` is no longer supported")
+        )
+      ).toBe(true);
+    }
   });
 });
 

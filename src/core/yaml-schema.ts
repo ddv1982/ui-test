@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+const STEP_OPTIONAL_REMOVED_MESSAGE =
+  "`optional` is no longer supported. Remove this field from the step.";
+
 export const targetSchema = z.object({
   value: z.string().min(1),
   kind: z.enum([
@@ -19,7 +22,6 @@ export const targetSchema = z.object({
 
 const baseStep = z.object({
   description: z.string().optional(),
-  optional: z.boolean().optional(),
   timeout: z.number().int().positive().optional(),
 });
 
@@ -71,7 +73,18 @@ const assertCheckedStep = targetStep.extend({
   checked: z.boolean().optional().default(true),
 });
 
-export const stepSchema = z.discriminatedUnion("action", [
+const stepOptionalDeprecationGuard = z.unknown().superRefine((value, ctx) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  if (Object.prototype.hasOwnProperty.call(value, "optional")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["optional"],
+      message: STEP_OPTIONAL_REMOVED_MESSAGE,
+    });
+  }
+});
+
+const stepSchemaByAction = z.discriminatedUnion("action", [
   navigateStep,
   clickStep,
   fillStep,
@@ -85,6 +98,8 @@ export const stepSchema = z.discriminatedUnion("action", [
   assertValueStep,
   assertCheckedStep,
 ]);
+
+export const stepSchema = stepOptionalDeprecationGuard.pipe(stepSchemaByAction);
 
 export const testSchema = z.object({
   name: z.string(),

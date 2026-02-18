@@ -9,7 +9,6 @@ const stepResultSchema = z.object({
   index: z.number().int().nonnegative(),
   action: z.string().min(1),
   passed: z.boolean(),
-  skipped: z.boolean().optional(),
   error: z.string().optional(),
   durationMs: z.number().int().nonnegative(),
 });

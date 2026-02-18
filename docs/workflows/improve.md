@@ -81,13 +81,12 @@ ui-test improve e2e/login.yaml --assertions none
 
 These rules govern how assertions are inserted:
 
-1. At most one assertion per source step; additional candidates are reported as `skipped_policy`.
-2. Snapshot `assertVisible` is report-only and never auto-inserted (`skipped_policy`).
-3. Snapshot `assertText` can be auto-inserted after runtime validation.
-4. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
-5. Existing adjacent assertions are preserved (no automatic cleanup).
-6. Applied assertions are marked `optional: true` so they don't hard-fail tests when page content changes.
-7. Interaction steps that fail at runtime are removed from the test file. Cookie banners and similar transient elements are handled automatically during playback.
+1. At most two assertions per source step; additional candidates are reported as `skipped_policy`.
+2. Snapshot `assertVisible` and `assertText` candidates can be auto-inserted after runtime validation.
+3. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
+4. Existing adjacent assertions are preserved (no automatic cleanup).
+5. Interaction steps that fail at runtime are removed from the test file. Cookie banners and similar transient elements are handled automatically during playback.
+6. `optional: true` is no longer supported in YAML steps. Remove this field from existing tests.
 
 ### Auto-Improve After Recording
 

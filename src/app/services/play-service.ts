@@ -161,18 +161,10 @@ export async function runPlay(
       }
     }
 
-    const skippedSteps = results.reduce(
-      (sum, r) => sum + r.steps.filter((s) => s.skipped).length,
-      0
-    );
-
     console.log();
     ui.heading("Results");
     if (failed === 0) {
-      const skippedNote = skippedSteps > 0
-        ? " (" + skippedSteps + " optional step" + (skippedSteps > 1 ? "s" : "") + " skipped)"
-        : "";
-      ui.success(`All ${passed} test${passed > 1 ? "s" : ""} passed${skippedNote} (${totalMs}ms)`);
+      ui.success(`All ${passed} test${passed > 1 ? "s" : ""} passed (${totalMs}ms)`);
     } else {
       ui.error(
         `${failed} failed, ${passed} passed out of ${results.length} test${results.length > 1 ? "s" : ""} (${totalMs}ms)`

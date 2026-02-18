@@ -122,12 +122,11 @@ function stepDetail(step: Step): string {
 
 export function stepDescription(step: Step, index: number): string {
   const desc = step.description ? " - " + step.description : "";
-  const optionalTag = step.optional ? " [optional]" : "";
   if (step.action === "navigate") {
-    return "Step " + (index + 1) + ": navigate to " + step.url + desc + optionalTag;
+    return "Step " + (index + 1) + ": navigate to " + step.url + desc;
   }
   const label = targetLabel(step);
   const target = label ? " " + quote(label) : "";
   const detail = stepDetail(step);
-  return "Step " + (index + 1) + ": " + step.action + target + detail + desc + optionalTag;
+  return "Step " + (index + 1) + ": " + step.action + target + detail + desc;
 }

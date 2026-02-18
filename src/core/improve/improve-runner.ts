@@ -5,6 +5,7 @@ import { stepsToYaml, yamlToTest } from "../transform/yaml-io.js";
 import { testSchema, type Step } from "../yaml-schema.js";
 import { ValidationError } from "../../utils/errors.js";
 import { chromiumNotInstalledError, isLikelyMissingBrowser } from "../../utils/chromium-runtime.js";
+import { installCookieBannerDismisser } from "../runtime/cookie-banner.js";
 import { findStaleAssertions, removeStaleAssertions } from "./assertion-cleanup.js";
 import {
   buildAssertionApplyStatusCounts,
@@ -182,7 +183,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         assertionCandidates: assertionPass.assertionCandidates.length,
         appliedAssertions: assertionPass.appliedAssertions,
         skippedAssertions: assertionPass.skippedAssertions,
-        assertionApplyPolicy: "reliable",
         assertionApplyStatusCounts: buildAssertionApplyStatusCounts(
           assertionPass.assertionCandidates
         ),
@@ -227,7 +227,9 @@ async function launchImproveBrowser(): Promise<{ browser: Browser; page: Page }>
   let browser: Browser | undefined;
   try {
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    await installCookieBannerDismisser(context);
+    const page = await context.newPage();
     return { browser, page };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

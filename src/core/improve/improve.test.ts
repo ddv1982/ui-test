@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { UserError } from "../../utils/errors.js";
+import { UserError, ValidationError } from "../../utils/errors.js";
 
 const { chromiumLaunchMock, runImproveSelectorPassMock, runImproveAssertionPassMock } = vi.hoisted(
   () => ({
@@ -30,7 +30,10 @@ import { improveTestFile } from "./improve.js";
 
 function createBrowserMock() {
   return {
-    newPage: vi.fn(async () => ({})),
+    newContext: vi.fn(async () => ({
+      newPage: vi.fn(async () => ({})),
+      addInitScript: vi.fn(async () => {}),
+    })),
     close: vi.fn(async () => {}),
   };
 }
@@ -68,6 +71,28 @@ describe("improveTestFile runner", () => {
     await fs.writeFile(
       yamlPath,
       `name: sample\nsteps:\n  - action: navigate\n    url: https://example.com\n  - action: click\n    target:\n      value: "#submit"\n      kind: css\n      source: manual\n`,
+      "utf-8"
+    );
+    return yamlPath;
+  }
+
+  async function writeYamlWithOptionalStep(): Promise<string> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "legacy-optional.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: legacy optional",
+        "steps:",
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+        "    optional: true",
+      ].join("\n") + "\n",
       "utf-8"
     );
     return yamlPath;
@@ -115,6 +140,27 @@ describe("improveTestFile runner", () => {
 
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("Chromium browser is not installed.");
+  });
+
+  it("fails fast when optional is present in YAML steps", async () => {
+    const yamlPath = await writeYamlWithOptionalStep();
+
+    const run = improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    await expect(run).rejects.toBeInstanceOf(ValidationError);
+    await expect(run).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.stringContaining(
+          "steps.0.optional: `optional` is no longer supported. Remove this field from the step."
+        ),
+      ]),
+    });
+    expect(chromiumLaunchMock).not.toHaveBeenCalled();
   });
 
   it("fails in apply mode with explicit remediation hint", async () => {

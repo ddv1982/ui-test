@@ -26,7 +26,7 @@ const VISIBLE_ROLE_ALLOWLIST = new Set([
   "textbox",
 ]);
 
-const TEXT_ROLE_ALLOWLIST = new Set(["heading", "status", "alert"]);
+const TEXT_ROLE_ALLOWLIST = new Set(["heading", "status", "alert", "tab", "link"]);
 
 const MAX_TEXT_CANDIDATES_PER_STEP = 2;
 const MAX_VISIBLE_CANDIDATES_PER_STEP = 3;
@@ -271,7 +271,9 @@ function textRolePriority(role: string): number {
     case "heading": return 0;
     case "alert": return 1;
     case "status": return 2;
-    default: return 3;
+    case "tab": return 3;
+    case "link": return 4;
+    default: return 5;
   }
 }
 

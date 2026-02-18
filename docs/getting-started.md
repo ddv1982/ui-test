@@ -99,7 +99,7 @@ The `target` object identifies the element:
 - **`kind`** — selector type (`css`, `xpath`, `locatorExpression`, `playwrightSelector`, etc.)
 - **`source`** — how the selector was created (`manual`, `codegen-jsonl`, `codegen-fallback`)
 
-Any step can include `optional: true`. Optional steps that fail are skipped instead of failing the test. Steps can also include `timeout: <ms>` to override the global step timeout.
+`optional: true` is no longer supported for steps. Remove this field from existing YAML tests. Steps can include `timeout: <ms>` to override the global step timeout.
 
 ## Run Tests
 

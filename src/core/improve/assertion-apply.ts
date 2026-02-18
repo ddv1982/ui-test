@@ -10,7 +10,7 @@ import type {
   AssertionCandidate,
 } from "./report-schema.js";
 
-const MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP = 1;
+const MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP = 2;
 
 export interface AssertionCandidateRef {
   candidateIndex: number;
@@ -40,24 +40,13 @@ export function selectCandidatesForApply(
 ): {
   selected: AssertionCandidateRef[];
   skippedLowConfidence: AssertionApplyOutcome[];
-  skippedPolicy: AssertionApplyOutcome[];
 } {
   const selected: AssertionCandidateRef[] = [];
   const skippedLowConfidence: AssertionApplyOutcome[] = [];
-  const skippedPolicy: AssertionApplyOutcome[] = [];
 
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
     const candidate = candidates[candidateIndex];
     if (!candidate) continue;
-
-    if (!isAutoApplyAllowedByPolicy(candidate)) {
-      skippedPolicy.push({
-        candidateIndex,
-        applyStatus: "skipped_policy",
-        applyMessage: "Skipped by policy (reliable): snapshot-derived assertVisible candidates are report-only.",
-      });
-      continue;
-    }
 
     if (candidate.confidence >= minConfidence) {
       selected.push({ candidateIndex, candidate });
@@ -71,7 +60,7 @@ export function selectCandidatesForApply(
     });
   }
 
-  return { selected, skippedLowConfidence, skippedPolicy };
+  return { selected, skippedLowConfidence };
 }
 
 export async function validateCandidatesAgainstRuntime(
@@ -160,7 +149,7 @@ export async function validateCandidatesAgainstRuntime(
           candidateIndex: candidateRef.candidateIndex,
           applyStatus: "skipped_policy",
           applyMessage:
-            `Skipped by policy: max ${MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP} applied assertion per source step.`,
+            `Skipped by policy: max ${MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP} applied assertions per source step.`,
         });
         continue;
       }
@@ -318,15 +307,3 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
   }
 }
 
-function isAutoApplyAllowedByPolicy(
-  candidate: AssertionCandidate
-): boolean {
-  if (
-    candidate.candidateSource === "snapshot_native" &&
-    candidate.candidate.action === "assertVisible"
-  ) {
-    return false;
-  }
-
-  return true;
-}

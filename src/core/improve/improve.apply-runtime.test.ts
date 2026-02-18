@@ -16,13 +16,16 @@ const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
 vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(async () => ({
-      newPage: vi.fn(async () => ({
-        url: () => "about:blank",
-        goto: vi.fn(async () => {}),
-        waitForLoadState: vi.fn(async () => {}),
-        locator: vi.fn(() => ({
-          ariaSnapshot: vi.fn(async () => "- generic"),
+      newContext: vi.fn(async () => ({
+        newPage: vi.fn(async () => ({
+          url: () => "about:blank",
+          goto: vi.fn(async () => {}),
+          waitForLoadState: vi.fn(async () => {}),
+          locator: vi.fn(() => ({
+            ariaSnapshot: vi.fn(async () => "- generic"),
+          })),
         })),
+        addInitScript: vi.fn(async () => {}),
       })),
       close: vi.fn(async () => {}),
     })),
@@ -367,7 +370,7 @@ describe("improve apply runtime replay", () => {
     ).toBe(true);
   });
 
-  it("applies at most one assertion per source step", async () => {
+  it("applies at most two assertions per source step", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-cap-"));
     tempDirs.push(dir);
 
@@ -421,14 +424,14 @@ describe("improve apply runtime replay", () => {
     });
 
     expect(result.report.summary.assertionCandidates).toBe(2);
-    expect(result.report.summary.appliedAssertions).toBe(1);
-    expect(result.report.summary.skippedAssertions).toBe(1);
+    expect(result.report.summary.appliedAssertions).toBe(2);
+    expect(result.report.summary.skippedAssertions).toBe(0);
     expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
-    expect(result.report.assertionCandidates[1]?.applyStatus).toBe("skipped_policy");
+    expect(result.report.assertionCandidates[1]?.applyStatus).toBe("applied");
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     const appliedAssertCount = saved.match(/action: assert/g)?.length ?? 0;
-    expect(appliedAssertCount).toBe(1);
+    expect(appliedAssertCount).toBe(2);
   });
 
   it("adds snapshot-native assertion candidates when using default assertion source", async () => {
@@ -443,13 +446,16 @@ describe("improve apply runtime replay", () => {
     ariaSnapshotMock.mockResolvedValueOnce('- button "Submit"\n- heading "Welcome"');
 
     vi.mocked(chromium.launch).mockResolvedValueOnce({
-      newPage: vi.fn(async () => ({
-        url: () => "about:blank",
-        goto: vi.fn(async () => {}),
-        waitForLoadState: vi.fn(async () => {}),
-        locator: vi.fn(() => ({
-          ariaSnapshot: ariaSnapshotMock,
+      newContext: vi.fn(async () => ({
+        newPage: vi.fn(async () => ({
+          url: () => "about:blank",
+          goto: vi.fn(async () => {}),
+          waitForLoadState: vi.fn(async () => {}),
+          locator: vi.fn(() => ({
+            ariaSnapshot: ariaSnapshotMock,
+          })),
         })),
+        addInitScript: vi.fn(async () => {}),
       })),
       close: vi.fn(async () => {}),
     } as any);
@@ -747,7 +753,7 @@ describe("improve apply runtime replay", () => {
     expect(saved).toContain("action: assertVisible");
   });
 
-  it("keeps snapshot assertVisible candidates report-only in apply mode", async () => {
+  it("applies snapshot assertVisible candidates in apply mode", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-policy-"));
     tempDirs.push(dir);
 
@@ -789,16 +795,10 @@ describe("improve apply runtime replay", () => {
       assertions: "candidates",
     });
 
-    expect(result.report.summary.assertionApplyPolicy).toBe("reliable");
     expect(result.report.summary.assertionCandidates).toBe(1);
-    expect(result.report.summary.appliedAssertions).toBe(0);
-    expect(result.report.summary.skippedAssertions).toBe(1);
-    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("skipped_policy");
-    expect(
-      result.report.diagnostics.some(
-        (diagnostic) => diagnostic.code === "assertion_apply_runtime_failure"
-      )
-    ).toBe(false);
+    expect(result.report.summary.appliedAssertions).toBe(1);
+    expect(result.report.summary.skippedAssertions).toBe(0);
+    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
   });
 
 });

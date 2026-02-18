@@ -64,7 +64,7 @@ describe("improve output helpers", () => {
         buildCandidate({
           index: 4,
           applyStatus: "skipped_policy",
-          applyMessage: "Skipped by policy: snapshot-derived assertVisible candidates are report-only.",
+          applyMessage: "Skipped by policy: max 2 applied assertions per source step.",
         }),
         buildCandidate({
           index: 8,

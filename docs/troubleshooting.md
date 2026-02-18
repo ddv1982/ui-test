@@ -100,8 +100,9 @@ If you see runtime validation errors:
 ### Additional causes
 
 - **Deterministic source**: only generates `assertValue` (for fill/select) and `assertChecked` (for check/uncheck). Click/press assertions are intentionally not auto-generated.
-- **Snapshot `assertVisible`** is report-only. Snapshot `assertText` can be inserted after runtime validation.
-- **One assertion per step**: extras show as `skipped_policy`.
+- **Snapshot source**: `assertVisible` and `assertText` can both be inserted after runtime validation.
+- **Assertion cap**: up to two assertions per source step; extras show as `skipped_policy`.
+- **Legacy YAML**: `optional: true` is no longer supported on steps. Remove this field from existing tests.
 - **Version mismatch?** Run `ui-test doctor` to check invocation/version details.
 
 If CLI behavior seems different from local source, check for warnings about binary path outside workspace:
@@ -120,4 +121,3 @@ If `--assertion-source snapshot-native` produces no snapshot-driven candidates:
    - `assertion_source_snapshot_native_empty` — no page state changes detected
    - `assertion_source_snapshot_native_parse_failed` — snapshot could not be parsed
 3. Improve falls back to deterministic assertion candidates by design.
-

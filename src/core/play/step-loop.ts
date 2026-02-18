@@ -80,19 +80,6 @@ export async function runPlayStepLoop(input: {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
 
-      if (step.optional) {
-        const result: StepResult = {
-          step,
-          index: i,
-          passed: true,
-          skipped: true,
-          durationMs: Date.now() - stepStart,
-        };
-        stepResults.push(result);
-        ui.warn(`${desc}: skipped (optional)`);
-        continue;
-      }
-
       const result: StepResult = {
         step,
         index: i,

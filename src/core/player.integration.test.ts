@@ -124,6 +124,33 @@ describe("player integration tests", () => {
     );
   }, 30000);
 
+  it("should fail on deprecated optional step field", async () => {
+    const testFile = await writeInlineFixture("deprecated-optional.yaml", {
+      name: "Deprecated Optional",
+      steps: [
+        {
+          action: "click",
+          target: {
+            value: "#submit",
+            kind: "css",
+            source: "manual",
+          },
+          optional: true,
+        },
+      ],
+    });
+
+    const run = play(testFile, { headed: false });
+    await expect(run).rejects.toThrow(/Invalid test file/);
+    await expect(run).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.stringContaining(
+          "steps.0.optional: `optional` is no longer supported. Remove this field from the step."
+        ),
+      ]),
+    });
+  }, 30000);
+
   it("should fail when element not found", async () => {
     const testFile = await prepareFixtureYaml("missing-element.yaml");
     const result = await play(testFile, { headed: false, timeout: 2000 });
