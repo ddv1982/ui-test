@@ -1,4 +1,8 @@
 import type { Step } from "../yaml-schema.js";
+import {
+  isCookieConsentDismissText,
+  COOKIE_CONSENT_CMP_SELECTORS,
+} from "../runtime/cookie-consent-patterns.js";
 
 const STRONG_TRANSIENT_CONTEXT_KEYWORDS = [
   "cookie",
@@ -12,6 +16,11 @@ const STRONG_TRANSIENT_CONTEXT_KEYWORDS = [
   "trustarc",
   "cookiebot",
   "cmp",
+  // Multilingual additions
+  "venster",        // Dutch: window/popup
+  "melding",        // Dutch: notification
+  "einwilligung",   // German: consent
+  "consentement",   // French: consent
 ];
 
 const SOFT_TRANSIENT_CONTEXT_KEYWORDS = [
@@ -22,7 +31,7 @@ const SOFT_TRANSIENT_CONTEXT_KEYWORDS = [
 ];
 
 const DISMISS_INTENT_PATTERN =
-  /\b(close|dismiss|accept|agree|allow|reject|decline|continue|ok|got it)\b/;
+  /\b(close|dismiss|accept|agree|allow|reject|decline|continue|ok|got it|sluiten|sluit|annuleren|overslaan|doorgaan|schliessen|abbrechen|weiter|fermer|annuler|continuer|cerrar|cancelar|continuar)\b/;
 
 const CONTENT_LINK_HINTS = [
   "policy",
@@ -46,6 +55,21 @@ const BUSINESS_INTENT_HINTS = [
   "account",
   "plan",
 ];
+
+/** Extract the accessible name from a Playwright locator expression like
+ *  `getByRole('button', { name: 'Akkoord' })` → `"Akkoord"`. */
+function extractAccessibleName(targetValue: string): string | undefined {
+  const match = /name:\s*['"]([^'"]+)['"]/.exec(targetValue);
+  return match?.[1];
+}
+
+/** Check whether a target value references a known CMP selector. */
+function matchesCmpSelector(targetValue: string): boolean {
+  const lower = targetValue.toLowerCase();
+  return COOKIE_CONSENT_CMP_SELECTORS.some((selector) =>
+    lower.includes(selector.toLowerCase())
+  );
+}
 
 export type RuntimeFailureDisposition = "remove" | "retain";
 
@@ -72,9 +96,26 @@ export function classifyRuntimeFailingStep(
     };
   }
 
-  const stepText = `${"target" in step ? step.target.value : ""} ${
-    step.description ?? ""
-  }`.toLowerCase();
+  // --- Early cookie-consent detection via shared patterns ---
+  const targetValue = "target" in step ? step.target.value : "";
+
+  const accessibleName = extractAccessibleName(targetValue);
+  if (accessibleName && isCookieConsentDismissText(accessibleName)) {
+    return {
+      disposition: "remove",
+      reason: "classified as cookie-consent dismiss interaction (multilingual pattern match)",
+    };
+  }
+
+  if (matchesCmpSelector(targetValue)) {
+    return {
+      disposition: "remove",
+      reason: "classified as cookie-consent CMP selector interaction",
+    };
+  }
+
+  // --- Existing transient-context classification ---
+  const stepText = `${targetValue} ${step.description ?? ""}`.toLowerCase();
 
   const hasStrongTransientContext = STRONG_TRANSIENT_CONTEXT_KEYWORDS.some((keyword) =>
     stepText.includes(keyword)

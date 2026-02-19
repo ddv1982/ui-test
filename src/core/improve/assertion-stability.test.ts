@@ -143,4 +143,42 @@ describe("assertion stability", () => {
     expect(keptSnapshotAtClick).toHaveLength(2);
     expect(cappedIndexes.has(5)).toBe(false);
   });
+
+  it("hard-filters headline-like snapshot text candidates", () => {
+    const candidate = makeCandidate({
+      candidate: {
+        action: "assertText",
+        target: { value: "getByRole('heading', { name: 'News' })", kind: "locatorExpression", source: "manual" },
+        text: "Video Dolblije Erben Wennemars viert feest met schaatsploeg na gouden medaille",
+      },
+    });
+
+    const assessed = assessAssertionCandidateStability(candidate);
+    expect(assessed.volatilityFlags).toContain("contains_headline_like_text");
+    expect(
+      shouldFilterVolatileSnapshotTextCandidate({
+        ...candidate,
+        ...assessed,
+      })
+    ).toBe(true);
+  });
+
+  it("hard-filters pipe-separated snapshot text candidates", () => {
+    const candidate = makeCandidate({
+      candidate: {
+        action: "assertText",
+        target: { value: "getByRole('heading', { name: 'Live' })", kind: "locatorExpression", source: "manual" },
+        text: "Live Epstein | Trump vindt documenten",
+      },
+    });
+
+    const assessed = assessAssertionCandidateStability(candidate);
+    expect(assessed.volatilityFlags).toContain("contains_pipe_separator");
+    expect(
+      shouldFilterVolatileSnapshotTextCandidate({
+        ...candidate,
+        ...assessed,
+      })
+    ).toBe(true);
+  });
 });

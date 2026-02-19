@@ -3,6 +3,19 @@ import { z } from "zod";
 const STEP_OPTIONAL_REMOVED_MESSAGE =
   "`optional` is no longer supported. Remove this field from the step.";
 
+const fallbackTargetSchema = z.object({
+  value: z.string().min(1),
+  kind: z.enum([
+    "locatorExpression",
+    "playwrightSelector",
+    "css",
+    "xpath",
+    "internal",
+    "unknown",
+  ]),
+  source: z.enum(["manual", "codegen-jsonl", "codegen-fallback"]),
+});
+
 export const targetSchema = z.object({
   value: z.string().min(1),
   kind: z.enum([
@@ -18,6 +31,7 @@ export const targetSchema = z.object({
   raw: z.string().optional(),
   confidence: z.number().min(0).max(1).optional(),
   warning: z.string().optional(),
+  fallbacks: z.array(fallbackTargetSchema).max(2).optional(),
 });
 
 const baseStep = z.object({
@@ -111,3 +125,4 @@ export const testSchema = z.object({
 export type TestFile = z.infer<typeof testSchema>;
 export type Step = z.infer<typeof stepSchema>;
 export type Target = z.infer<typeof targetSchema>;
+export type FallbackTarget = z.infer<typeof fallbackTargetSchema>;

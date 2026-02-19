@@ -13,6 +13,7 @@ export function resolveLocator(
   const target = "action" in targetOrStep ? targetOrStep.target : targetOrStep;
   const context = resolveLocatorContext(page, target.framePath);
 
+  let primary: Locator;
   if (target.kind === "locatorExpression") {
     const resolved = evaluateLocatorExpression(context, target.value);
     if (!isPlaywrightLocator(resolved)) {
@@ -21,10 +22,30 @@ export function resolveLocator(
         "Ensure the expression returns a Playwright locator chain."
       );
     }
-    return resolved;
+    primary = resolved;
+  } else {
+    primary = context.locator(target.value);
   }
 
-  return context.locator(target.value);
+  if (!target.fallbacks || target.fallbacks.length === 0) {
+    return primary;
+  }
+
+  let chained = primary;
+  for (const fallback of target.fallbacks) {
+    try {
+      const fallbackLocator =
+        fallback.kind === "locatorExpression"
+          ? (evaluateLocatorExpression(context, fallback.value) as Locator)
+          : context.locator(fallback.value);
+      if (isPlaywrightLocator(fallbackLocator)) {
+        chained = chained.or(fallbackLocator);
+      }
+    } catch {
+      // Skip invalid fallback silently - primary locator is still valid
+    }
+  }
+  return chained;
 }
 
 export function resolveLocatorContext(page: Page, framePath?: string[]): LocatorContext {

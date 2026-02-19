@@ -4,7 +4,7 @@ import {
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
   waitForPostStepNetworkIdle,
 } from "../runtime/network-idle.js";
-import type { Step, Target } from "../yaml-schema.js";
+import type { FallbackTarget, Step, Target } from "../yaml-schema.js";
 import type { StepSnapshot } from "./assertion-candidates-snapshot.js";
 import { generateAriaTargetCandidates } from "./candidate-generator-aria.js";
 import { generateTargetCandidates } from "./candidate-generator.js";
@@ -129,6 +129,23 @@ export async function runImproveSelectorPass(input: {
         reasonCodes,
       });
 
+      // Collect up to 2 runner-up candidates as fallbacks
+      const fallbacks: FallbackTarget[] = [];
+      if (input.applySelectors) {
+        const selectedValue = selected.candidate.target.value;
+        for (const candidate of scored) {
+          if (fallbacks.length >= 2) break;
+          if (candidate.candidate.target.value === selectedValue) continue;
+          if (candidate.matchCount !== 1) continue;
+          if (candidate.score < 0.5) continue;
+          fallbacks.push({
+            value: candidate.candidate.target.value,
+            kind: candidate.candidate.target.kind,
+            source: candidate.candidate.target.source,
+          });
+        }
+      }
+
       if (input.applySelectors && adopt) {
         if (selected.reasonCodes.some((reasonCode) => reasonCode.startsWith("locator_repair_"))) {
           selectorRepairsApplied += 1;
@@ -141,7 +158,10 @@ export async function runImproveSelectorPass(input: {
         }
         outputSteps[index] = {
           ...step,
-          target: recommendedTarget,
+          target: {
+            ...recommendedTarget,
+            ...(fallbacks.length > 0 ? { fallbacks } : {}),
+          },
         };
       }
     }

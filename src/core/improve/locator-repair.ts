@@ -33,6 +33,12 @@ const WEATHER_OR_VOLATILE_KEYWORDS = new Set([
   "breaking",
   "liveblog",
   "update",
+  "live",
+  "video",
+  "vandaag",
+  "today",
+  "gisteren",
+  "yesterday",
 ]);
 
 const STABLE_STOPWORDS = new Set([
@@ -381,6 +387,22 @@ function getVolatilityFlags(value: string): string[] {
       out.push("contains_weather_or_news_fragment");
       break;
     }
+  }
+
+  // Headline-like text: >= 30 chars, 5+ words, mixed case (original value)
+  const original = value.trim();
+  if (original.length >= 30) {
+    const words = original.split(/\s+/).filter((w) => w.length > 0);
+    const hasUpperCase = /[A-Z]/.test(original);
+    const hasLowerCase = /[a-z]/.test(original);
+    if (words.length >= 5 && hasUpperCase && hasLowerCase) {
+      out.push("contains_headline_like_text");
+    }
+  }
+
+  // Pipe separator (common in news headline concatenations)
+  if (normalized.includes("|")) {
+    out.push("contains_pipe_separator");
   }
 
   return out;

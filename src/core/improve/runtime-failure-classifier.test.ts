@@ -76,4 +76,130 @@ describe("classifyRuntimeFailingStep", () => {
 
     expect(out.disposition).toBe("remove");
   });
+
+  // --- Multilingual cookie-consent pattern tests ---
+
+  it("removes Dutch 'Akkoord' cookie-consent button via multilingual pattern", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Akkoord' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("multilingual pattern match");
+  });
+
+  it("removes German 'Akzeptieren' cookie-consent button via multilingual pattern", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Akzeptieren' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("multilingual pattern match");
+  });
+
+  it("removes French 'Tout accepter' cookie-consent button via multilingual pattern", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Tout accepter' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("multilingual pattern match");
+  });
+
+  it("removes Spanish 'Aceptar todo' cookie-consent button via multilingual pattern", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Aceptar todo' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("multilingual pattern match");
+  });
+
+  it("removes Dutch 'Alle cookies accepteren' button via multilingual pattern", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Alle cookies accepteren' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("multilingual pattern match");
+  });
+
+  it("removes interaction targeting a known CMP selector", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "#onetrust-accept-btn-handler",
+        kind: "css",
+        source: "manual",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("CMP selector");
+  });
+
+  it("removes interaction using multilingual dismiss intent (Dutch 'sluiten')", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Venster sluiten' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.reason).toContain("transient");
+  });
+
+  it("does not remove non-consent button with similar-sounding name", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Bestellen' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("retain");
+  });
+
+  it("handles case-insensitive matching for cookie consent text", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'AKKOORD' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+  });
 });

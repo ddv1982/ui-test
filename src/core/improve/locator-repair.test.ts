@@ -36,4 +36,59 @@ describe("analyzeAndBuildLocatorRepairCandidates", () => {
     expect(out.diagnostics).toHaveLength(1);
     expect(out.diagnostics[0]?.code).toBe("selector_target_flagged_volatile");
   });
+
+  it("flags headline-like text as volatile", () => {
+    const out = analyzeAndBuildLocatorRepairCandidates({
+      target: {
+        value: "getByRole('link', { name: 'Video Dolblije Erben Wennemars viert feest met schaatsploeg' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+      stepNumber: 4,
+    });
+
+    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_volatile")).toBe(true);
+    expect(out.diagnostics.some((d) => d.message.includes("contains_headline_like_text"))).toBe(true);
+  });
+
+  it("flags pipe-separated text as volatile", () => {
+    const out = analyzeAndBuildLocatorRepairCandidates({
+      target: {
+        value: "getByRole('link', { name: 'Live Epstein | Trump vindt documenten' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+      stepNumber: 5,
+    });
+
+    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_volatile")).toBe(true);
+    expect(out.diagnostics.some((d) => d.message.includes("contains_pipe_separator"))).toBe(true);
+  });
+
+  it("flags text with 'live' or 'video' volatile keywords", () => {
+    const out = analyzeAndBuildLocatorRepairCandidates({
+      target: {
+        value: "getByRole('link', { name: 'Video van vandaag' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+      stepNumber: 6,
+    });
+
+    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_volatile")).toBe(true);
+  });
+
+  it("does not flag short stable text as headline-like", () => {
+    const out = analyzeAndBuildLocatorRepairCandidates({
+      target: {
+        value: "getByRole('button', { name: 'Submit form' })",
+        kind: "locatorExpression",
+        source: "codegen-jsonl",
+      },
+      stepNumber: 1,
+    });
+
+    expect(out.diagnostics).toHaveLength(0);
+    expect(out.candidates).toHaveLength(0);
+  });
 });
