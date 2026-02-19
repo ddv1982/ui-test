@@ -11,3 +11,4 @@ ui-test.config.yaml
 e2e/
 
 .claude/
+.worktrees/
