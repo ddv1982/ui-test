@@ -79,7 +79,7 @@ describe("stepSchema - valid", () => {
 });
 
 describe("stepSchema - invalid", () => {
-  it("rejects selector-only legacy steps", () => {
+  it("rejects selector-only deprecated steps", () => {
     expect(stepSchema.safeParse({ action: "click", selector: "#submit" }).success).toBe(false);
   });
 

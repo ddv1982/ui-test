@@ -50,12 +50,15 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [],
+      selectorRepairCandidates: 0,
+      selectorRepairsApplied: 0,
     }));
     runImproveAssertionPassMock.mockImplementation(async (input) => ({
       outputSteps: input.outputSteps,
       assertionCandidates: [],
       appliedAssertions: 0,
       skippedAssertions: 0,
+      filteredVolatileCandidates: 0,
     }));
   });
 
@@ -331,5 +334,74 @@ describe("improveTestFile runner", () => {
           diagnostic.level === "warn"
       )
     ).toBe(true);
+  });
+
+  it("optionalizes non-transient runtime-failing steps and removes transient ones", async () => {
+    const yamlPath = await writeYamlWithTransientStep();
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [1, 2],
+      selectorRepairCandidates: 0,
+      selectorRepairsApplied: 0,
+    }));
+
+    await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    const written = await fs.readFile(yamlPath, "utf-8");
+    expect(written).not.toContain("cookie-accept");
+    expect(written).toContain("submit");
+    expect(written).toContain("optional: true");
+  });
+
+  it("keeps likely business-intent transient-context failures as optionalized", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "transient-privacy.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: transient-privacy",
+        "baseUrl: https://example.com",
+        "steps:",
+        "  - action: navigate",
+        '    url: "/"',
+        "  - action: click",
+        "    target:",
+        '      value: "getByRole(\'button\', { name: \'Accept payment privacy settings\' })"',
+        "      kind: locatorExpression",
+        "      source: manual",
+      ].join("\n") + "\n",
+      "utf-8"
+    );
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [1],
+      selectorRepairCandidates: 0,
+      selectorRepairsApplied: 0,
+    }));
+
+    await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    const written = await fs.readFile(yamlPath, "utf-8");
+    expect(written).toContain("Accept payment privacy settings");
+    expect(written).toContain("optional: true");
+    expect(written).toContain("navigate");
   });
 });

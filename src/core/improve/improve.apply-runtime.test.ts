@@ -17,6 +17,7 @@ vi.mock("playwright", () => ({
   chromium: {
     launch: vi.fn(async () => ({
       newContext: vi.fn(async () => ({
+        addInitScript: vi.fn(async () => {}),
         newPage: vi.fn(async () => ({
           url: () => "about:blank",
           goto: vi.fn(async () => {}),
@@ -25,7 +26,7 @@ vi.mock("playwright", () => ({
             ariaSnapshot: vi.fn(async () => "- generic"),
           })),
         })),
-        addInitScript: vi.fn(async () => {}),
+        close: vi.fn(async () => {}),
       })),
       close: vi.fn(async () => {}),
     })),
@@ -105,6 +106,7 @@ vi.mock("./assertion-candidates.js", () => ({
 }));
 
 import { improveTestFile } from "./improve.js";
+import { scoreTargetCandidates } from "./candidate-scorer.js";
 
 describe("improve apply runtime replay", () => {
   const tempDirs: string[] = [];
@@ -162,6 +164,79 @@ describe("improve apply runtime replay", () => {
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("getByRole('button', { name: 'Save' })");
+  });
+
+  it("counts applied selector repairs when repair candidates are adopted", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-repair-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        "      value: \"getByRole('link', { name: 'Winterweer update', exact: true })\"",
+        "      kind: locatorExpression",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    vi.mocked(scoreTargetCandidates).mockResolvedValueOnce([
+      {
+        candidate: {
+          id: "current-1",
+          source: "current",
+          target: {
+            value: "getByRole('link', { name: 'Winterweer update', exact: true })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          reasonCodes: ["existing_target"],
+        },
+        score: 0.2,
+        baseScore: 0.2,
+        uniquenessScore: 0.2,
+        visibilityScore: 0,
+        matchCount: 2,
+        runtimeChecked: true,
+        reasonCodes: ["existing_target"],
+      },
+      {
+        candidate: {
+          id: "repair-1",
+          source: "derived",
+          target: {
+            value: "getByRole('link', { name: /winterweer.*update/i })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          reasonCodes: ["locator_repair_regex"],
+        },
+        score: 0.9,
+        baseScore: 0.9,
+        uniquenessScore: 1,
+        visibilityScore: 1,
+        matchCount: 1,
+        runtimeChecked: true,
+        reasonCodes: ["locator_repair_regex", "unique_match"],
+      },
+    ]);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(result.report.summary.selectorRepairsApplied).toBe(1);
+    expect(result.report.diagnostics.some((d) => d.code === "selector_repair_applied")).toBe(true);
   });
 
   it("applies high-confidence assertion candidates with --apply", async () => {
@@ -314,6 +389,213 @@ describe("improve apply runtime replay", () => {
     expect(saved).not.toContain("action: assertVisible");
   });
 
+  it("keeps volatile snapshot text candidates report-only", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#news"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidateSource: "snapshot_native",
+        candidate: {
+          action: "assertText",
+          target: { value: "getByRole('heading', { name: 'Winterweer 12:30 update' })", kind: "locatorExpression", source: "manual" },
+          text: "Winterweer 12:30 update",
+        },
+        confidence: 0.98,
+        rationale: "snapshot text",
+      },
+    ]);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    expect(result.report.summary.appliedAssertions).toBe(0);
+    expect(result.report.summary.assertionCandidatesFilteredVolatile).toBe(1);
+    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("skipped_policy");
+    expect(
+      result.report.diagnostics.some((diagnostic) => diagnostic.code === "assertion_candidate_filtered_volatile")
+    ).toBe(true);
+
+    const saved = await fs.readFile(yamlPath, "utf-8");
+    expect(saved).not.toContain("action: assertText");
+  });
+
+  it("keeps volume-capped snapshot candidates in report with skipped_policy", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#news"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidateSource: "snapshot_native",
+        candidate: {
+          action: "assertText",
+          target: { value: "getByRole('heading', { name: 'Overview' })", kind: "locatorExpression", source: "manual" },
+          text: "Overview",
+        },
+        confidence: 0.95,
+        rationale: "snapshot text",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidateSource: "snapshot_native",
+        candidate: {
+          action: "assertText",
+          target: { value: "getByRole('heading', { name: 'Status' })", kind: "locatorExpression", source: "manual" },
+          text: "Status",
+        },
+        confidence: 0.94,
+        rationale: "snapshot text",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidateSource: "snapshot_native",
+        candidate: {
+          action: "assertText",
+          target: { value: "getByRole('heading', { name: 'Summary' })", kind: "locatorExpression", source: "manual" },
+          text: "Summary",
+        },
+        confidence: 0.93,
+        rationale: "snapshot text",
+      },
+    ]);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    expect(result.report.assertionCandidates).toHaveLength(3);
+    expect(
+      result.report.assertionCandidates.some(
+        (candidate) =>
+          candidate.applyStatus === "skipped_policy" &&
+          (candidate.applyMessage ?? "").includes("snapshot candidate cap reached")
+      )
+    ).toBe(true);
+  });
+
+  it("keeps volatile and capped snapshot candidates as not_requested in report-only mode", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-report-only-policy-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#news"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidateSource: "snapshot_native",
+        candidate: {
+          action: "assertText",
+          target: { value: "getByRole('heading', { name: 'Winterweer 12:30 update' })", kind: "locatorExpression", source: "manual" },
+          text: "Winterweer 12:30 update",
+        },
+        confidence: 0.98,
+        rationale: "volatile snapshot text",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidateSource: "snapshot_native",
+        candidate: {
+          action: "assertText",
+          target: { value: "getByRole('heading', { name: 'Overview' })", kind: "locatorExpression", source: "manual" },
+          text: "Overview",
+        },
+        confidence: 0.95,
+        rationale: "snapshot text",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidateSource: "snapshot_native",
+        candidate: {
+          action: "assertText",
+          target: { value: "getByRole('heading', { name: 'Summary' })", kind: "locatorExpression", source: "manual" },
+          text: "Summary",
+        },
+        confidence: 0.94,
+        rationale: "snapshot text",
+      },
+    ]);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "candidates",
+    });
+
+    expect(result.report.assertionCandidates).toHaveLength(3);
+    expect(result.report.summary.appliedAssertions).toBe(0);
+    expect(result.report.summary.skippedAssertions).toBe(0);
+    expect(result.report.summary.assertionCandidatesFilteredVolatile).toBe(0);
+    expect(result.report.assertionCandidates.every((candidate) => candidate.applyStatus === "not_requested")).toBe(true);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "assertion_candidate_filtered_volatile"
+      )
+    ).toBe(false);
+  });
+
   it("never applies runtime-failing assertions", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
     tempDirs.push(dir);
@@ -370,7 +652,7 @@ describe("improve apply runtime replay", () => {
     ).toBe(true);
   });
 
-  it("applies at most two assertions per source step", async () => {
+  it("applies at most one assertion per source step", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-cap-"));
     tempDirs.push(dir);
 
@@ -424,14 +706,14 @@ describe("improve apply runtime replay", () => {
     });
 
     expect(result.report.summary.assertionCandidates).toBe(2);
-    expect(result.report.summary.appliedAssertions).toBe(2);
-    expect(result.report.summary.skippedAssertions).toBe(0);
+    expect(result.report.summary.appliedAssertions).toBe(1);
+    expect(result.report.summary.skippedAssertions).toBe(1);
     expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
-    expect(result.report.assertionCandidates[1]?.applyStatus).toBe("applied");
+    expect(result.report.assertionCandidates[1]?.applyStatus).toBe("skipped_policy");
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     const appliedAssertCount = saved.match(/action: assert/g)?.length ?? 0;
-    expect(appliedAssertCount).toBe(2);
+    expect(appliedAssertCount).toBe(1);
   });
 
   it("adds snapshot-native assertion candidates when using default assertion source", async () => {
@@ -447,6 +729,7 @@ describe("improve apply runtime replay", () => {
 
     vi.mocked(chromium.launch).mockResolvedValueOnce({
       newContext: vi.fn(async () => ({
+        addInitScript: vi.fn(async () => {}),
         newPage: vi.fn(async () => ({
           url: () => "about:blank",
           goto: vi.fn(async () => {}),
@@ -455,7 +738,7 @@ describe("improve apply runtime replay", () => {
             ariaSnapshot: ariaSnapshotMock,
           })),
         })),
-        addInitScript: vi.fn(async () => {}),
+        close: vi.fn(async () => {}),
       })),
       close: vi.fn(async () => {}),
     } as any);
@@ -753,7 +1036,7 @@ describe("improve apply runtime replay", () => {
     expect(saved).toContain("action: assertVisible");
   });
 
-  it("applies snapshot assertVisible candidates in apply mode", async () => {
+  it("keeps snapshot assertVisible candidates report-only in apply mode", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-policy-"));
     tempDirs.push(dir);
 
@@ -795,10 +1078,16 @@ describe("improve apply runtime replay", () => {
       assertions: "candidates",
     });
 
+    expect(result.report.summary.assertionApplyPolicy).toBe("reliable");
     expect(result.report.summary.assertionCandidates).toBe(1);
-    expect(result.report.summary.appliedAssertions).toBe(1);
-    expect(result.report.summary.skippedAssertions).toBe(0);
-    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("applied");
+    expect(result.report.summary.appliedAssertions).toBe(0);
+    expect(result.report.summary.skippedAssertions).toBe(1);
+    expect(result.report.assertionCandidates[0]?.applyStatus).toBe("skipped_policy");
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "assertion_apply_runtime_failure"
+      )
+    ).toBe(false);
   });
 
 });

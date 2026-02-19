@@ -23,13 +23,14 @@ Current enforced thresholds from `vitest.config.ts`:
 
 - Unit tests cover parser, schema validation, and player helpers (`resolveLocator`, `resolveNavigateUrl`, `stepDescription`).
 - Integration tests validate full `play()` execution with a real browser and dynamic localhost fixture server.
+- Improve integration coverage includes a volatile-news acceptance benchmark that asserts brittle exact headline locators are repaired and replay passes post-improve.
 - Function coverage remains a strict gate at 100% for the covered modules.
 
 ## Coverage Exclusions
 
 The following files are excluded from coverage requirements:
 - `src/bin/**` - CLI entry point
-- `src/commands/**` - Command implementations (tested manually)
+- `src/commands/**` - Command implementations (covered by targeted tests, but excluded from threshold enforcement)
 - `src/core/recorder.ts` - Interactive Playwright codegen wrapper with spawned subprocesses
 - `src/utils/ui.ts` - Display formatting utility
 

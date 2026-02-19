@@ -35,12 +35,16 @@ export const assertionCandidateSourceSchema = z.enum([
   "snapshot_native",
 ]);
 
+export const assertionApplyPolicySchema = z.enum(["reliable", "aggressive"]);
+
 export const assertionCandidateSchema = z.object({
   index: z.number().int().nonnegative(),
   afterAction: z.string().min(1),
   candidate: stepSchema,
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(1),
+  stabilityScore: z.number().min(0).max(1).optional(),
+  volatilityFlags: z.array(z.string()).optional(),
   candidateSource: assertionCandidateSourceSchema.optional(),
   applyStatus: assertionApplyStatusSchema.optional(),
   applyMessage: z.string().min(1).optional(),
@@ -54,6 +58,12 @@ export const improveSummarySchema = z.object({
   assertionCandidates: z.number().int().nonnegative(),
   appliedAssertions: z.number().int().nonnegative(),
   skippedAssertions: z.number().int().nonnegative(),
+  selectorRepairCandidates: z.number().int().nonnegative().optional(),
+  selectorRepairsApplied: z.number().int().nonnegative().optional(),
+  runtimeFailingStepsOptionalized: z.number().int().nonnegative().optional(),
+  runtimeFailingStepsRemoved: z.number().int().nonnegative().optional(),
+  assertionCandidatesFilteredVolatile: z.number().int().nonnegative().optional(),
+  assertionApplyPolicy: assertionApplyPolicySchema.optional(),
   assertionApplyStatusCounts: z
     .partialRecord(assertionApplyStatusSchema, z.number().int().nonnegative())
     .optional(),
@@ -77,6 +87,7 @@ export type ImproveDiagnostic = z.infer<typeof improveDiagnosticSchema>;
 export type StepFinding = z.infer<typeof stepFindingSchema>;
 export type AssertionApplyStatus = z.infer<typeof assertionApplyStatusSchema>;
 export type AssertionCandidateSource = z.infer<typeof assertionCandidateSourceSchema>;
+export type AssertionApplyPolicy = z.infer<typeof assertionApplyPolicySchema>;
 export type AssertionCandidate = z.infer<typeof assertionCandidateSchema>;
 export type ImproveSummary = z.infer<typeof improveSummarySchema>;
 export type ImproveReport = z.infer<typeof improveReportSchema>;

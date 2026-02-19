@@ -15,6 +15,12 @@ describe("improveReportSchema", () => {
         assertionCandidates: 2,
         appliedAssertions: 1,
         skippedAssertions: 1,
+        selectorRepairCandidates: 3,
+        selectorRepairsApplied: 1,
+        runtimeFailingStepsOptionalized: 2,
+        runtimeFailingStepsRemoved: 1,
+        assertionCandidatesFilteredVolatile: 1,
+        assertionApplyPolicy: "reliable",
         assertionApplyStatusCounts: {
           applied: 1,
           skipped_policy: 1,
@@ -34,6 +40,8 @@ describe("improveReportSchema", () => {
             target: { value: "#status", kind: "css", source: "manual" },
           },
           confidence: 0.9,
+          stabilityScore: 0.91,
+          volatilityFlags: [],
           rationale: "High confidence state check",
           candidateSource: "deterministic",
           applyStatus: "applied",
@@ -46,6 +54,8 @@ describe("improveReportSchema", () => {
             target: { value: "#toast", kind: "css", source: "manual" },
           },
           confidence: 0.5,
+          stabilityScore: 0.32,
+          volatilityFlags: ["contains_numeric_fragment"],
           rationale: "Policy-capped state check",
           candidateSource: "snapshot_native",
           applyStatus: "skipped_policy",
@@ -56,6 +66,10 @@ describe("improveReportSchema", () => {
     });
 
     expect(parsed.summary.appliedAssertions).toBe(1);
+    expect(parsed.summary.assertionApplyPolicy).toBe("reliable");
+    expect(parsed.summary.selectorRepairCandidates).toBe(3);
+    expect(parsed.summary.runtimeFailingStepsOptionalized).toBe(2);
+    expect(parsed.summary.assertionCandidatesFilteredVolatile).toBe(1);
     expect(parsed.summary.assertionApplyStatusCounts?.applied).toBe(1);
     expect(parsed.summary.assertionCandidateSourceCounts?.snapshot_native).toBe(1);
     expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");

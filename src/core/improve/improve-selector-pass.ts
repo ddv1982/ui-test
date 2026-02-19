@@ -4,7 +4,7 @@ import {
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
   waitForPostStepNetworkIdle,
 } from "../runtime/network-idle.js";
-import type { Step } from "../yaml-schema.js";
+import type { Step, Target } from "../yaml-schema.js";
 import type { StepSnapshot } from "./assertion-candidates-snapshot.js";
 import { generateAriaTargetCandidates } from "./candidate-generator-aria.js";
 import { generateTargetCandidates } from "./candidate-generator.js";
@@ -18,12 +18,15 @@ import {
   DEFAULT_SCORING_TIMEOUT_MS,
 } from "./improve-types.js";
 import type { ImproveDiagnostic, StepFinding } from "./report-schema.js";
+import { analyzeAndBuildLocatorRepairCandidates } from "./locator-repair.js";
 
 export interface SelectorPassResult {
   outputSteps: Step[];
   findings: StepFinding[];
   nativeStepSnapshots: StepSnapshot[];
   failedStepIndexes: number[];
+  selectorRepairCandidates: number;
+  selectorRepairsApplied: number;
 }
 
 export async function runImproveSelectorPass(input: {
@@ -39,6 +42,8 @@ export async function runImproveSelectorPass(input: {
   const findings: StepFinding[] = [];
   const nativeStepSnapshots: StepSnapshot[] = [];
   const failedStepIndexes: number[] = [];
+  let selectorRepairCandidates = 0;
+  let selectorRepairsApplied = 0;
 
   for (let index = 0; index < outputSteps.length; index += 1) {
     const step = outputSteps[index];
@@ -48,6 +53,22 @@ export async function runImproveSelectorPass(input: {
 
     if (step.action !== "navigate") {
       const candidates = generateTargetCandidates(step.target);
+      const existingCandidateKeys = new Set(
+        candidates.map((candidate) => selectorTargetKey(candidate.target))
+      );
+
+      const repairAnalysis = analyzeAndBuildLocatorRepairCandidates({
+        target: step.target,
+        stepNumber: originalIndex + 1,
+      });
+      input.diagnostics.push(...repairAnalysis.diagnostics);
+      for (const candidate of repairAnalysis.candidates) {
+        const key = selectorTargetKey(candidate.target);
+        if (existingCandidateKeys.has(key)) continue;
+        existingCandidateKeys.add(key);
+        candidates.push(candidate);
+        selectorRepairCandidates += 1;
+      }
 
       if (input.page) {
         const existingValues = new Set(candidates.map((candidate) => candidate.target.value));
@@ -109,6 +130,15 @@ export async function runImproveSelectorPass(input: {
       });
 
       if (input.applySelectors && adopt) {
+        if (selected.reasonCodes.some((reasonCode) => reasonCode.startsWith("locator_repair_"))) {
+          selectorRepairsApplied += 1;
+          input.diagnostics.push({
+            code: "selector_repair_applied",
+            level: "info",
+            message:
+              `Step ${originalIndex + 1}: applied selector repair candidate (${selected.reasonCodes.join(", ")}).`,
+          });
+        }
         outputSteps[index] = {
           ...step,
           target: recommendedTarget,
@@ -188,5 +218,16 @@ export async function runImproveSelectorPass(input: {
     findings,
     nativeStepSnapshots,
     failedStepIndexes,
+    selectorRepairCandidates,
+    selectorRepairsApplied,
   };
+}
+
+function selectorTargetKey(target: Target): string {
+  return JSON.stringify({
+    value: target.value,
+    kind: target.kind,
+    source: target.source,
+    framePath: target.framePath ?? [],
+  });
 }

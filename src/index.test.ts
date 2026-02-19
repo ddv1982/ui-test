@@ -19,7 +19,7 @@ describe("CLI command registration", () => {
     expect(commandNames).not.toContain("bootstrap");
   });
 
-  it("rejects legacy bootstrap command", async () => {
+  it("rejects deprecated bootstrap command", async () => {
     const program = createProgram();
     program.exitOverride();
 

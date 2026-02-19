@@ -34,6 +34,8 @@ ui-test improve e2e/login.yaml --no-apply
 
 `--no-apply` writes a JSON report and does not modify YAML. Useful in CI pipelines where interactive prompts are not available.
 
+In report-only runs (`--no-apply`), assertion candidates keep `applyStatus: not_requested`, including candidates that would be policy-capped or volatility-filtered in apply mode.
+
 Before/after example — a CSS selector upgraded to a semantic locator:
 
 ```yaml
@@ -81,16 +83,17 @@ ui-test improve e2e/login.yaml --assertions none
 
 These rules govern how assertions are inserted:
 
-1. At most two assertions per source step; additional candidates are reported as `skipped_policy`.
-2. Snapshot `assertVisible` and `assertText` candidates can be auto-inserted after runtime validation.
-3. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
-4. Existing adjacent assertions are preserved (no automatic cleanup).
-5. Interaction steps that fail at runtime are removed from the test file. Cookie banners and similar transient elements are handled automatically during playback.
-6. `optional: true` is no longer supported in YAML steps. Remove this field from existing tests.
+1. In apply mode, at most one assertion per source step; additional candidates are reported as `skipped_policy`.
+2. In apply mode, snapshot `assertVisible` is report-only and never auto-inserted (`skipped_policy`).
+3. Snapshot `assertText` can be auto-inserted after runtime validation.
+4. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
+5. Existing adjacent assertions are preserved (no automatic cleanup).
+6. Applied assertions are marked `optional: true` so they don't hard-fail tests when page content changes.
+7. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are safeguarded and kept as `optional: true`.
 
 ### Auto-Improve After Recording
 
-After recording, `ui-test record` automatically runs `improve` to upgrade selectors, add assertion candidates, and remove transient steps that fail at runtime. Use `--no-improve` to skip this:
+After recording, `ui-test record` automatically runs `improve` to upgrade selectors, add assertion candidates, and classify runtime-failing interactions (aggressively remove transient dismissal/control `click`/`press` failures, optionalize non-transient and safeguarded content/business interactions). Use `--no-improve` to skip this:
 
 ```bash
 ui-test record --name login --url https://example.com --no-improve
@@ -127,6 +130,14 @@ These candidates are scored alongside syntactic candidates and adopted when they
 
 The report includes step-level old/recommended targets, confidence scores, assertion candidates, and diagnostics.
 
+The summary includes:
+
+- `selectorRepairCandidates`
+- `selectorRepairsApplied`
+- `runtimeFailingStepsOptionalized`
+- `runtimeFailingStepsRemoved`
+- `assertionCandidatesFilteredVolatile`
+
 Each assertion candidate has an `applyStatus`:
 
 | Status | Meaning |
@@ -134,9 +145,9 @@ Each assertion candidate has an `applyStatus`:
 | `applied` | Written to YAML |
 | `skipped_low_confidence` | Below confidence threshold |
 | `skipped_runtime_failure` | Failed runtime validation |
-| `skipped_policy` | Not auto-inserted per policy (e.g. `assertVisible`, or extra assertions beyond one-per-step) |
+| `skipped_policy` | Apply-mode policy skip (for example `assertVisible`, or extra assertions beyond one-per-step) |
 | `skipped_existing` | Step already has an assertion |
-| `not_requested` | Assertions mode was `none` |
+| `not_requested` | Report-only run (`--no-apply`): candidate was generated but not considered for apply/validation |
 
 Default report path: `<test-file>.improve-report.json`
 

@@ -1,5 +1,7 @@
 # Test Suite Design - Comprehensive Coverage
 
+> Historical planning artifact (2026-02-10). This file is not the source of truth for current repo behavior, schema, scripts, or thresholds.
+
 **Date:** 2026-02-10
 **Status:** Approved
 **Coverage Goal:** 80%+ for core modules

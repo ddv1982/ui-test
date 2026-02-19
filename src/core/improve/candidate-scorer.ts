@@ -22,7 +22,7 @@ export async function scoreTargetCandidates(
   const scored: TargetCandidateScore[] = [];
 
   for (const candidate of candidates) {
-    const baseScore = selectorKindScore(candidate.target);
+    const baseScore = selectorKindScore(candidate.target, candidate);
 
     if (!page) {
       scored.push({
@@ -87,7 +87,21 @@ export function shouldAdoptCandidate(
   return suggested.score - current.score >= threshold;
 }
 
-function selectorKindScore(target: Target): number {
+function selectorKindScore(
+  target: Target,
+  candidate: TargetCandidate
+): number {
+  const base = selectorKindScoreByKind(target);
+
+  const hasRepairReason = candidate.reasonCodes.some((reason) =>
+    reason.startsWith("locator_repair_")
+  );
+  if (!hasRepairReason) return base;
+
+  return Math.min(1, base + 0.05);
+}
+
+function selectorKindScoreByKind(target: Target): number {
   switch (target.kind) {
     case "locatorExpression":
       return 1;

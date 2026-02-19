@@ -42,9 +42,11 @@ After the browser is closed, `ui-test` automatically runs `improve` on the new t
 
 - Upgrades selectors to more reliable alternatives
 - Generates assertion candidates (e.g. `assertVisible`, `assertText`)
-- Removes transient steps that fail at runtime
+- Classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, optionalizes non-transient and safeguarded content/business interactions)
 
 The CLI prints a summary of changes. If auto-improve fails, the recording is still saved and you can run `ui-test improve <file> --apply` manually.
+
+Auto-improve runs in apply mode. Policy-capped or policy-filtered assertion candidates are reported as `skipped_policy`; report-only improve runs (`--no-apply`) keep candidates as `not_requested`.
 
 Use `--no-improve` to skip auto-improvement entirely.
 

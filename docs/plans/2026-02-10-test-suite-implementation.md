@@ -1,5 +1,7 @@
 # Test Suite Implementation Plan
 
+> Historical planning artifact (2026-02-10). This file is not the source of truth for current repo behavior, schema, scripts, or thresholds.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement comprehensive test suite with 80%+ coverage using Vitest and hybrid testing approach (unit + integration tests).

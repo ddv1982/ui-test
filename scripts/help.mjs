@@ -36,7 +36,7 @@ const lines = [
   "  ui-test improve --help",
   "  docs/getting-started.md",
   "",
-  "Note: V2 target schema only; legacy selector fields are not supported.",
+  "Note: V2 target schema only; selector-only step fields are not supported.",
 ];
 
 process.stdout.write(`${lines.join("\n")}\n`);

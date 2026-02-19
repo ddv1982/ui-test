@@ -144,7 +144,7 @@ export function quote(value: string): string {
   return `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n")}'`;
 }
 
-function stableTargetKey(target: Target): string {
+export function stableTargetKey(target: Target): string {
   return JSON.stringify({
     value: target.value,
     kind: target.kind,

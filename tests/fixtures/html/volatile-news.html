@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Volatile News Fixture</title>
+  </head>
+  <body>
+    <main>
+      <h1>Nieuws</h1>
+      <a id="headline-link" href="#article"
+        >Schiphol vluchten winterweer update 13:15</a
+      >
+      <article id="article" hidden>
+        <h2>Article</h2>
+        <p>Local acceptance fixture for locator repair validation.</p>
+      </article>
+    </main>
+
+    <script>
+      const link = document.getElementById("headline-link");
+      const article = document.getElementById("article");
+      if (link && article) {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          article.hidden = false;
+        });
+      }
+    </script>
+  </body>
+</html>

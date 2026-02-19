@@ -19,6 +19,11 @@ import {
   buildOriginalToRuntimeIndex,
   dedupeAssertionCandidates,
 } from "./improve-helpers.js";
+import {
+  assessAssertionCandidateStability,
+  clampSmartSnapshotCandidateVolume,
+  shouldFilterVolatileSnapshotTextCandidate,
+} from "./assertion-stability.js";
 import type {
   AssertionApplyStatus,
   AssertionCandidate,
@@ -31,6 +36,7 @@ export interface AssertionPassResult {
   assertionCandidates: AssertionCandidate[];
   appliedAssertions: number;
   skippedAssertions: number;
+  filteredVolatileCandidates: number;
 }
 
 export async function runImproveAssertionPass(input: {
@@ -91,20 +97,73 @@ export async function runImproveAssertionPass(input: {
     }
   }
 
+  rawAssertionCandidates = rawAssertionCandidates.map((candidate) => ({
+    ...candidate,
+    ...assessAssertionCandidateStability(candidate),
+  }));
+
+  const cappedSnapshotCandidateIndexes = clampSmartSnapshotCandidateVolume(
+    rawAssertionCandidates
+  );
+
   let assertionCandidates: AssertionCandidate[] = rawAssertionCandidates.map((candidate) => ({
     ...candidate,
     applyStatus: "not_requested" as const,
   }));
   let appliedAssertions = 0;
   let skippedAssertions = 0;
+  let filteredVolatileCandidates = 0;
 
   if (input.applyAssertions && input.page) {
+    const forcedPolicyMessages = new Map<number, string>();
+    for (const candidateIndex of cappedSnapshotCandidateIndexes) {
+      forcedPolicyMessages.set(
+        candidateIndex,
+        "Skipped by policy: snapshot candidate cap reached for this source step."
+      );
+    }
+    for (
+      let candidateIndex = 0;
+      candidateIndex < rawAssertionCandidates.length;
+      candidateIndex += 1
+    ) {
+      const candidate = rawAssertionCandidates[candidateIndex];
+      if (!candidate) continue;
+      if (!shouldFilterVolatileSnapshotTextCandidate(candidate)) continue;
+      filteredVolatileCandidates += 1;
+      if (!forcedPolicyMessages.has(candidateIndex)) {
+        forcedPolicyMessages.set(
+          candidateIndex,
+          "Skipped by policy: volatile snapshot text candidate is report-only."
+        );
+      }
+      input.diagnostics.push({
+        code: "assertion_candidate_filtered_volatile",
+        level: "info",
+        message:
+          `Assertion candidate ${candidateIndex + 1} (step ${candidate.index + 1}) was marked volatile and skipped for auto-apply.`,
+      });
+    }
+
     const originalToRuntimeIndex = buildOriginalToRuntimeIndex(
       input.outputStepOriginalIndexes
     );
     const selection = selectCandidatesForApply(
       rawAssertionCandidates,
-      ASSERTION_APPLY_MIN_CONFIDENCE
+      ASSERTION_APPLY_MIN_CONFIDENCE,
+      {
+        perCandidateMinConfidence: (candidate) => {
+          if (candidate.candidateSource !== "snapshot_native") {
+            return ASSERTION_APPLY_MIN_CONFIDENCE;
+          }
+          if (candidate.candidate.action === "assertText") {
+            return 0.86;
+          }
+          return ASSERTION_APPLY_MIN_CONFIDENCE;
+        },
+        forcedPolicyMessages,
+        useStabilityScore: true,
+      }
     );
     const runtimeSelection: AssertionCandidateRef[] = [];
     const unmappedOutcomes: AssertionApplyOutcome[] = [];
@@ -140,6 +199,7 @@ export async function runImproveAssertionPass(input: {
 
     const allOutcomes = [
       ...selection.skippedLowConfidence,
+      ...selection.skippedPolicy,
       ...unmappedOutcomes,
       ...outcomes,
     ];
@@ -185,7 +245,7 @@ export async function runImproveAssertionPass(input: {
         }
         return {
           sourceIndex: runtimeIndex,
-          assertionStep: { ...candidate.candidate },
+          assertionStep: { ...candidate.candidate, optional: true },
         };
       });
 
@@ -211,5 +271,6 @@ export async function runImproveAssertionPass(input: {
     assertionCandidates,
     appliedAssertions,
     skippedAssertions,
+    filteredVolatileCandidates,
   };
 }

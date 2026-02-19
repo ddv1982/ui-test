@@ -10,7 +10,7 @@ import type {
   AssertionCandidate,
 } from "./report-schema.js";
 
-const MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP = 2;
+const MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP = 1;
 
 export interface AssertionCandidateRef {
   candidateIndex: number;
@@ -34,21 +34,55 @@ export interface AssertionInsertion {
   assertionStep: Step;
 }
 
+export interface SelectCandidatesForApplyOptions {
+  perCandidateMinConfidence?: (candidate: AssertionCandidate) => number;
+  forcedPolicyMessages?: Map<number, string>;
+  useStabilityScore?: boolean;
+}
+
 export function selectCandidatesForApply(
   candidates: AssertionCandidate[],
-  minConfidence: number
+  minConfidence: number,
+  options?: SelectCandidatesForApplyOptions
 ): {
   selected: AssertionCandidateRef[];
   skippedLowConfidence: AssertionApplyOutcome[];
+  skippedPolicy: AssertionApplyOutcome[];
 } {
   const selected: AssertionCandidateRef[] = [];
   const skippedLowConfidence: AssertionApplyOutcome[] = [];
+  const skippedPolicy: AssertionApplyOutcome[] = [];
 
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
     const candidate = candidates[candidateIndex];
     if (!candidate) continue;
 
-    if (candidate.confidence >= minConfidence) {
+    const forcedPolicyMessage = options?.forcedPolicyMessages?.get(candidateIndex);
+    if (forcedPolicyMessage) {
+      skippedPolicy.push({
+        candidateIndex,
+        applyStatus: "skipped_policy",
+        applyMessage: forcedPolicyMessage,
+      });
+      continue;
+    }
+
+    if (!isAutoApplyAllowedByPolicy(candidate)) {
+      skippedPolicy.push({
+        candidateIndex,
+        applyStatus: "skipped_policy",
+        applyMessage: "Skipped by policy (reliable): snapshot-derived assertVisible candidates are report-only.",
+      });
+      continue;
+    }
+
+    const threshold = options?.perCandidateMinConfidence?.(candidate) ?? minConfidence;
+    const confidenceValue =
+      options?.useStabilityScore === true
+        ? candidate.stabilityScore ?? candidate.confidence
+        : candidate.confidence;
+
+    if (confidenceValue >= threshold) {
       selected.push({ candidateIndex, candidate });
       continue;
     }
@@ -56,11 +90,12 @@ export function selectCandidatesForApply(
     skippedLowConfidence.push({
       candidateIndex,
       applyStatus: "skipped_low_confidence",
-      applyMessage: `Candidate confidence ${candidate.confidence.toFixed(3)} is below threshold ${minConfidence.toFixed(3)}.`,
+      applyMessage:
+        `Candidate score ${confidenceValue.toFixed(3)} is below threshold ${threshold.toFixed(3)}.`,
     });
   }
 
-  return { selected, skippedLowConfidence };
+  return { selected, skippedLowConfidence, skippedPolicy };
 }
 
 export async function validateCandidatesAgainstRuntime(
@@ -149,7 +184,7 @@ export async function validateCandidatesAgainstRuntime(
           candidateIndex: candidateRef.candidateIndex,
           applyStatus: "skipped_policy",
           applyMessage:
-            `Skipped by policy: max ${MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP} applied assertions per source step.`,
+            `Skipped by policy: max ${MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP} applied assertion per source step.`,
         });
         continue;
       }
@@ -307,3 +342,15 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
   }
 }
 
+function isAutoApplyAllowedByPolicy(
+  candidate: AssertionCandidate
+): boolean {
+  if (
+    candidate.candidateSource === "snapshot_native" &&
+    candidate.candidate.action === "assertVisible"
+  ) {
+    return false;
+  }
+
+  return true;
+}

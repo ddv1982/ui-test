@@ -121,10 +121,23 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       const removedSteps = improveResult.report.diagnostics.filter(
         (d) => d.code === "runtime_failing_step_removed"
       ).length;
+      const optionalizedSteps = improveResult.report.diagnostics.filter(
+        (d) => d.code === "runtime_failing_step_marked_optional"
+      ).length;
 
       const parts: string[] = [];
       if (summary.improved > 0) parts.push(summary.improved + " selectors improved");
+      if ((summary.selectorRepairsApplied ?? 0) > 0) {
+        parts.push((summary.selectorRepairsApplied ?? 0) + " selector repairs applied");
+      }
       if (summary.appliedAssertions > 0) parts.push(summary.appliedAssertions + " assertions applied");
+      if ((summary.assertionCandidatesFilteredVolatile ?? 0) > 0) {
+        parts.push(
+          (summary.assertionCandidatesFilteredVolatile ?? 0) +
+            " volatile assertion candidates filtered"
+        );
+      }
+      if (optionalizedSteps > 0) parts.push(optionalizedSteps + " failing steps optionalized");
       if (removedSteps > 0) parts.push(removedSteps + " transient steps removed");
 
       if (parts.length > 0) {

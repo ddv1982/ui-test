@@ -87,7 +87,52 @@ describe("assertion apply helpers", () => {
     expect(out.skippedLowConfidence[0]?.applyStatus).toBe("skipped_low_confidence");
   });
 
-  it("selects snapshot-derived assertVisible candidates for apply", () => {
+  it("supports per-candidate thresholds, forced policy, and stability-score selection", () => {
+    const out = selectCandidatesForApply(
+      [
+        {
+          index: 0,
+          afterAction: "click",
+          candidate: {
+            action: "assertText",
+            target: { value: "#status", kind: "css", source: "manual" },
+            text: "Winterweer update",
+          },
+          confidence: 0.99,
+          stabilityScore: 0.61,
+          rationale: "volatile text",
+          candidateSource: "snapshot_native",
+        },
+        {
+          index: 1,
+          afterAction: "fill",
+          candidate: {
+            action: "assertValue",
+            target: { value: "#name", kind: "css", source: "manual" },
+            value: "Alice",
+          },
+          confidence: 0.76,
+          stabilityScore: 0.9,
+          rationale: "stable form value",
+          candidateSource: "deterministic",
+        },
+      ],
+      0.75,
+      {
+        useStabilityScore: true,
+        perCandidateMinConfidence: (candidate) =>
+          candidate.candidateSource === "snapshot_native" ? 0.86 : 0.75,
+        forcedPolicyMessages: new Map([[0, "forced-policy"]]),
+      }
+    );
+
+    expect(out.selected).toHaveLength(1);
+    expect(out.selected[0]?.candidateIndex).toBe(1);
+    expect(out.skippedPolicy).toHaveLength(1);
+    expect(out.skippedPolicy[0]?.applyMessage).toBe("forced-policy");
+  });
+
+  it("marks snapshot-derived assertVisible candidates as skipped_policy during selection", () => {
     const out = selectCandidatesForApply(
       [
         {
@@ -117,9 +162,10 @@ describe("assertion apply helpers", () => {
       0.75
     );
 
-    expect(out.selected).toHaveLength(2);
-    expect(out.selected[0]?.candidate.candidate.action).toBe("assertVisible");
-    expect(out.selected[1]?.candidate.candidate.action).toBe("assertText");
+    expect(out.selected).toHaveLength(1);
+    expect(out.selected[0]?.candidate.candidate.action).toBe("assertText");
+    expect(out.skippedPolicy).toHaveLength(1);
+    expect(out.skippedPolicy[0]?.applyStatus).toBe("skipped_policy");
   });
 
   it("inserts applied assertions with stable offsets", () => {
@@ -267,7 +313,7 @@ describe("assertion apply helpers", () => {
     expect(waitForPostStepNetworkIdleMock).toHaveBeenCalledWith(expect.anything(), true);
   });
 
-  it("applies both candidates when confidence is tied and max per step allows it", async () => {
+  it("prefers higher-priority assertion action when confidence is tied", async () => {
     executeRuntimeStepMock.mockResolvedValue(undefined);
 
     const outcomes = await validateCandidatesAgainstRuntime(
@@ -307,11 +353,13 @@ describe("assertion apply helpers", () => {
       { timeout: 1000 }
     );
 
-    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertValue");
   });
 
-  it("applies both candidates from different sources when confidence and action are tied", async () => {
+  it("prefers deterministic source when confidence and action are tied", async () => {
     executeRuntimeStepMock.mockResolvedValue(undefined);
 
     const outcomes = await validateCandidatesAgainstRuntime(
@@ -350,11 +398,16 @@ describe("assertion apply helpers", () => {
       { timeout: 1000 }
     );
 
-    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertVisible");
+    if (firstAppliedStep.action === "assertVisible") {
+      expect(firstAppliedStep.target.value).toBe("#from-deterministic");
+    }
   });
 
-  it("applies both tied candidates when max per step allows it", async () => {
+  it("uses candidate index as stable tie-breaker when confidence, action, and source are tied", async () => {
     executeRuntimeStepMock.mockResolvedValue(undefined);
 
     const outcomes = await validateCandidatesAgainstRuntime(
@@ -394,10 +447,15 @@ describe("assertion apply helpers", () => {
     );
 
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
-    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertVisible");
+    if (firstAppliedStep.action === "assertVisible") {
+      expect(firstAppliedStep.target.value).toBe("#first");
+    }
   });
 
-  it("caps successful apply to two assertions per source step", async () => {
+  it("caps successful apply to one assertion per source step", async () => {
     executeRuntimeStepMock.mockResolvedValue(undefined);
 
     const outcomes = await validateCandidatesAgainstRuntime(
@@ -433,28 +491,14 @@ describe("assertion apply helpers", () => {
             candidateSource: "snapshot_native",
           },
         },
-        {
-          candidateIndex: 2,
-          candidate: {
-            index: 0,
-            afterAction: "click",
-            candidate: {
-              action: "assertVisible",
-              target: { value: "#extra", kind: "css", source: "manual" },
-            },
-            confidence: 0.85,
-            rationale: "third candidate exceeds max",
-            candidateSource: "snapshot_native",
-          },
-        },
       ],
       { timeout: 1000 }
     );
 
-    expect(outcomes).toHaveLength(3);
+    expect(outcomes).toHaveLength(2);
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
-    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
-    expect(outcomes.find((item) => item.candidateIndex === 2)?.applyStatus).toBe("skipped_policy");
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("skipped_policy");
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(2);
   });
 
   it("skips validation for a step when post-step network idle times out", async () => {

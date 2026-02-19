@@ -30,7 +30,7 @@ All command examples below use global `ui-test`.
 | `ui-test setup` | Onboarding and provisioning helper |
 | `ui-test play [test]` | Run one YAML test or all tests |
 | `ui-test record` | Record browser interactions into YAML |
-| `ui-test improve <file>` | Improve selectors and add assertions |
+| `ui-test improve <file>` | Improve selectors, add assertions, classify runtime-failing steps |
 | `ui-test list` | List discovered tests |
 | `ui-test doctor` | Show invocation/version diagnostics |
 

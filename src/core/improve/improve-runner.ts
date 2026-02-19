@@ -16,6 +16,7 @@ import {
 } from "./improve-helpers.js";
 import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 import { runImproveSelectorPass } from "./improve-selector-pass.js";
+import { classifyRuntimeFailingStep } from "./runtime-failure-classifier.js";
 import {
   type ImproveAssertionSource,
   type ImproveOptions,
@@ -107,46 +108,74 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       diagnostics,
     });
 
-    const failedIndexesToRemove = new Set(
-      selectorPass.failedStepIndexes.filter((index) => {
+    const failedIndexesToRemove = new Set<number>();
+    const failedIndexesToOptionalize = new Set<number>();
+    if (wantsWrite) {
+      for (const index of selectorPass.failedStepIndexes) {
         const step = selectorPass.outputSteps[index];
-        return step && step.action !== "navigate";
-      })
-    );
+        if (!step || step.action === "navigate") continue;
+
+        const classification = classifyRuntimeFailingStep(step);
+        const originalIndex = outputStepOriginalIndexes[index] ?? index;
+        if (classification.disposition === "remove") {
+          failedIndexesToRemove.add(index);
+          diagnostics.push({
+            code: "runtime_failing_step_removed",
+            level: "info",
+            message:
+              `Step ${originalIndex + 1}: removed because it failed at runtime (${classification.reason}).`,
+          });
+          continue;
+        }
+
+        failedIndexesToOptionalize.add(index);
+        diagnostics.push({
+          code: "runtime_failing_step_marked_optional",
+          level: "info",
+          message:
+            `Step ${originalIndex + 1}: kept as optional because it failed at runtime (${classification.reason}).`,
+        });
+      }
+    }
 
     let postRemovalOutputSteps = selectorPass.outputSteps;
     let postRemovalOriginalIndexes = outputStepOriginalIndexes;
     let postRemovalSnapshots = selectorPass.nativeStepSnapshots;
 
-    if (wantsWrite && failedIndexesToRemove.size > 0) {
-      for (const index of failedIndexesToRemove) {
-        const originalIndex = outputStepOriginalIndexes[index] ?? index;
-        diagnostics.push({
-          code: "runtime_failing_step_removed",
-          level: "info",
-          message: `Step ${originalIndex + 1}: removed because it failed at runtime.`,
-        });
+    if (wantsWrite) {
+      if (failedIndexesToOptionalize.size > 0) {
+        postRemovalOutputSteps = [...selectorPass.outputSteps];
+        for (const index of failedIndexesToOptionalize) {
+          const step = postRemovalOutputSteps[index];
+          if (!step || step.action === "navigate") continue;
+          postRemovalOutputSteps[index] = {
+            ...step,
+            optional: true,
+          };
+        }
       }
 
-      // Splice steps in reverse order to preserve earlier indexes
-      const sortedRemoveIndexes = [...failedIndexesToRemove].sort((a, b) => b - a);
-      postRemovalOutputSteps = [...selectorPass.outputSteps];
-      for (const idx of sortedRemoveIndexes) {
-        postRemovalOutputSteps.splice(idx, 1);
+      if (failedIndexesToRemove.size > 0) {
+        // Splice steps in reverse order to preserve earlier indexes
+        const sortedRemoveIndexes = [...failedIndexesToRemove].sort((a, b) => b - a);
+        postRemovalOutputSteps = [...postRemovalOutputSteps];
+        for (const idx of sortedRemoveIndexes) {
+          postRemovalOutputSteps.splice(idx, 1);
+        }
+
+        // Rebuild original-index mapping
+        postRemovalOriginalIndexes = outputStepOriginalIndexes.filter(
+          (_, i) => !failedIndexesToRemove.has(i)
+        );
+
+        // Remap snapshot indexes
+        postRemovalSnapshots = selectorPass.nativeStepSnapshots
+          .filter((s) => !failedIndexesToRemove.has(s.index))
+          .map((s) => {
+            const offset = [...failedIndexesToRemove].filter((r) => r < s.index).length;
+            return { ...s, index: s.index - offset };
+          });
       }
-
-      // Rebuild original-index mapping
-      postRemovalOriginalIndexes = outputStepOriginalIndexes.filter(
-        (_, i) => !failedIndexesToRemove.has(i)
-      );
-
-      // Remap snapshot indexes
-      postRemovalSnapshots = selectorPass.nativeStepSnapshots
-        .filter((s) => !failedIndexesToRemove.has(s.index))
-        .map((s) => {
-          const offset = [...failedIndexesToRemove].filter((r) => r < s.index).length;
-          return { ...s, index: s.index - offset };
-        });
     }
 
     const removedOriginalIndexes = new Set(
@@ -183,6 +212,13 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         assertionCandidates: assertionPass.assertionCandidates.length,
         appliedAssertions: assertionPass.appliedAssertions,
         skippedAssertions: assertionPass.skippedAssertions,
+        selectorRepairCandidates: selectorPass.selectorRepairCandidates ?? 0,
+        selectorRepairsApplied: selectorPass.selectorRepairsApplied ?? 0,
+        runtimeFailingStepsOptionalized: failedIndexesToOptionalize.size,
+        runtimeFailingStepsRemoved: failedIndexesToRemove.size,
+        assertionCandidatesFilteredVolatile:
+          assertionPass.filteredVolatileCandidates ?? 0,
+        assertionApplyPolicy: "reliable",
         assertionApplyStatusCounts: buildAssertionApplyStatusCounts(
           assertionPass.assertionCandidates
         ),

@@ -124,11 +124,11 @@ ui-test play
 
 This opens a browser. Interact with your app, then close the browser to save the recording as a YAML file in the `e2e/` directory.
 
-After recording, `ui-test` automatically improves selectors, adds assertion candidates, and removes transient steps that fail at runtime. Use `--no-improve` to skip this.
+After recording, `ui-test` automatically improves selectors, adds assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, optionalizes non-transient and safeguarded content/business interactions). Use `--no-improve` to skip this.
 
 ## Improve Tests
 
-`improve` upgrades selectors, generates assertion candidates, and removes transient steps that fail at runtime.
+`improve` upgrades selectors, generates assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, optionalizes non-transient and safeguarded content/business interactions).
 
 ```bash
 ui-test improve e2e/login.yaml
@@ -137,6 +137,8 @@ ui-test improve e2e/login.yaml --no-apply
 ```
 
 By default, `improve` prompts you to confirm before applying changes. Use `--apply` to skip the prompt (CI-friendly), or `--no-apply` for a report-only run without prompting.
+
+Apply-mode runs can mark candidates as `skipped_policy` when policy caps/filters are enforced. Report-only runs (`--no-apply`) keep candidate status as `not_requested`.
 
 Control assertion generation with `--assertions`:
 
