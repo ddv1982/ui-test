@@ -112,7 +112,7 @@ These rules govern how assertions are inserted:
 3. Snapshot `assertText` min apply score is policy-driven (`reliable=0.82`, `balanced=0.78`, `aggressive=0.72`).
 4. Volatility hard-filtering is policy-driven and only applied in apply mode.
 5. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
-6. Deterministic coverage fallbacks (`click`/`press`/`hover` -> `assertVisible`) are suppressed in apply mode when a stronger non-fallback candidate exists for the same source step.
+6. Deterministic coverage fallbacks (`click`/`press`/`hover` -> `assertVisible`) remain eligible in apply mode as backup candidates when stronger assertions fail runtime validation.
 7. In `snapshot-native` mode, improve performs gap-only runtime locator inventory harvesting from post-step aria snapshots and adds inventory fallback candidates only for uncovered interaction steps.
 8. Existing adjacent assertions are preserved (no automatic cleanup).
 9. Applied assertions are inserted as required steps (no `optional` field).
@@ -140,8 +140,10 @@ With `--assertion-source deterministic`, auto-apply uses a conservative mapping:
 
 Coverage fallback candidates are always generated, but they remain low priority:
 
-- If a stronger non-fallback candidate exists for the same step, fallback is force-marked `skipped_policy` in apply mode.
-- If fallback is the only candidate for a step, it can proceed through normal policy/runtime validation.
+- Non-fallback candidates are prioritized first by scoring/action policy.
+- Fallbacks still run through normal policy/runtime validation and can apply when higher-priority assertions fail at runtime.
+- Once a non-fallback assertion is applied for a step, remaining fallback candidates for that step are skipped as backup-only.
+- When both are fallback candidates, deterministic fallback is preferred over inventory fallback.
 
 ### Snapshot-Native Inventory Harvesting
 
@@ -184,6 +186,9 @@ The summary includes:
 - `assertionCoverageStepsWithApplied`
 - `assertionCoverageCandidateRate`
 - `assertionCoverageAppliedRate`
+- `assertionFallbackApplied`
+- `assertionFallbackAppliedOnlySteps`
+- `assertionFallbackAppliedWithNonFallbackSteps`
 - `assertionInventoryStepsEvaluated`
 - `assertionInventoryCandidatesAdded`
 - `assertionInventoryGapStepsFilled`

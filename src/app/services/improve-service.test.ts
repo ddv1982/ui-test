@@ -204,6 +204,9 @@ describe("runImprove confirm prompt", () => {
           assertionCoverageStepsWithApplied: 2,
           assertionCoverageCandidateRate: 0.8,
           assertionCoverageAppliedRate: 0.4,
+          assertionFallbackApplied: 1,
+          assertionFallbackAppliedOnlySteps: 1,
+          assertionFallbackAppliedWithNonFallbackSteps: 0,
           assertionInventoryStepsEvaluated: 3,
           assertionInventoryCandidatesAdded: 2,
           assertionInventoryGapStepsFilled: 2,
@@ -227,6 +230,9 @@ describe("runImprove confirm prompt", () => {
             message.includes("assertionCoverageStepsWithApplied=2") &&
             message.includes("assertionCoverageCandidateRate=0.8") &&
             message.includes("assertionCoverageAppliedRate=0.4") &&
+            message.includes("assertionFallbackApplied=1") &&
+            message.includes("assertionFallbackAppliedOnlySteps=1") &&
+            message.includes("assertionFallbackAppliedWithNonFallbackSteps=0") &&
             message.includes("assertionInventoryStepsEvaluated=3") &&
             message.includes("assertionInventoryCandidatesAdded=2") &&
             message.includes("assertionInventoryGapStepsFilled=2")

@@ -26,6 +26,9 @@ describe("improveReportSchema", () => {
         assertionCoverageStepsWithApplied: 2,
         assertionCoverageCandidateRate: 0.75,
         assertionCoverageAppliedRate: 0.5,
+        assertionFallbackApplied: 1,
+        assertionFallbackAppliedOnlySteps: 1,
+        assertionFallbackAppliedWithNonFallbackSteps: 0,
         assertionInventoryStepsEvaluated: 2,
         assertionInventoryCandidatesAdded: 3,
         assertionInventoryGapStepsFilled: 2,
@@ -86,6 +89,9 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.assertionCoverageStepsWithApplied).toBe(2);
     expect(parsed.summary.assertionCoverageCandidateRate).toBe(0.75);
     expect(parsed.summary.assertionCoverageAppliedRate).toBe(0.5);
+    expect(parsed.summary.assertionFallbackApplied).toBe(1);
+    expect(parsed.summary.assertionFallbackAppliedOnlySteps).toBe(1);
+    expect(parsed.summary.assertionFallbackAppliedWithNonFallbackSteps).toBe(0);
     expect(parsed.summary.assertionInventoryStepsEvaluated).toBe(2);
     expect(parsed.summary.assertionInventoryCandidatesAdded).toBe(3);
     expect(parsed.summary.assertionInventoryGapStepsFilled).toBe(2);

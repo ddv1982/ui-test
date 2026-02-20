@@ -443,6 +443,9 @@ describe("improve apply runtime replay", () => {
     expect(result.report.summary.assertionCoverageStepsWithApplied).toBe(0);
     expect(result.report.summary.assertionCoverageCandidateRate).toBe(1);
     expect(result.report.summary.assertionCoverageAppliedRate).toBe(0);
+    expect(result.report.summary.assertionFallbackApplied).toBe(0);
+    expect(result.report.summary.assertionFallbackAppliedOnlySteps).toBe(0);
+    expect(result.report.summary.assertionFallbackAppliedWithNonFallbackSteps).toBe(0);
     expect(result.report.assertionCandidates).toHaveLength(3);
     expect(
       result.report.assertionCandidates.every((candidate) => candidate.coverageFallback === true)
@@ -523,7 +526,7 @@ describe("improve apply runtime replay", () => {
     ).toBe(true);
   });
 
-  it("suppresses fallback apply when a stronger candidate exists on the same step", async () => {
+  it("keeps fallback as backup-only when a stronger candidate exists on the same step", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-fallback-suppression-"));
     tempDirs.push(dir);
 
@@ -588,8 +591,86 @@ describe("improve apply runtime replay", () => {
     );
     expect(fallbackCandidate?.applyStatus).toBe("skipped_policy");
     expect(fallbackCandidate?.applyMessage).toContain(
-      "coverage fallback suppressed because stronger candidate exists"
+      "coverage fallback assertions are backup-only"
     );
+    expect(result.report.summary.assertionFallbackApplied).toBe(0);
+    expect(result.report.summary.assertionFallbackAppliedOnlySteps).toBe(0);
+    expect(result.report.summary.assertionFallbackAppliedWithNonFallbackSteps).toBe(0);
+  });
+
+  it("applies fallback when stronger assertions fail and reports fallback metrics", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-fallback-backup-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#menu"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    executeRuntimeStepMock.mockImplementation(async (_page, step) => {
+      if ((step as { action: string }).action === "assertText") {
+        throw new Error("dynamic text changed");
+      }
+    });
+
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#menu", kind: "css", source: "manual" },
+        },
+        confidence: 0.76,
+        rationale:
+          "Coverage fallback: verify interacted element remains visible after action.",
+        candidateSource: "deterministic",
+        coverageFallback: true,
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertText",
+          target: { value: "#status", kind: "css", source: "manual" },
+          text: "Saved",
+        },
+        confidence: 0.9,
+        rationale: "stronger text candidate",
+        candidateSource: "deterministic",
+      },
+    ]);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionSource: "deterministic",
+      assertionPolicy: "balanced",
+    });
+
+    expect(result.report.summary.appliedAssertions).toBe(1);
+    expect(result.report.summary.assertionFallbackApplied).toBe(1);
+    expect(result.report.summary.assertionFallbackAppliedOnlySteps).toBe(1);
+    expect(result.report.summary.assertionFallbackAppliedWithNonFallbackSteps).toBe(0);
+    expect(
+      result.report.assertionCandidates.find(
+        (candidate) => candidate.coverageFallback === true
+      )?.applyStatus
+    ).toBe("applied");
   });
 
   it("keeps volatile snapshot text candidates report-only", async () => {

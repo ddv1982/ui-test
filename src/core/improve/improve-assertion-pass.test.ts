@@ -71,7 +71,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
     buildSnapshotInventoryAssertionCandidatesMock.mockReturnValue([]);
   });
 
-  it("forces fallback to skipped_policy when stronger candidate exists for the same step", async () => {
+  it("keeps fallback as backup-only when a stronger candidate exists for the same step", async () => {
     buildAssertionCandidatesMock.mockReturnValue(baseCandidates());
 
     const diagnostics: import("./report-schema.js").ImproveDiagnostic[] = [];
@@ -101,7 +101,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
     expect(
       result.assertionCandidates.find((candidate) => candidate.coverageFallback === true)
         ?.applyMessage
-    ).toContain("coverage fallback suppressed because stronger candidate exists");
+    ).toContain("coverage fallback assertions are backup-only");
     expect(
       result.assertionCandidates.find(
         (candidate) => candidate.coverageFallback !== true

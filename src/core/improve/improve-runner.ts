@@ -213,6 +213,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       postRemovalOriginalIndexes,
       assertionPass.assertionCandidates
     );
+    const assertionFallback = buildAssertionFallbackApplySummary(
+      assertionPass.assertionCandidates
+    );
 
     const report: ImproveReport = {
       testFile: absoluteTestPath,
@@ -239,6 +242,10 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         assertionCoverageStepsWithApplied: assertionCoverage.withApplied,
         assertionCoverageCandidateRate: assertionCoverage.candidateRate,
         assertionCoverageAppliedRate: assertionCoverage.appliedRate,
+        assertionFallbackApplied: assertionFallback.applied,
+        assertionFallbackAppliedOnlySteps: assertionFallback.appliedOnlySteps,
+        assertionFallbackAppliedWithNonFallbackSteps:
+          assertionFallback.appliedWithNonFallbackSteps,
         assertionInventoryStepsEvaluated:
           assertionPass.inventoryStepsEvaluated ?? 0,
         assertionInventoryCandidatesAdded:
@@ -330,6 +337,42 @@ function buildAssertionCoverageSummary(
 function roundCoverageRate(value: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((value / total) * 1000) / 1000;
+}
+
+function buildAssertionFallbackApplySummary(candidates: AssertionCandidate[]): {
+  applied: number;
+  appliedOnlySteps: number;
+  appliedWithNonFallbackSteps: number;
+} {
+  const fallbackAppliedSteps = new Set<number>();
+  const nonFallbackAppliedSteps = new Set<number>();
+  let applied = 0;
+
+  for (const candidate of candidates) {
+    if (candidate.applyStatus !== "applied") continue;
+    if (candidate.coverageFallback === true) {
+      applied += 1;
+      fallbackAppliedSteps.add(candidate.index);
+      continue;
+    }
+    nonFallbackAppliedSteps.add(candidate.index);
+  }
+
+  let appliedOnlySteps = 0;
+  let appliedWithNonFallbackSteps = 0;
+  for (const stepIndex of fallbackAppliedSteps) {
+    if (nonFallbackAppliedSteps.has(stepIndex)) {
+      appliedWithNonFallbackSteps += 1;
+      continue;
+    }
+    appliedOnlySteps += 1;
+  }
+
+  return {
+    applied,
+    appliedOnlySteps,
+    appliedWithNonFallbackSteps,
+  };
 }
 
 async function launchImproveBrowser(): Promise<{ browser: Browser; page: Page }> {

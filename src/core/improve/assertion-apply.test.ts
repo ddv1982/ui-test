@@ -567,6 +567,59 @@ describe("assertion apply helpers", () => {
     }
   });
 
+  it("prefers deterministic coverage fallback over inventory fallback for the same step", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#inventory", kind: "css", source: "manual" },
+            },
+            confidence: 0.91,
+            rationale: "inventory fallback",
+            candidateSource: "snapshot_native",
+            coverageFallback: true,
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#interacted", kind: "css", source: "manual" },
+            },
+            confidence: 0.76,
+            rationale: "deterministic coverage fallback",
+            candidateSource: "deterministic",
+            coverageFallback: true,
+          },
+        },
+      ],
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertVisible");
+    if (firstAppliedStep.action === "assertVisible") {
+      expect(firstAppliedStep.target.value).toBe("#interacted");
+    }
+  });
+
   it("uses candidate index as stable tie-breaker when confidence, action, and source are tied", async () => {
     executeRuntimeStepMock.mockResolvedValue(undefined);
 
@@ -728,6 +781,111 @@ describe("assertion apply helpers", () => {
     expect(outcomes).toHaveLength(3);
     expect(outcomes.filter((item) => item.applyStatus === "applied")).toHaveLength(2);
     expect(outcomes.filter((item) => item.applyStatus === "skipped_policy")).toHaveLength(1);
+  });
+
+  it("treats coverage fallback assertions as backup-only once a stronger assertion applies", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertText",
+              target: { value: "#status", kind: "css", source: "manual" },
+              text: "Saved",
+            },
+            confidence: 0.9,
+            rationale: "stronger text assertion",
+            candidateSource: "snapshot_native",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#save", kind: "css", source: "manual" },
+            },
+            confidence: 0.76,
+            rationale: "deterministic coverage fallback",
+            candidateSource: "deterministic",
+            coverageFallback: true,
+          },
+        },
+      ],
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.balanced,
+      }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("skipped_policy");
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyMessage).toContain(
+      "coverage fallback assertions are backup-only"
+    );
+  });
+
+  it("applies coverage fallback when stronger assertion fails runtime validation", async () => {
+    executeRuntimeStepMock.mockImplementation(async (_page, step) => {
+      if ((step as Step).action === "assertText") {
+        throw new Error("text not stable");
+      }
+    });
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertText",
+              target: { value: "#status", kind: "css", source: "manual" },
+              text: "Saved",
+            },
+            confidence: 0.9,
+            rationale: "stronger text assertion",
+            candidateSource: "snapshot_native",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#save", kind: "css", source: "manual" },
+            },
+            confidence: 0.76,
+            rationale: "deterministic coverage fallback",
+            candidateSource: "deterministic",
+            coverageFallback: true,
+          },
+        },
+      ],
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.balanced,
+      }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe(
+      "skipped_runtime_failure"
+    );
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
   });
 
   it("skips validation for a step when post-step network idle times out", async () => {

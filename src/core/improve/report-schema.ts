@@ -75,6 +75,13 @@ export const improveSummarySchema = z.object({
   assertionCoverageStepsWithApplied: z.number().int().nonnegative().optional(),
   assertionCoverageCandidateRate: z.number().min(0).max(1).optional(),
   assertionCoverageAppliedRate: z.number().min(0).max(1).optional(),
+  assertionFallbackApplied: z.number().int().nonnegative().optional(),
+  assertionFallbackAppliedOnlySteps: z.number().int().nonnegative().optional(),
+  assertionFallbackAppliedWithNonFallbackSteps: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional(),
   assertionInventoryStepsEvaluated: z.number().int().nonnegative().optional(),
   assertionInventoryCandidatesAdded: z.number().int().nonnegative().optional(),
   assertionInventoryGapStepsFilled: z.number().int().nonnegative().optional(),

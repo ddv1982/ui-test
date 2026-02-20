@@ -191,6 +191,7 @@ export async function validateCandidatesAgainstRuntime(
 
     const stepCandidates = candidatesByStepIndex.get(index) ?? [];
     let appliedForStep = 0;
+    let appliedNonFallbackForStep = false;
     for (const candidateRef of stepCandidates) {
       if (appliedForStep >= policyConfig.appliedAssertionsPerStepCap) {
         outcomes.push({
@@ -201,6 +202,18 @@ export async function validateCandidatesAgainstRuntime(
         });
         continue;
       }
+      if (
+        candidateRef.candidate.coverageFallback === true &&
+        appliedNonFallbackForStep
+      ) {
+        outcomes.push({
+          candidateIndex: candidateRef.candidateIndex,
+          applyStatus: "skipped_policy",
+          applyMessage:
+            "Skipped by policy: coverage fallback assertions are backup-only once a stronger assertion is applied for this step.",
+        });
+        continue;
+      }
       try {
         await executeRuntimeStep(page, candidateRef.candidate.candidate, {
           timeout: options.timeout,
@@ -208,6 +221,9 @@ export async function validateCandidatesAgainstRuntime(
           mode: "playback",
         });
         appliedForStep += 1;
+        if (candidateRef.candidate.coverageFallback !== true) {
+          appliedNonFallbackForStep = true;
+        }
         outcomes.push({
           candidateIndex: candidateRef.candidateIndex,
           applyStatus: "applied",
@@ -314,6 +330,17 @@ function compareAssertionCandidateRefs(
   right: AssertionCandidateRef,
   policyConfig: AssertionPolicyConfig
 ): number {
+  const fallbackDelta =
+    coverageFallbackPriority(left.candidate) - coverageFallbackPriority(right.candidate);
+  if (fallbackDelta !== 0) return fallbackDelta;
+
+  if (left.candidate.coverageFallback === true && right.candidate.coverageFallback === true) {
+    const fallbackSourceDelta =
+      candidateSourcePriority(left.candidate.candidateSource) -
+      candidateSourcePriority(right.candidate.candidateSource);
+    if (fallbackSourceDelta !== 0) return fallbackSourceDelta;
+  }
+
   const leftScore = left.candidate.stabilityScore ?? left.candidate.confidence;
   const rightScore = right.candidate.stabilityScore ?? right.candidate.confidence;
   const scoreDelta = rightScore - leftScore;
@@ -355,6 +382,10 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
     default:
       return 2;
   }
+}
+
+function coverageFallbackPriority(candidate: AssertionCandidate): number {
+  return candidate.coverageFallback === true ? 1 : 0;
 }
 
 function isAutoApplyAllowedByPolicy(
