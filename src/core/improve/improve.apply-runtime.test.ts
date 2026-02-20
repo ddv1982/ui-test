@@ -279,6 +279,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.outputPath).toBe(yamlPath);
@@ -381,6 +382,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.report.summary.appliedAssertions).toBe(0);
@@ -431,6 +433,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.report.summary.appliedAssertions).toBe(0);
@@ -508,6 +511,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.report.assertionCandidates).toHaveLength(3);
@@ -641,6 +645,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.report.summary.appliedAssertions).toBe(0);
@@ -705,6 +710,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.report.summary.assertionCandidates).toBe(2);
@@ -881,6 +887,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(
@@ -977,6 +984,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.report.summary.appliedAssertions).toBe(1);
@@ -1038,7 +1046,295 @@ describe("improve apply runtime replay", () => {
     expect(saved).toContain("action: assertVisible");
   });
 
-  it("keeps snapshot assertVisible candidates report-only in apply mode", async () => {
+  it("balanced applies more assertions than reliable for the same candidate set", async () => {
+    const yamlBase = [
+      "name: sample",
+      "steps:",
+      "  - action: navigate",
+      "    url: https://example.com",
+      "  - action: click",
+      "    target:",
+      '      value: "#submit"',
+      "      kind: css",
+      "      source: manual",
+    ].join("\n");
+
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertText",
+          target: {
+            value: "getByRole('heading', { name: 'Saved' })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          text: "Saved",
+        },
+        confidence: 0.9,
+        rationale: "snapshot text candidate",
+        candidateSource: "snapshot_native",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#status", kind: "css", source: "manual" },
+        },
+        confidence: 0.89,
+        rationale: "snapshot visible candidate",
+        candidateSource: "snapshot_native",
+      },
+    ]);
+
+    const reliableDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-policy-reliable-"));
+    const balancedDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-policy-balanced-"));
+    tempDirs.push(reliableDir, balancedDir);
+    const reliableYaml = path.join(reliableDir, "sample.yaml");
+    const balancedYaml = path.join(balancedDir, "sample.yaml");
+    await fs.writeFile(reliableYaml, yamlBase, "utf-8");
+    await fs.writeFile(balancedYaml, yamlBase, "utf-8");
+
+    const reliableResult = await improveTestFile({
+      testFile: reliableYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "reliable",
+    });
+
+    const balancedResult = await improveTestFile({
+      testFile: balancedYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "balanced",
+    });
+
+    expect(reliableResult.report.summary.appliedAssertions).toBe(1);
+    expect(balancedResult.report.summary.appliedAssertions).toBeGreaterThan(
+      reliableResult.report.summary.appliedAssertions
+    );
+  });
+
+  it("balanced does not increase skipped_runtime_failure in a passing baseline scenario", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-policy-failure-baseline-"));
+    tempDirs.push(dir);
+    const reliableYaml = path.join(dir, "reliable.yaml");
+    const balancedYaml = path.join(dir, "balanced.yaml");
+
+    const yamlBase = [
+      "name: sample",
+      "steps:",
+      "  - action: navigate",
+      "    url: https://example.com",
+      "  - action: click",
+      "    target:",
+      '      value: "#submit"',
+      "      kind: css",
+      "      source: manual",
+    ].join("\n");
+    await fs.writeFile(reliableYaml, yamlBase, "utf-8");
+    await fs.writeFile(balancedYaml, yamlBase, "utf-8");
+
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertValue",
+          target: { value: "#name", kind: "css", source: "manual" },
+          value: "Alice",
+        },
+        confidence: 0.95,
+        rationale: "deterministic value",
+        candidateSource: "deterministic",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertText",
+          target: { value: "#status", kind: "css", source: "manual" },
+          text: "Saved",
+        },
+        confidence: 0.9,
+        rationale: "deterministic text",
+        candidateSource: "deterministic",
+      },
+    ]);
+
+    const reliableResult = await improveTestFile({
+      testFile: reliableYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "reliable",
+    });
+    const balancedResult = await improveTestFile({
+      testFile: balancedYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "balanced",
+    });
+
+    const reliableRuntimeFailures = reliableResult.report.assertionCandidates.filter(
+      (candidate) => candidate.applyStatus === "skipped_runtime_failure"
+    ).length;
+    const balancedRuntimeFailures = balancedResult.report.assertionCandidates.filter(
+      (candidate) => candidate.applyStatus === "skipped_runtime_failure"
+    ).length;
+    expect(reliableRuntimeFailures).toBe(0);
+    expect(balancedRuntimeFailures).toBe(0);
+  });
+
+  it("balanced allows runtime-validated snapshot assertVisible while reliable skips it", async () => {
+    const yamlBase = [
+      "name: sample",
+      "steps:",
+      "  - action: navigate",
+      "    url: https://example.com",
+      "  - action: click",
+      "    target:",
+      '      value: "#submit"',
+      "      kind: css",
+      "      source: manual",
+    ].join("\n");
+
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#status", kind: "css", source: "manual" },
+        },
+        confidence: 0.95,
+        rationale: "snapshot visible candidate",
+        candidateSource: "snapshot_native",
+      },
+    ]);
+
+    const reliableDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-visible-reliable-"));
+    const balancedDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-visible-balanced-"));
+    tempDirs.push(reliableDir, balancedDir);
+    const reliableYaml = path.join(reliableDir, "sample.yaml");
+    const balancedYaml = path.join(balancedDir, "sample.yaml");
+    await fs.writeFile(reliableYaml, yamlBase, "utf-8");
+    await fs.writeFile(balancedYaml, yamlBase, "utf-8");
+
+    const reliableResult = await improveTestFile({
+      testFile: reliableYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "reliable",
+    });
+    const balancedResult = await improveTestFile({
+      testFile: balancedYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "balanced",
+    });
+
+    expect(reliableResult.report.assertionCandidates[0]?.applyStatus).toBe("skipped_policy");
+    expect(balancedResult.report.assertionCandidates[0]?.applyStatus).toBe("applied");
+  });
+
+  it("respects per-profile apply caps (reliable=1, balanced=2, aggressive=3)", async () => {
+    const yamlBase = [
+      "name: sample",
+      "steps:",
+      "  - action: navigate",
+      "    url: https://example.com",
+      "  - action: click",
+      "    target:",
+      '      value: "#submit"',
+      "      kind: css",
+      "      source: manual",
+    ].join("\n");
+
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertValue",
+          target: { value: "#name", kind: "css", source: "manual" },
+          value: "Alice",
+        },
+        confidence: 0.95,
+        rationale: "value",
+        candidateSource: "deterministic",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertText",
+          target: { value: "#status", kind: "css", source: "manual" },
+          text: "Saved",
+        },
+        confidence: 0.94,
+        rationale: "text",
+        candidateSource: "deterministic",
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#toast", kind: "css", source: "manual" },
+        },
+        confidence: 0.93,
+        rationale: "visible",
+        candidateSource: "deterministic",
+      },
+    ]);
+
+    const reliableDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cap-reliable-"));
+    const balancedDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cap-balanced-"));
+    const aggressiveDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cap-aggressive-"));
+    tempDirs.push(reliableDir, balancedDir, aggressiveDir);
+    const reliableYaml = path.join(reliableDir, "sample.yaml");
+    const balancedYaml = path.join(balancedDir, "sample.yaml");
+    const aggressiveYaml = path.join(aggressiveDir, "sample.yaml");
+    await fs.writeFile(reliableYaml, yamlBase, "utf-8");
+    await fs.writeFile(balancedYaml, yamlBase, "utf-8");
+    await fs.writeFile(aggressiveYaml, yamlBase, "utf-8");
+
+    const reliableResult = await improveTestFile({
+      testFile: reliableYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "reliable",
+    });
+    const balancedResult = await improveTestFile({
+      testFile: balancedYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "balanced",
+    });
+    const aggressiveResult = await improveTestFile({
+      testFile: aggressiveYaml,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "aggressive",
+    });
+
+    expect(reliableResult.report.summary.appliedAssertions).toBe(1);
+    expect(balancedResult.report.summary.appliedAssertions).toBe(2);
+    expect(aggressiveResult.report.summary.appliedAssertions).toBe(3);
+  });
+
+  it("keeps snapshot assertVisible candidates report-only in reliable apply mode", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-policy-"));
     tempDirs.push(dir);
 
@@ -1078,6 +1374,7 @@ describe("improve apply runtime replay", () => {
       applySelectors: false,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
 
     expect(result.report.summary.assertionApplyPolicy).toBe("reliable");

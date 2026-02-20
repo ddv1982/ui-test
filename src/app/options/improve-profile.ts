@@ -1,19 +1,23 @@
 import type {
   ImproveAssertionsMode,
   ImproveAssertionSource,
+  ImproveAssertionPolicy,
 } from "../../core/improve/improve.js";
+import { DEFAULT_IMPROVE_ASSERTION_POLICY } from "../../core/improve/assertion-policy.js";
 import { UserError } from "../../utils/errors.js";
 
 export interface ImproveProfileInput {
   apply?: boolean;
   assertions?: string;
   assertionSource?: string;
+  assertionPolicy?: string;
   report?: string;
 }
 
 export interface ResolvedImproveProfile {
   assertions: ImproveAssertionsMode;
   assertionSource: ImproveAssertionSource;
+  assertionPolicy: ImproveAssertionPolicy;
   applySelectors: boolean;
   applyAssertions: boolean;
   reportPath?: string;
@@ -28,6 +32,9 @@ export function resolveImproveProfile(
     assertionSource:
       parseImproveAssertionSource(input.assertionSource) ??
       "snapshot-native",
+    assertionPolicy:
+      parseImproveAssertionPolicy(input.assertionPolicy) ??
+      DEFAULT_IMPROVE_ASSERTION_POLICY,
     applySelectors: apply,
     applyAssertions: apply,
     reportPath: input.report,
@@ -56,5 +63,23 @@ export function parseImproveAssertionSource(
   throw new UserError(
     `Invalid assertion source: ${value}`,
     "Use --assertion-source deterministic or --assertion-source snapshot-native"
+  );
+}
+
+export function parseImproveAssertionPolicy(
+  value: string | undefined
+): ImproveAssertionPolicy | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "reliable" ||
+    normalized === "balanced" ||
+    normalized === "aggressive"
+  ) {
+    return normalized;
+  }
+  throw new UserError(
+    `Invalid assertion policy: ${value}`,
+    "Use --assertion-policy reliable, --assertion-policy balanced, or --assertion-policy aggressive"
   );
 }

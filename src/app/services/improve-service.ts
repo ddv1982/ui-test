@@ -15,6 +15,7 @@ export interface ImproveCliOptions {
   apply?: boolean;
   assertions?: string;
   assertionSource?: string;
+  assertionPolicy?: string;
   report?: string;
 }
 
@@ -46,6 +47,7 @@ export async function runImprove(
       applyAssertions: profile.applyAssertions,
       assertions: profile.assertions,
       assertionSource: profile.assertionSource,
+      assertionPolicy: profile.assertionPolicy,
     })
   );
 
@@ -55,6 +57,7 @@ export async function runImprove(
     applyAssertions: profile.applyAssertions,
     assertions: profile.assertions,
     assertionSource: profile.assertionSource,
+    assertionPolicy: profile.assertionPolicy,
     reportPath: profile.reportPath,
   });
 

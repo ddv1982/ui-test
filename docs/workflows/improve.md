@@ -69,6 +69,30 @@ ui-test improve e2e/login.yaml --apply --assertion-source snapshot-native
 ui-test improve e2e/login.yaml --apply --assertion-source deterministic
 ```
 
+### Assertion Policy
+
+`--assertion-policy` controls assertion strictness in apply mode:
+
+| Policy | Behavior |
+|--------|----------|
+| `reliable` | Most conservative: stable-structural snapshot `assertVisible` only, tighter volatility filters, 1 applied assertion per step. |
+| `balanced` (default) | Runtime-validated snapshot `assertVisible` allowed, moderate volatility filters, up to 2 applied assertions per step. |
+| `aggressive` | Highest coverage: runtime-validated snapshot `assertVisible`, light volatility filtering, up to 3 applied assertions per step. |
+
+Exact policy matrix:
+
+| Policy | Applied per-step cap | Snapshot volume cap (`navigate`/other) | Snapshot `assertVisible` | Snapshot `assertText` min score | Volatility hard-filter flags |
+|--------|-----------------------|-----------------------------------------|---------------------------|----------------------------------|-------------------------------|
+| `reliable` | `1` | `1/2` | `stable_structural_only` | `0.82` | `contains_numeric_fragment`, `contains_date_or_time_fragment`, `contains_weather_or_news_fragment`, `long_text`, `contains_headline_like_text`, `contains_pipe_separator` |
+| `balanced` | `2` | `2/3` | `runtime_validated` | `0.78` | `contains_headline_like_text`, `contains_pipe_separator` |
+| `aggressive` | `3` | `3/4` | `runtime_validated` | `0.72` | `contains_headline_like_text` |
+
+```bash
+ui-test improve e2e/login.yaml --apply --assertion-policy balanced
+ui-test improve e2e/login.yaml --apply --assertion-policy reliable
+ui-test improve e2e/login.yaml --apply --assertion-policy aggressive
+```
+
 ### Assertions Mode
 
 - `candidates` (default): generate and optionally apply assertion candidates.
@@ -83,13 +107,14 @@ ui-test improve e2e/login.yaml --assertions none
 
 These rules govern how assertions are inserted:
 
-1. In apply mode, at most one assertion per source step; additional candidates are reported as `skipped_policy`.
-2. In apply mode, snapshot `assertVisible` is report-only and never auto-inserted (`skipped_policy`).
-3. Snapshot `assertText` can be auto-inserted after runtime validation.
-4. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
-5. Existing adjacent assertions are preserved (no automatic cleanup).
-6. Applied assertions are inserted as required steps (no `optional` field).
-7. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
+1. Per-step apply cap is policy-driven: `reliable=1`, `balanced=2`, `aggressive=3`; extra candidates are marked `skipped_policy`.
+2. Snapshot `assertVisible` handling is policy-driven: `reliable` only allows stable-structural candidates, while `balanced`/`aggressive` allow runtime-validated visibility candidates.
+3. Snapshot `assertText` min apply score is policy-driven (`reliable=0.82`, `balanced=0.78`, `aggressive=0.72`).
+4. Volatility hard-filtering is policy-driven and only applied in apply mode.
+5. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
+6. Existing adjacent assertions are preserved (no automatic cleanup).
+7. Applied assertions are inserted as required steps (no `optional` field).
+8. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
 
 ### Auto-Improve After Recording
 
@@ -148,7 +173,7 @@ Each assertion candidate has an `applyStatus`:
 | `applied` | Written to YAML |
 | `skipped_low_confidence` | Below confidence threshold |
 | `skipped_runtime_failure` | Failed runtime validation |
-| `skipped_policy` | Apply-mode policy skip (for example `assertVisible`, or extra assertions beyond one-per-step) |
+| `skipped_policy` | Apply-mode policy skip (for example visibility rules, volatility hard-filter, or profile cap reached) |
 | `skipped_existing` | Step already has an assertion |
 | `not_requested` | Report-only run (`--no-apply`): candidate was generated but not considered for apply/validation |
 

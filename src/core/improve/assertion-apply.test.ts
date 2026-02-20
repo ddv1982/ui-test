@@ -7,6 +7,7 @@ import {
   selectCandidatesForApply,
   validateCandidatesAgainstRuntime,
 } from "./assertion-apply.js";
+import { ASSERTION_POLICY_CONFIG } from "./assertion-policy.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn(async () => {}),
@@ -182,13 +183,38 @@ describe("assertion apply helpers", () => {
           candidateSource: "snapshot_native",
         },
       ],
-      0.75
+      0.75,
+      {
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
     );
 
     expect(out.selected).toHaveLength(1);
     expect(out.selected[0]?.candidate.candidate.action).toBe("assertText");
     expect(out.skippedPolicy).toHaveLength(1);
     expect(out.skippedPolicy[0]?.applyStatus).toBe("skipped_policy");
+  });
+
+  it("allows snapshot assertVisible candidates in default balanced mode", () => {
+    const out = selectCandidatesForApply(
+      [
+        {
+          index: 0,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "#status", kind: "css", source: "manual" },
+          },
+          confidence: 0.9,
+          rationale: "snapshot visible candidate",
+          candidateSource: "snapshot_native",
+        },
+      ],
+      0.75
+    );
+
+    expect(out.selected).toHaveLength(1);
+    expect(out.skippedPolicy).toHaveLength(0);
   });
 
   it("inserts applied assertions with stable offsets", () => {
@@ -327,7 +353,10 @@ describe("assertion apply helpers", () => {
           },
         },
       ],
-      { timeout: 1000 }
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
     );
 
     expect(outcomes).toHaveLength(2);
@@ -373,13 +402,66 @@ describe("assertion apply helpers", () => {
           },
         },
       ],
-      { timeout: 1000 }
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
     );
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
     const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
     expect(firstAppliedStep.action).toBe("assertValue");
+  });
+
+  it("prefers assertText over assertValue when confidence is tied in balanced mode", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertValue",
+              target: { value: "#name", kind: "css", source: "manual" },
+              value: "Alice",
+            },
+            confidence: 0.9,
+            rationale: "value assertion",
+            candidateSource: "deterministic",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertText",
+              target: { value: "#status", kind: "css", source: "manual" },
+              text: "Saved",
+            },
+            confidence: 0.9,
+            rationale: "text assertion",
+            candidateSource: "snapshot_native",
+          },
+        },
+      ],
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.balanced,
+      }
+    );
+
+    expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
+    expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
+    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    expect(firstAppliedStep.action).toBe("assertText");
   });
 
   it("prefers higher stability score even when confidence is lower", async () => {
@@ -422,7 +504,10 @@ describe("assertion apply helpers", () => {
           },
         },
       ],
-      { timeout: 1000 }
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
     );
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
@@ -467,7 +552,10 @@ describe("assertion apply helpers", () => {
           },
         },
       ],
-      { timeout: 1000 }
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
     );
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
@@ -515,7 +603,10 @@ describe("assertion apply helpers", () => {
           },
         },
       ],
-      { timeout: 1000 }
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
     );
 
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
@@ -564,13 +655,79 @@ describe("assertion apply helpers", () => {
           },
         },
       ],
-      { timeout: 1000 }
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.reliable,
+      }
     );
 
     expect(outcomes).toHaveLength(2);
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("skipped_policy");
     expect(executeRuntimeStepMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("allows up to two applied assertions per source step in balanced mode", async () => {
+    executeRuntimeStepMock.mockResolvedValue(undefined);
+
+    const outcomes = await validateCandidatesAgainstRuntime(
+      {} as Page,
+      [{ action: "click", target: { value: "#save", kind: "css", source: "manual" } }],
+      [
+        {
+          candidateIndex: 0,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertValue",
+              target: { value: "#name", kind: "css", source: "manual" },
+              value: "Alice",
+            },
+            confidence: 0.95,
+            rationale: "value assertion",
+            candidateSource: "deterministic",
+          },
+        },
+        {
+          candidateIndex: 1,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertText",
+              target: { value: "#status", kind: "css", source: "manual" },
+              text: "Saved",
+            },
+            confidence: 0.9,
+            rationale: "text assertion",
+            candidateSource: "snapshot_native",
+          },
+        },
+        {
+          candidateIndex: 2,
+          candidate: {
+            index: 0,
+            afterAction: "click",
+            candidate: {
+              action: "assertVisible",
+              target: { value: "#status", kind: "css", source: "manual" },
+            },
+            confidence: 0.89,
+            rationale: "visible assertion",
+            candidateSource: "snapshot_native",
+          },
+        },
+      ],
+      {
+        timeout: 1000,
+        policyConfig: ASSERTION_POLICY_CONFIG.balanced,
+      }
+    );
+
+    expect(outcomes).toHaveLength(3);
+    expect(outcomes.filter((item) => item.applyStatus === "applied")).toHaveLength(2);
+    expect(outcomes.filter((item) => item.applyStatus === "skipped_policy")).toHaveLength(1);
   });
 
   it("skips validation for a step when post-step network idle times out", async () => {

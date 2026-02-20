@@ -42,4 +42,5 @@ Auto-start only applies to `e2e/example.yaml`.
 |---------|---------|
 | `--assertions <mode>` | `candidates` |
 | `--assertion-source <source>` | `snapshot-native` |
+| `--assertion-policy <policy>` | `balanced` |
 | `--apply` / `--no-apply` | prompt (interactive) |

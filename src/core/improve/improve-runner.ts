@@ -18,10 +18,12 @@ import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 import { runImproveSelectorPass } from "./improve-selector-pass.js";
 import { classifyRuntimeFailingStep } from "./runtime-failure-classifier.js";
 import {
+  type ImproveAssertionPolicy,
   type ImproveAssertionSource,
   type ImproveOptions,
   type ImproveResult,
 } from "./improve-types.js";
+import { DEFAULT_IMPROVE_ASSERTION_POLICY } from "./assertion-policy.js";
 import {
   improveReportSchema,
   type ImproveDiagnostic,
@@ -30,6 +32,8 @@ import {
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
   const assertionSource: ImproveAssertionSource = options.assertionSource ?? "snapshot-native";
+  const assertionPolicy: ImproveAssertionPolicy =
+    options.assertionPolicy ?? DEFAULT_IMPROVE_ASSERTION_POLICY;
   const absoluteTestPath = path.resolve(options.testFile);
   const rawContent = await fs.readFile(absoluteTestPath, "utf-8");
   const parsedYaml = yamlToTest(rawContent);
@@ -183,6 +187,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     const assertionPass = await runImproveAssertionPass({
       assertions: effectiveOptions.assertions,
       assertionSource,
+      assertionPolicy,
       applyAssertions: effectiveOptions.applyAssertions,
       page,
       outputSteps: postRemovalOutputSteps,
@@ -213,7 +218,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         runtimeFailingStepsRemoved: failedIndexesToRemove.size,
         assertionCandidatesFilteredVolatile:
           assertionPass.filteredVolatileCandidates ?? 0,
-        assertionApplyPolicy: "reliable",
+        assertionApplyPolicy: assertionPolicy,
         assertionApplyStatusCounts: buildAssertionApplyStatusCounts(
           assertionPass.assertionCandidates
         ),

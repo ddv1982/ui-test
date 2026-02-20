@@ -21,7 +21,7 @@ describe("improveReportSchema", () => {
         runtimeFailingStepsOptionalized: 2,
         runtimeFailingStepsRemoved: 1,
         assertionCandidatesFilteredVolatile: 1,
-        assertionApplyPolicy: "reliable",
+        assertionApplyPolicy: "balanced",
         assertionApplyStatusCounts: {
           applied: 1,
           skipped_policy: 1,
@@ -67,7 +67,7 @@ describe("improveReportSchema", () => {
     });
 
     expect(parsed.summary.appliedAssertions).toBe(1);
-    expect(parsed.summary.assertionApplyPolicy).toBe("reliable");
+    expect(parsed.summary.assertionApplyPolicy).toBe("balanced");
     expect(parsed.summary.selectorRepairCandidates).toBe(3);
     expect(parsed.summary.runtimeFailingStepsRetained).toBe(2);
     expect(parsed.summary.runtimeFailingStepsOptionalized).toBe(2);

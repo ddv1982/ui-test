@@ -19,6 +19,10 @@ export function registerImprove(program: Command) {
       "--assertion-source <source>",
       "Assertion source: deterministic or snapshot-native"
     )
+    .option(
+      "--assertion-policy <policy>",
+      "Assertion policy: reliable, balanced, or aggressive"
+    )
     .option("--report <path>", "Write JSON report to a custom path")
     .action(async (testFile: unknown, opts: unknown) => {
       try {
@@ -39,6 +43,7 @@ function parseImproveCliOptions(value: unknown): ImproveCliOptions {
     apply: asOptionalBoolean(record.apply),
     assertions: asOptionalString(record.assertions),
     assertionSource: asOptionalString(record.assertionSource),
+    assertionPolicy: asOptionalString(record.assertionPolicy),
     report: asOptionalString(record.report),
   };
 }

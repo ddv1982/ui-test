@@ -12,6 +12,7 @@ import {
 import {
   ASSERTION_APPLY_MIN_CONFIDENCE,
   DEFAULT_RUNTIME_TIMEOUT_MS,
+  type ImproveAssertionPolicy,
   type ImproveAssertionSource,
   type ImproveAssertionsMode,
 } from "./improve-types.js";
@@ -24,6 +25,7 @@ import {
   clampSmartSnapshotCandidateVolume,
   shouldFilterVolatileSnapshotTextCandidate,
 } from "./assertion-stability.js";
+import { resolveAssertionPolicyConfig } from "./assertion-policy.js";
 import type {
   AssertionApplyStatus,
   AssertionCandidate,
@@ -42,6 +44,7 @@ export interface AssertionPassResult {
 export async function runImproveAssertionPass(input: {
   assertions: ImproveAssertionsMode;
   assertionSource: ImproveAssertionSource;
+  assertionPolicy: ImproveAssertionPolicy;
   applyAssertions: boolean;
   page?: Page;
   outputSteps: import("../yaml-schema.js").Step[];
@@ -52,6 +55,7 @@ export async function runImproveAssertionPass(input: {
   diagnostics: ImproveDiagnostic[];
 }): Promise<AssertionPassResult> {
   let outputSteps = [...input.outputSteps];
+  const assertionPolicyConfig = resolveAssertionPolicyConfig(input.assertionPolicy);
 
   let rawAssertionCandidates =
     input.assertions === "candidates"
@@ -103,7 +107,8 @@ export async function runImproveAssertionPass(input: {
   }));
 
   const cappedSnapshotCandidateIndexes = clampSmartSnapshotCandidateVolume(
-    rawAssertionCandidates
+    rawAssertionCandidates,
+    assertionPolicyConfig.snapshotCandidateVolumeCap
   );
 
   let assertionCandidates: AssertionCandidate[] = rawAssertionCandidates.map((candidate) => ({
@@ -129,7 +134,14 @@ export async function runImproveAssertionPass(input: {
     ) {
       const candidate = rawAssertionCandidates[candidateIndex];
       if (!candidate) continue;
-      if (!shouldFilterVolatileSnapshotTextCandidate(candidate)) continue;
+      if (
+        !shouldFilterVolatileSnapshotTextCandidate(
+          candidate,
+          assertionPolicyConfig.hardFilterVolatilityFlags
+        )
+      ) {
+        continue;
+      }
       filteredVolatileCandidates += 1;
       if (!forcedPolicyMessages.has(candidateIndex)) {
         forcedPolicyMessages.set(
@@ -157,12 +169,13 @@ export async function runImproveAssertionPass(input: {
             return ASSERTION_APPLY_MIN_CONFIDENCE;
           }
           if (candidate.candidate.action === "assertText") {
-            return 0.82;
+            return assertionPolicyConfig.snapshotTextMinScore;
           }
           return ASSERTION_APPLY_MIN_CONFIDENCE;
         },
         forcedPolicyMessages,
         useStabilityScore: true,
+        policyConfig: assertionPolicyConfig,
       }
     );
     const runtimeSelection: AssertionCandidateRef[] = [];
@@ -194,6 +207,7 @@ export async function runImproveAssertionPass(input: {
       {
         timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
         baseUrl: input.testBaseUrl,
+        policyConfig: assertionPolicyConfig,
       }
     );
 

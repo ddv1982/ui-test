@@ -9,8 +9,14 @@ import type {
   AssertionApplyStatus,
   AssertionCandidate,
 } from "./report-schema.js";
+import type { AssertionPolicyConfig } from "./assertion-policy.js";
+import {
+  ASSERTION_POLICY_CONFIG,
+  DEFAULT_IMPROVE_ASSERTION_POLICY,
+} from "./assertion-policy.js";
 
-const MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP = 1;
+const DEFAULT_ASSERTION_POLICY_CONFIG =
+  ASSERTION_POLICY_CONFIG[DEFAULT_IMPROVE_ASSERTION_POLICY];
 
 export interface AssertionCandidateRef {
   candidateIndex: number;
@@ -27,6 +33,7 @@ export interface AssertionApplyValidationOptions {
   timeout: number;
   baseUrl?: string;
   waitForNetworkIdle?: boolean;
+  policyConfig?: AssertionPolicyConfig;
 }
 
 export interface AssertionInsertion {
@@ -38,6 +45,7 @@ export interface SelectCandidatesForApplyOptions {
   perCandidateMinConfidence?: (candidate: AssertionCandidate) => number;
   forcedPolicyMessages?: Map<number, string>;
   useStabilityScore?: boolean;
+  policyConfig?: AssertionPolicyConfig;
 }
 
 export function selectCandidatesForApply(
@@ -49,6 +57,7 @@ export function selectCandidatesForApply(
   skippedLowConfidence: AssertionApplyOutcome[];
   skippedPolicy: AssertionApplyOutcome[];
 } {
+  const policyConfig = options?.policyConfig ?? DEFAULT_ASSERTION_POLICY_CONFIG;
   const selected: AssertionCandidateRef[] = [];
   const skippedLowConfidence: AssertionApplyOutcome[] = [];
   const skippedPolicy: AssertionApplyOutcome[] = [];
@@ -67,11 +76,12 @@ export function selectCandidatesForApply(
       continue;
     }
 
-    if (!isAutoApplyAllowedByPolicy(candidate)) {
+    if (!isAutoApplyAllowedByPolicy(candidate, policyConfig)) {
       skippedPolicy.push({
         candidateIndex,
         applyStatus: "skipped_policy",
-        applyMessage: "Skipped by policy (reliable): snapshot-derived assertVisible candidates are report-only.",
+        applyMessage:
+          "Skipped by policy: reliable mode only auto-applies snapshot assertVisible candidates when stable structural.",
       });
       continue;
     }
@@ -104,6 +114,7 @@ export async function validateCandidatesAgainstRuntime(
   candidates: AssertionCandidateRef[],
   options: AssertionApplyValidationOptions
 ): Promise<AssertionApplyOutcome[]> {
+  const policyConfig = options.policyConfig ?? DEFAULT_ASSERTION_POLICY_CONFIG;
   const outcomes: AssertionApplyOutcome[] = [];
   const candidatesByStepIndex = new Map<number, AssertionCandidateRef[]>();
   const waitForNetworkIdle = options.waitForNetworkIdle ?? DEFAULT_WAIT_FOR_NETWORK_IDLE;
@@ -124,7 +135,9 @@ export async function validateCandidatesAgainstRuntime(
   }
 
   for (const [stepIndex, stepCandidates] of candidatesByStepIndex) {
-    stepCandidates.sort(compareAssertionCandidateRefs);
+    stepCandidates.sort((left, right) =>
+      compareAssertionCandidateRefs(left, right, policyConfig)
+    );
     candidatesByStepIndex.set(stepIndex, stepCandidates);
   }
 
@@ -179,12 +192,12 @@ export async function validateCandidatesAgainstRuntime(
     const stepCandidates = candidatesByStepIndex.get(index) ?? [];
     let appliedForStep = 0;
     for (const candidateRef of stepCandidates) {
-      if (appliedForStep >= MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP) {
+      if (appliedForStep >= policyConfig.appliedAssertionsPerStepCap) {
         outcomes.push({
           candidateIndex: candidateRef.candidateIndex,
           applyStatus: "skipped_policy",
           applyMessage:
-            `Skipped by policy: max ${MAX_APPLIED_ASSERTIONS_PER_SOURCE_STEP} applied assertion per source step.`,
+            `Skipped by policy: max ${policyConfig.appliedAssertionsPerStepCap} applied assertion(s) per source step.`,
         });
         continue;
       }
@@ -298,7 +311,8 @@ function areFramePathsEqual(left: string[] | undefined, right: string[] | undefi
 
 function compareAssertionCandidateRefs(
   left: AssertionCandidateRef,
-  right: AssertionCandidateRef
+  right: AssertionCandidateRef,
+  policyConfig: AssertionPolicyConfig
 ): number {
   const leftScore = left.candidate.stabilityScore ?? left.candidate.confidence;
   const rightScore = right.candidate.stabilityScore ?? right.candidate.confidence;
@@ -309,8 +323,8 @@ function compareAssertionCandidateRefs(
   if (confidenceDelta !== 0) return confidenceDelta;
 
   const actionDelta =
-    assertionActionPriority(left.candidate.candidate.action) -
-    assertionActionPriority(right.candidate.candidate.action);
+    assertionActionPriority(left.candidate.candidate.action, policyConfig) -
+    assertionActionPriority(right.candidate.candidate.action, policyConfig);
   if (actionDelta !== 0) return actionDelta;
 
   const sourceDelta =
@@ -321,19 +335,15 @@ function compareAssertionCandidateRefs(
   return left.candidateIndex - right.candidateIndex;
 }
 
-function assertionActionPriority(action: Step["action"]): number {
-  switch (action) {
-    case "assertValue":
-      return 0;
-    case "assertChecked":
-      return 1;
-    case "assertText":
-      return 2;
-    case "assertVisible":
-      return 3;
-    default:
-      return 4;
-  }
+function assertionActionPriority(
+  action: Step["action"],
+  policyConfig: AssertionPolicyConfig
+): number {
+  if (action === "assertValue") return policyConfig.actionPriorityForApply.assertValue;
+  if (action === "assertChecked") return policyConfig.actionPriorityForApply.assertChecked;
+  if (action === "assertText") return policyConfig.actionPriorityForApply.assertText;
+  if (action === "assertVisible") return policyConfig.actionPriorityForApply.assertVisible;
+  return 99;
 }
 
 function candidateSourcePriority(source: AssertionCandidate["candidateSource"]): number {
@@ -348,12 +358,16 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
 }
 
 function isAutoApplyAllowedByPolicy(
-  candidate: AssertionCandidate
+  candidate: AssertionCandidate,
+  policyConfig: AssertionPolicyConfig
 ): boolean {
   if (
     candidate.candidateSource === "snapshot_native" &&
     candidate.candidate.action === "assertVisible"
   ) {
+    if (policyConfig.allowSnapshotVisible === "runtime_validated") {
+      return true;
+    }
     return candidate.stableStructural === true;
   }
 

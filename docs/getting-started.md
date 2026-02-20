@@ -147,6 +147,14 @@ ui-test improve e2e/login.yaml --assertions candidates   # default
 ui-test improve e2e/login.yaml --assertions none          # skip assertions
 ```
 
+Control apply strictness with `--assertion-policy`:
+
+```bash
+ui-test improve e2e/login.yaml --assertion-policy balanced    # default
+ui-test improve e2e/login.yaml --assertion-policy reliable
+ui-test improve e2e/login.yaml --assertion-policy aggressive
+```
+
 ## Next Steps
 
 - Record workflow: [Record Workflow](workflows/record.md)

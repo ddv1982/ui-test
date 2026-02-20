@@ -35,7 +35,11 @@ export const assertionCandidateSourceSchema = z.enum([
   "snapshot_native",
 ]);
 
-export const assertionApplyPolicySchema = z.enum(["reliable", "aggressive"]);
+export const assertionApplyPolicySchema = z.enum([
+  "reliable",
+  "balanced",
+  "aggressive",
+]);
 
 export const assertionCandidateSchema = z.object({
   index: z.number().int().nonnegative(),

@@ -27,11 +27,13 @@ describe("profile summary formatting", () => {
       applyAssertions: true,
       assertions: "candidates",
       assertionSource: "snapshot-native",
+      assertionPolicy: "balanced",
     });
 
     expect(out).toContain("applySelectors=no");
     expect(out).toContain("applyAssertions=yes");
     expect(out).toContain("assertionSource=snapshot-native");
+    expect(out).toContain("assertionPolicy=balanced");
   });
 
   it("formats play summary", () => {

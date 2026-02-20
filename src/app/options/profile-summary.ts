@@ -17,8 +17,9 @@ export function formatImproveProfileSummary(profile: {
   applyAssertions: boolean;
   assertions: string;
   assertionSource: string;
+  assertionPolicy: string;
 }): string {
-  return `Improve profile: applySelectors=${profile.applySelectors ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, assertionSource=${profile.assertionSource}`;
+  return `Improve profile: applySelectors=${profile.applySelectors ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, assertionSource=${profile.assertionSource}, assertionPolicy=${profile.assertionPolicy}`;
 }
 
 export function formatPlayProfileSummary(profile: {

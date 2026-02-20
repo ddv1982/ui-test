@@ -1,5 +1,6 @@
 import type { AssertionCandidate } from "./report-schema.js";
 import { detectVolatilityFlags } from "./volatility-detection.js";
+import type { SnapshotCandidateVolumeCap } from "./assertion-policy.js";
 
 const HIGH_SIGNAL_ROLES = new Set(["heading", "alert", "status"]);
 const HARD_FILTER_VOLATILITY_FLAGS = new Set([
@@ -10,6 +11,11 @@ const HARD_FILTER_VOLATILITY_FLAGS = new Set([
   "contains_headline_like_text",
   "contains_pipe_separator",
 ]);
+
+const DEFAULT_SNAPSHOT_CANDIDATE_VOLUME_CAP: SnapshotCandidateVolumeCap = {
+  navigate: 1,
+  other: 2,
+};
 
 export function assessAssertionCandidateStability(
   candidate: AssertionCandidate
@@ -69,19 +75,21 @@ export function assessAssertionCandidateStability(
 }
 
 export function shouldFilterVolatileSnapshotTextCandidate(
-  candidate: AssertionCandidate
+  candidate: AssertionCandidate,
+  hardFilterVolatilityFlags: ReadonlySet<string> = HARD_FILTER_VOLATILITY_FLAGS
 ): boolean {
   return (
     candidate.candidateSource === "snapshot_native" &&
     candidate.candidate.action === "assertText" &&
     (candidate.volatilityFlags ?? []).some((flag) =>
-      HARD_FILTER_VOLATILITY_FLAGS.has(flag)
+      hardFilterVolatilityFlags.has(flag)
     )
   );
 }
 
 export function clampSmartSnapshotCandidateVolume(
-  candidates: AssertionCandidate[]
+  candidates: AssertionCandidate[],
+  volumeCap: SnapshotCandidateVolumeCap = DEFAULT_SNAPSHOT_CANDIDATE_VOLUME_CAP
 ): Set<number> {
   const byStep = new Map<number, Array<{ candidate: AssertionCandidate; candidateIndex: number }>>();
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
@@ -94,7 +102,10 @@ export function clampSmartSnapshotCandidateVolume(
 
   const cappedIndexes = new Set<number>();
   for (const [, stepCandidates] of byStep) {
-    const cap = stepCandidates[0]?.candidate.afterAction === "navigate" ? 1 : 2;
+    const cap =
+      stepCandidates[0]?.candidate.afterAction === "navigate"
+        ? volumeCap.navigate
+        : volumeCap.other;
     const sorted = [...stepCandidates].sort((left, right) => {
       const leftScore = left.candidate.stabilityScore ?? left.candidate.confidence;
       const rightScore = right.candidate.stabilityScore ?? right.candidate.confidence;

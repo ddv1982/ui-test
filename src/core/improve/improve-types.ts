@@ -2,6 +2,7 @@ import type { ImproveReport } from "./report-schema.js";
 
 export type ImproveAssertionsMode = "none" | "candidates";
 export type ImproveAssertionSource = "deterministic" | "snapshot-native";
+export type ImproveAssertionPolicy = "reliable" | "balanced" | "aggressive";
 
 export interface ImproveOptions {
   testFile: string;
@@ -9,6 +10,7 @@ export interface ImproveOptions {
   applyAssertions: boolean;
   assertions: ImproveAssertionsMode;
   assertionSource?: ImproveAssertionSource;
+  assertionPolicy?: ImproveAssertionPolicy;
   reportPath?: string;
 }
 

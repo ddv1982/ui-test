@@ -15,6 +15,8 @@ describe("improve command options", () => {
       "none",
       "--assertion-source",
       "snapshot-native",
+      "--assertion-policy",
+      "balanced",
       "--report",
       "report.json",
       "e2e/sample.yaml",
@@ -24,6 +26,7 @@ describe("improve command options", () => {
     expect(opts.apply).toBe(true);
     expect(opts.assertions).toBe("none");
     expect(opts.assertionSource).toBe("snapshot-native");
+    expect(opts.assertionPolicy).toBe("balanced");
     expect(opts.report).toBe("report.json");
   });
 

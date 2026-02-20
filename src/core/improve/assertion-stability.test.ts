@@ -5,6 +5,7 @@ import {
   clampSmartSnapshotCandidateVolume,
   shouldFilterVolatileSnapshotTextCandidate,
 } from "./assertion-stability.js";
+import { ASSERTION_POLICY_CONFIG } from "./assertion-policy.js";
 
 function makeCandidate(partial: Partial<AssertionCandidate>): AssertionCandidate {
   return {
@@ -244,5 +245,58 @@ describe("assertion stability", () => {
         ...assessed,
       })
     ).toBe(true);
+  });
+
+  it("does not hard-filter numeric/date-only volatility in balanced mode", () => {
+    const candidate = makeCandidate({
+      candidate: {
+        action: "assertText",
+        target: { value: "getByRole('heading', { name: 'Weather' })", kind: "locatorExpression", source: "manual" },
+        text: "Weather update 2026-02-20 12:30",
+      },
+    });
+
+    const assessed = assessAssertionCandidateStability(candidate);
+    expect(assessed.volatilityFlags).toContain("contains_date_or_time_fragment");
+    expect(assessed.volatilityFlags).toContain("contains_weather_or_news_fragment");
+    expect(
+      shouldFilterVolatileSnapshotTextCandidate(
+        { ...candidate, ...assessed },
+        ASSERTION_POLICY_CONFIG.balanced.hardFilterVolatilityFlags
+      )
+    ).toBe(false);
+  });
+
+  it("uses profile-driven snapshot volume cap when provided", () => {
+    const candidates: AssertionCandidate[] = [
+      makeCandidate({ index: 0, afterAction: "navigate", confidence: 0.91, stabilityScore: 0.91 }),
+      makeCandidate({ index: 0, afterAction: "navigate", confidence: 0.9, stabilityScore: 0.9 }),
+      makeCandidate({ index: 0, afterAction: "navigate", confidence: 0.89, stabilityScore: 0.89 }),
+      makeCandidate({ index: 2, afterAction: "click", confidence: 0.95, stabilityScore: 0.95 }),
+      makeCandidate({ index: 2, afterAction: "click", confidence: 0.94, stabilityScore: 0.94 }),
+      makeCandidate({ index: 2, afterAction: "click", confidence: 0.93, stabilityScore: 0.93 }),
+      makeCandidate({ index: 2, afterAction: "click", confidence: 0.92, stabilityScore: 0.92 }),
+    ];
+
+    const cappedIndexes = clampSmartSnapshotCandidateVolume(
+      candidates,
+      ASSERTION_POLICY_CONFIG.balanced.snapshotCandidateVolumeCap
+    );
+
+    const keptSnapshotAtNavigate = candidates.filter(
+      (candidate, index) =>
+        candidate.candidateSource === "snapshot_native" &&
+        candidate.index === 0 &&
+        !cappedIndexes.has(index)
+    );
+    const keptSnapshotAtClick = candidates.filter(
+      (candidate, index) =>
+        candidate.candidateSource === "snapshot_native" &&
+        candidate.index === 2 &&
+        !cappedIndexes.has(index)
+    );
+
+    expect(keptSnapshotAtNavigate).toHaveLength(2);
+    expect(keptSnapshotAtClick).toHaveLength(3);
   });
 });
