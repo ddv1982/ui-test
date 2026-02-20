@@ -26,9 +26,20 @@ import {
 import { DEFAULT_IMPROVE_ASSERTION_POLICY } from "./assertion-policy.js";
 import {
   improveReportSchema,
+  type AssertionCandidate,
   type ImproveDiagnostic,
   type ImproveReport,
 } from "./report-schema.js";
+
+const ASSERTION_COVERAGE_ACTIONS = new Set<Step["action"]>([
+  "click",
+  "press",
+  "hover",
+  "fill",
+  "select",
+  "check",
+  "uncheck",
+]);
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
   const assertionSource: ImproveAssertionSource = options.assertionSource ?? "snapshot-native";
@@ -197,6 +208,11 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       testBaseUrl: test.baseUrl,
       diagnostics,
     });
+    const assertionCoverage = buildAssertionCoverageSummary(
+      postRemovalOutputSteps,
+      postRemovalOriginalIndexes,
+      assertionPass.assertionCandidates
+    );
 
     const report: ImproveReport = {
       testFile: absoluteTestPath,
@@ -218,6 +234,11 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         runtimeFailingStepsRemoved: failedIndexesToRemove.size,
         assertionCandidatesFilteredVolatile:
           assertionPass.filteredVolatileCandidates ?? 0,
+        assertionCoverageStepsTotal: assertionCoverage.total,
+        assertionCoverageStepsWithCandidates: assertionCoverage.withCandidates,
+        assertionCoverageStepsWithApplied: assertionCoverage.withApplied,
+        assertionCoverageCandidateRate: assertionCoverage.candidateRate,
+        assertionCoverageAppliedRate: assertionCoverage.appliedRate,
         assertionApplyPolicy: assertionPolicy,
         assertionApplyStatusCounts: buildAssertionApplyStatusCounts(
           assertionPass.assertionCandidates
@@ -257,6 +278,52 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
   } finally {
     await browser.close();
   }
+}
+
+function buildAssertionCoverageSummary(
+  steps: Step[],
+  originalStepIndexes: number[],
+  candidates: AssertionCandidate[]
+): {
+  total: number;
+  withCandidates: number;
+  withApplied: number;
+  candidateRate: number;
+  appliedRate: number;
+} {
+  const coverageStepIndexes = new Set<number>();
+  for (let runtimeIndex = 0; runtimeIndex < steps.length; runtimeIndex += 1) {
+    const step = steps[runtimeIndex];
+    if (!step || !ASSERTION_COVERAGE_ACTIONS.has(step.action)) continue;
+    const originalIndex = originalStepIndexes[runtimeIndex] ?? runtimeIndex;
+    coverageStepIndexes.add(originalIndex);
+  }
+
+  const candidateStepIndexes = new Set<number>();
+  const appliedStepIndexes = new Set<number>();
+  for (const candidate of candidates) {
+    if (!coverageStepIndexes.has(candidate.index)) continue;
+    candidateStepIndexes.add(candidate.index);
+    if (candidate.applyStatus === "applied") {
+      appliedStepIndexes.add(candidate.index);
+    }
+  }
+
+  const total = coverageStepIndexes.size;
+  const withCandidates = candidateStepIndexes.size;
+  const withApplied = appliedStepIndexes.size;
+  return {
+    total,
+    withCandidates,
+    withApplied,
+    candidateRate: roundCoverageRate(withCandidates, total),
+    appliedRate: roundCoverageRate(withApplied, total),
+  };
+}
+
+function roundCoverageRate(value: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.round((value / total) * 1000) / 1000;
 }
 
 async function launchImproveBrowser(): Promise<{ browser: Browser; page: Page }> {

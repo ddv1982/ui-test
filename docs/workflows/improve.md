@@ -112,9 +112,10 @@ These rules govern how assertions are inserted:
 3. Snapshot `assertText` min apply score is policy-driven (`reliable=0.82`, `balanced=0.78`, `aggressive=0.72`).
 4. Volatility hard-filtering is policy-driven and only applied in apply mode.
 5. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
-6. Existing adjacent assertions are preserved (no automatic cleanup).
-7. Applied assertions are inserted as required steps (no `optional` field).
-8. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
+6. Deterministic coverage fallbacks (`click`/`press`/`hover` -> `assertVisible`) are suppressed in apply mode when a stronger non-fallback candidate exists for the same source step.
+7. Existing adjacent assertions are preserved (no automatic cleanup).
+8. Applied assertions are inserted as required steps (no `optional` field).
+9. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
 
 ### Auto-Improve After Recording
 
@@ -134,7 +135,12 @@ With `--assertion-source deterministic`, auto-apply uses a conservative mapping:
 
 - `fill` / `select` → `assertValue`
 - `check` / `uncheck` → `assertChecked`
-- `click` / `press` → no assertions generated
+- `click` / `press` / `hover` → low-priority coverage fallback `assertVisible` candidates (`coverageFallback: true`, confidence `0.76`)
+
+Coverage fallback candidates are always generated, but they remain low priority:
+
+- If a stronger non-fallback candidate exists for the same step, fallback is force-marked `skipped_policy` in apply mode.
+- If fallback is the only candidate for a step, it can proceed through normal policy/runtime validation.
 
 ### Assertion Source Fallback
 
@@ -163,6 +169,11 @@ The summary includes:
 - `runtimeFailingStepsOptionalized`
 - `runtimeFailingStepsRemoved`
 - `assertionCandidatesFilteredVolatile`
+- `assertionCoverageStepsTotal`
+- `assertionCoverageStepsWithCandidates`
+- `assertionCoverageStepsWithApplied`
+- `assertionCoverageCandidateRate`
+- `assertionCoverageAppliedRate`
 
 `runtimeFailingStepsOptionalized` is a deprecated alias for one release cycle and mirrors `runtimeFailingStepsRetained`.
 

@@ -47,6 +47,7 @@ export const assertionCandidateSchema = z.object({
   candidate: stepSchema,
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(1),
+  coverageFallback: z.boolean().optional(),
   stabilityScore: z.number().min(0).max(1).optional(),
   volatilityFlags: z.array(z.string()).optional(),
   candidateSource: assertionCandidateSourceSchema.optional(),
@@ -69,6 +70,11 @@ export const improveSummarySchema = z.object({
   runtimeFailingStepsOptionalized: z.number().int().nonnegative().optional(),
   runtimeFailingStepsRemoved: z.number().int().nonnegative().optional(),
   assertionCandidatesFilteredVolatile: z.number().int().nonnegative().optional(),
+  assertionCoverageStepsTotal: z.number().int().nonnegative().optional(),
+  assertionCoverageStepsWithCandidates: z.number().int().nonnegative().optional(),
+  assertionCoverageStepsWithApplied: z.number().int().nonnegative().optional(),
+  assertionCoverageCandidateRate: z.number().min(0).max(1).optional(),
+  assertionCoverageAppliedRate: z.number().min(0).max(1).optional(),
   assertionApplyPolicy: assertionApplyPolicySchema.optional(),
   assertionApplyStatusCounts: z
     .partialRecord(assertionApplyStatusSchema, z.number().int().nonnegative())

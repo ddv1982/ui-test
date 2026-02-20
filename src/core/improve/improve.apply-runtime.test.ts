@@ -393,6 +393,131 @@ describe("improve apply runtime replay", () => {
     expect(saved).not.toContain("action: assertVisible");
   });
 
+  it("expands candidate coverage for click/press/hover with deterministic fallbacks", async () => {
+    const { buildAssertionCandidates } = await vi.importActual<
+      typeof import("./assertion-candidates.js")
+    >("./assertion-candidates.js");
+    buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
+
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-coverage-fallback-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#menu"',
+        "      kind: css",
+        "      source: manual",
+        "  - action: press",
+        "    target:",
+        '      value: "#search"',
+        "      kind: css",
+        "      source: manual",
+        "    key: Enter",
+        "  - action: hover",
+        "    target:",
+        '      value: "#profile"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "candidates",
+      assertionSource: "deterministic",
+    });
+
+    expect(result.report.summary.assertionCoverageStepsTotal).toBe(3);
+    expect(result.report.summary.assertionCoverageStepsWithCandidates).toBe(3);
+    expect(result.report.summary.assertionCoverageStepsWithApplied).toBe(0);
+    expect(result.report.summary.assertionCoverageCandidateRate).toBe(1);
+    expect(result.report.summary.assertionCoverageAppliedRate).toBe(0);
+    expect(result.report.assertionCandidates).toHaveLength(3);
+    expect(
+      result.report.assertionCandidates.every((candidate) => candidate.coverageFallback === true)
+    ).toBe(true);
+  });
+
+  it("suppresses fallback apply when a stronger candidate exists on the same step", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-fallback-suppression-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#menu"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#menu", kind: "css", source: "manual" },
+        },
+        confidence: 0.76,
+        rationale:
+          "Coverage fallback: verify interacted element remains visible after action.",
+        candidateSource: "deterministic",
+        coverageFallback: true,
+      },
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertText",
+          target: { value: "#status", kind: "css", source: "manual" },
+          text: "Saved",
+        },
+        confidence: 0.9,
+        rationale: "stronger text candidate",
+        candidateSource: "deterministic",
+      },
+    ]);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionSource: "deterministic",
+      assertionPolicy: "balanced",
+    });
+
+    expect(result.report.summary.appliedAssertions).toBe(1);
+    expect(result.report.summary.skippedAssertions).toBe(1);
+    const fallbackCandidate = result.report.assertionCandidates.find(
+      (candidate) => candidate.coverageFallback === true
+    );
+    expect(fallbackCandidate?.applyStatus).toBe("skipped_policy");
+    expect(fallbackCandidate?.applyMessage).toContain(
+      "coverage fallback suppressed because stronger candidate exists"
+    );
+  });
+
   it("keeps volatile snapshot text candidates report-only", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
     tempDirs.push(dir);
@@ -987,9 +1112,9 @@ describe("improve apply runtime replay", () => {
       assertionPolicy: "reliable",
     });
 
-    expect(result.report.summary.appliedAssertions).toBe(1);
+    expect(result.report.summary.appliedAssertions).toBe(2);
     expect(result.report.summary.skippedAssertions).toBe(0);
-    expect(result.report.assertionCandidates).toHaveLength(1);
+    expect(result.report.assertionCandidates).toHaveLength(2);
     const fillCandidate = result.report.assertionCandidates.find(
       (candidate) =>
         candidate.index === 3 &&

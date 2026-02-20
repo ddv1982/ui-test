@@ -127,6 +127,28 @@ export async function runImproveAssertionPass(input: {
         "Skipped by policy: snapshot candidate cap reached for this source step."
       );
     }
+
+    const stepsWithStrongerCandidates = new Set<number>();
+    for (const candidate of rawAssertionCandidates) {
+      if (candidate.coverageFallback === true) continue;
+      stepsWithStrongerCandidates.add(candidate.index);
+    }
+    for (
+      let candidateIndex = 0;
+      candidateIndex < rawAssertionCandidates.length;
+      candidateIndex += 1
+    ) {
+      const candidate = rawAssertionCandidates[candidateIndex];
+      if (!candidate || candidate.coverageFallback !== true) continue;
+      if (!stepsWithStrongerCandidates.has(candidate.index)) continue;
+      if (!forcedPolicyMessages.has(candidateIndex)) {
+        forcedPolicyMessages.set(
+          candidateIndex,
+          "Skipped by policy: coverage fallback suppressed because stronger candidate exists for this step."
+        );
+      }
+    }
+
     for (
       let candidateIndex = 0;
       candidateIndex < rawAssertionCandidates.length;

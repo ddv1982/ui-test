@@ -182,4 +182,49 @@ describe("runImprove confirm prompt", () => {
       expect.stringContaining("runtimeFailingStepsRetained=2")
     );
   });
+
+  it("prints assertion coverage metrics in summary output", async () => {
+    vi.mocked(improveTestFile).mockResolvedValue({
+      reportPath: "e2e/sample.improve-report.json",
+      outputPath: undefined,
+      report: {
+        testFile: "e2e/sample.yaml",
+        generatedAt: new Date().toISOString(),
+        providerUsed: "playwright",
+        summary: {
+          unchanged: 1,
+          improved: 0,
+          fallback: 0,
+          warnings: 0,
+          assertionCandidates: 4,
+          appliedAssertions: 2,
+          skippedAssertions: 2,
+          assertionCoverageStepsTotal: 5,
+          assertionCoverageStepsWithCandidates: 4,
+          assertionCoverageStepsWithApplied: 2,
+          assertionCoverageCandidateRate: 0.8,
+          assertionCoverageAppliedRate: 0.4,
+        },
+        stepFindings: [],
+        assertionCandidates: [],
+        diagnostics: [],
+      },
+    });
+
+    await runImprove("e2e/sample.yaml", { apply: false });
+
+    expect(
+      vi
+        .mocked(ui.info)
+        .mock.calls.some(
+          ([message]) =>
+            typeof message === "string" &&
+            message.includes("assertionCoverageStepsTotal=5") &&
+            message.includes("assertionCoverageStepsWithCandidates=4") &&
+            message.includes("assertionCoverageStepsWithApplied=2") &&
+            message.includes("assertionCoverageCandidateRate=0.8") &&
+            message.includes("assertionCoverageAppliedRate=0.4")
+        )
+    ).toBe(true);
+  });
 });

@@ -83,17 +83,28 @@ export function chooseDeterministicSelection(
 export function dedupeAssertionCandidates(
   candidates: AssertionCandidate[]
 ): AssertionCandidate[] {
-  const seen = new Set<string>();
-  const out: AssertionCandidate[] = [];
+  const selectedByKey = new Map<
+    string,
+    { candidate: AssertionCandidate; originalIndex: number }
+  >();
 
-  for (const candidate of candidates) {
+  for (let originalIndex = 0; originalIndex < candidates.length; originalIndex += 1) {
+    const candidate = candidates[originalIndex];
+    if (!candidate) continue;
     const key = assertionCandidateKey(candidate);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(candidate);
+    const existing = selectedByKey.get(key);
+    if (!existing) {
+      selectedByKey.set(key, { candidate, originalIndex });
+      continue;
+    }
+    if (isPreferredAssertionCandidate(candidate, existing.candidate)) {
+      selectedByKey.set(key, { candidate, originalIndex });
+    }
   }
 
-  return out;
+  return [...selectedByKey.values()]
+    .sort((left, right) => left.originalIndex - right.originalIndex)
+    .map((entry) => entry.candidate);
 }
 
 function assertionCandidateKey(candidate: AssertionCandidate): string {
@@ -120,6 +131,37 @@ function normalizeTargetKey(target: Target): string {
   return [target.kind, target.value.trim().toLowerCase(), framePath.join(">")].join(
     "|"
   );
+}
+
+function isPreferredAssertionCandidate(
+  candidate: AssertionCandidate,
+  existing: AssertionCandidate
+): boolean {
+  const candidateCoverageFallback = candidate.coverageFallback === true;
+  const existingCoverageFallback = existing.coverageFallback === true;
+  if (candidateCoverageFallback !== existingCoverageFallback) {
+    return !candidateCoverageFallback;
+  }
+
+  if (candidate.confidence !== existing.confidence) {
+    return candidate.confidence > existing.confidence;
+  }
+
+  const candidateSourceRank = assertionCandidateSourceRank(candidate.candidateSource);
+  const existingSourceRank = assertionCandidateSourceRank(existing.candidateSource);
+  if (candidateSourceRank !== existingSourceRank) {
+    return candidateSourceRank > existingSourceRank;
+  }
+
+  return false;
+}
+
+function assertionCandidateSourceRank(
+  source: AssertionCandidate["candidateSource"]
+): number {
+  if (source === "snapshot_native") return 2;
+  if (source === "deterministic") return 1;
+  return 0;
 }
 
 export function buildAssertionApplyStatusCounts(

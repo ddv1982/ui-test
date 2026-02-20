@@ -1,6 +1,8 @@
 import type { AssertionCandidate, StepFinding } from "./report-schema.js";
 import type { Step } from "../yaml-schema.js";
 
+const COVERAGE_FALLBACK_CONFIDENCE = 0.76;
+
 export function buildAssertionCandidates(
   steps: Step[],
   findings: StepFinding[],
@@ -60,6 +62,26 @@ export function buildAssertionCandidates(
         candidateSource: "deterministic",
       });
       continue;
+    }
+
+    if (
+      step.action === "click" ||
+      step.action === "press" ||
+      step.action === "hover"
+    ) {
+      out.push({
+        index: originalIndex,
+        afterAction: step.action,
+        candidate: {
+          action: "assertVisible",
+          target,
+        },
+        confidence: COVERAGE_FALLBACK_CONFIDENCE,
+        rationale:
+          "Coverage fallback: verify interacted element remains visible after action.",
+        candidateSource: "deterministic",
+        coverageFallback: true,
+      });
     }
   }
 

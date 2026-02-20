@@ -21,6 +21,11 @@ describe("improveReportSchema", () => {
         runtimeFailingStepsOptionalized: 2,
         runtimeFailingStepsRemoved: 1,
         assertionCandidatesFilteredVolatile: 1,
+        assertionCoverageStepsTotal: 4,
+        assertionCoverageStepsWithCandidates: 3,
+        assertionCoverageStepsWithApplied: 2,
+        assertionCoverageCandidateRate: 0.75,
+        assertionCoverageAppliedRate: 0.5,
         assertionApplyPolicy: "balanced",
         assertionApplyStatusCounts: {
           applied: 1,
@@ -41,6 +46,7 @@ describe("improveReportSchema", () => {
             target: { value: "#status", kind: "css", source: "manual" },
           },
           confidence: 0.9,
+          coverageFallback: true,
           stabilityScore: 0.91,
           volatilityFlags: [],
           rationale: "High confidence state check",
@@ -72,9 +78,15 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.runtimeFailingStepsRetained).toBe(2);
     expect(parsed.summary.runtimeFailingStepsOptionalized).toBe(2);
     expect(parsed.summary.assertionCandidatesFilteredVolatile).toBe(1);
+    expect(parsed.summary.assertionCoverageStepsTotal).toBe(4);
+    expect(parsed.summary.assertionCoverageStepsWithCandidates).toBe(3);
+    expect(parsed.summary.assertionCoverageStepsWithApplied).toBe(2);
+    expect(parsed.summary.assertionCoverageCandidateRate).toBe(0.75);
+    expect(parsed.summary.assertionCoverageAppliedRate).toBe(0.5);
     expect(parsed.summary.assertionApplyStatusCounts?.applied).toBe(1);
     expect(parsed.summary.assertionCandidateSourceCounts?.snapshot_native).toBe(1);
     expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");
+    expect(parsed.assertionCandidates[0]?.coverageFallback).toBe(true);
     expect(parsed.assertionCandidates[0]?.applyStatus).toBe("applied");
     expect(parsed.assertionCandidates[1]?.candidateSource).toBe("snapshot_native");
     expect(parsed.assertionCandidates[1]?.applyStatus).toBe("skipped_policy");
