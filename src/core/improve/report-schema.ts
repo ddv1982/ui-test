@@ -75,6 +75,9 @@ export const improveSummarySchema = z.object({
   assertionCoverageStepsWithApplied: z.number().int().nonnegative().optional(),
   assertionCoverageCandidateRate: z.number().min(0).max(1).optional(),
   assertionCoverageAppliedRate: z.number().min(0).max(1).optional(),
+  assertionInventoryStepsEvaluated: z.number().int().nonnegative().optional(),
+  assertionInventoryCandidatesAdded: z.number().int().nonnegative().optional(),
+  assertionInventoryGapStepsFilled: z.number().int().nonnegative().optional(),
   assertionApplyPolicy: assertionApplyPolicySchema.optional(),
   assertionApplyStatusCounts: z
     .partialRecord(assertionApplyStatusSchema, z.number().int().nonnegative())

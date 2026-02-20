@@ -449,6 +449,80 @@ describe("improve apply runtime replay", () => {
     ).toBe(true);
   });
 
+  it("adds snapshot-native inventory candidates for weak/no-delta interaction steps", async () => {
+    const { chromium } = await import("playwright");
+    const { buildAssertionCandidates } = await vi.importActual<
+      typeof import("./assertion-candidates.js")
+    >("./assertion-candidates.js");
+    buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
+
+    const ariaSnapshotMock = vi.fn<[], Promise<string>>();
+    ariaSnapshotMock.mockResolvedValueOnce("- generic");
+    ariaSnapshotMock.mockResolvedValueOnce("- generic");
+    const clickSnapshot = [
+      "- generic [ref=e1]:",
+      '  - button "Submit" [ref=e2]',
+      '  - heading "Results" [level=1] [ref=e3]',
+    ].join("\n");
+    ariaSnapshotMock.mockResolvedValueOnce(clickSnapshot);
+    ariaSnapshotMock.mockResolvedValueOnce(clickSnapshot);
+
+    vi.mocked(chromium.launch).mockResolvedValueOnce({
+      newContext: vi.fn(async () => ({
+        addInitScript: vi.fn(async () => {}),
+        newPage: vi.fn(async () => ({
+          url: () => "about:blank",
+          goto: vi.fn(async () => {}),
+          waitForLoadState: vi.fn(async () => {}),
+          locator: vi.fn(() => ({
+            ariaSnapshot: ariaSnapshotMock,
+          })),
+        })),
+        close: vi.fn(async () => {}),
+      })),
+      close: vi.fn(async () => {}),
+    } as any);
+
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-inventory-"));
+    tempDirs.push(dir);
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "candidates",
+      assertionSource: "snapshot-native",
+    });
+
+    expect(result.report.summary.assertionInventoryStepsEvaluated).toBe(1);
+    expect((result.report.summary.assertionInventoryCandidatesAdded ?? 0)).toBeGreaterThan(0);
+    expect(result.report.summary.assertionInventoryGapStepsFilled).toBe(1);
+    expect(
+      result.report.assertionCandidates.some(
+        (candidate) =>
+          candidate.candidateSource === "snapshot_native" &&
+          candidate.coverageFallback === true &&
+          candidate.candidate.action === "assertText"
+      )
+    ).toBe(true);
+  });
+
   it("suppresses fallback apply when a stronger candidate exists on the same step", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-fallback-suppression-"));
     tempDirs.push(dir);

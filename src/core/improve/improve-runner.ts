@@ -239,6 +239,12 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         assertionCoverageStepsWithApplied: assertionCoverage.withApplied,
         assertionCoverageCandidateRate: assertionCoverage.candidateRate,
         assertionCoverageAppliedRate: assertionCoverage.appliedRate,
+        assertionInventoryStepsEvaluated:
+          assertionPass.inventoryStepsEvaluated ?? 0,
+        assertionInventoryCandidatesAdded:
+          assertionPass.inventoryCandidatesAdded ?? 0,
+        assertionInventoryGapStepsFilled:
+          assertionPass.inventoryGapStepsFilled ?? 0,
         assertionApplyPolicy: assertionPolicy,
         assertionApplyStatusCounts: buildAssertionApplyStatusCounts(
           assertionPass.assertionCandidates

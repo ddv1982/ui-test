@@ -26,6 +26,9 @@ describe("improveReportSchema", () => {
         assertionCoverageStepsWithApplied: 2,
         assertionCoverageCandidateRate: 0.75,
         assertionCoverageAppliedRate: 0.5,
+        assertionInventoryStepsEvaluated: 2,
+        assertionInventoryCandidatesAdded: 3,
+        assertionInventoryGapStepsFilled: 2,
         assertionApplyPolicy: "balanced",
         assertionApplyStatusCounts: {
           applied: 1,
@@ -83,6 +86,9 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.assertionCoverageStepsWithApplied).toBe(2);
     expect(parsed.summary.assertionCoverageCandidateRate).toBe(0.75);
     expect(parsed.summary.assertionCoverageAppliedRate).toBe(0.5);
+    expect(parsed.summary.assertionInventoryStepsEvaluated).toBe(2);
+    expect(parsed.summary.assertionInventoryCandidatesAdded).toBe(3);
+    expect(parsed.summary.assertionInventoryGapStepsFilled).toBe(2);
     expect(parsed.summary.assertionApplyStatusCounts?.applied).toBe(1);
     expect(parsed.summary.assertionCandidateSourceCounts?.snapshot_native).toBe(1);
     expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");

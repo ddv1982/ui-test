@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
+import { buildSnapshotInventoryAssertionCandidates } from "./assertion-candidates-inventory.js";
 import { type StepSnapshot } from "./assertion-candidates-snapshot.js";
 import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
 import {
@@ -33,12 +34,19 @@ import type {
 } from "./report-schema.js";
 import { UserError } from "../../utils/errors.js";
 
+const ASSERTION_COVERAGE_ACTIONS = new Set<
+  import("../yaml-schema.js").Step["action"]
+>(["click", "press", "hover", "fill", "select", "check", "uncheck"]);
+
 export interface AssertionPassResult {
   outputSteps: import("../yaml-schema.js").Step[];
   assertionCandidates: AssertionCandidate[];
   appliedAssertions: number;
   skippedAssertions: number;
   filteredVolatileCandidates: number;
+  inventoryStepsEvaluated: number;
+  inventoryCandidatesAdded: number;
+  inventoryGapStepsFilled: number;
 }
 
 export async function runImproveAssertionPass(input: {
@@ -98,6 +106,71 @@ export async function runImproveAssertionPass(input: {
             "snapshot-native assertion source failed to parse; falling back to deterministic candidates.",
         });
       }
+    }
+  }
+
+  let inventoryStepsEvaluated = 0;
+  let inventoryCandidatesAdded = 0;
+  let inventoryGapStepsFilled = 0;
+
+  if (
+    input.assertions === "candidates" &&
+    input.assertionSource === "snapshot-native" &&
+    input.nativeStepSnapshots.length > 0
+  ) {
+    const coverageStepIndexes = collectCoverageStepOriginalIndexes(
+      outputSteps,
+      input.outputStepOriginalIndexes
+    );
+    const stepsWithNonFallbackCandidates = new Set<number>();
+    for (const candidate of rawAssertionCandidates) {
+      if (candidate.coverageFallback === true) continue;
+      if (!coverageStepIndexes.has(candidate.index)) continue;
+      stepsWithNonFallbackCandidates.add(candidate.index);
+    }
+
+    const uncoveredStepIndexes: number[] = [];
+    for (const stepIndex of coverageStepIndexes) {
+      if (stepsWithNonFallbackCandidates.has(stepIndex)) continue;
+      uncoveredStepIndexes.push(stepIndex);
+    }
+
+    inventoryStepsEvaluated = uncoveredStepIndexes.length;
+
+    if (inventoryStepsEvaluated > 0) {
+      const uncoveredStepSet = new Set(uncoveredStepIndexes);
+      const filteredSnapshots = input.nativeStepSnapshots.filter((snapshot) => {
+        const originalIndex =
+          input.outputStepOriginalIndexes[snapshot.index] ?? snapshot.index;
+        return uncoveredStepSet.has(originalIndex);
+      });
+      const inventoryCandidates = buildSnapshotInventoryAssertionCandidates(
+        filteredSnapshots
+      ).map((candidate) => ({
+        ...candidate,
+        index: input.outputStepOriginalIndexes[candidate.index] ?? candidate.index,
+      }));
+
+      if (inventoryCandidates.length > 0) {
+        const beforeCount = rawAssertionCandidates.length;
+        rawAssertionCandidates = dedupeAssertionCandidates([
+          ...rawAssertionCandidates,
+          ...inventoryCandidates,
+        ]);
+        inventoryCandidatesAdded = Math.max(
+          0,
+          rawAssertionCandidates.length - beforeCount
+        );
+      }
+
+      const gapStepsFilled = new Set<number>();
+      for (const candidate of rawAssertionCandidates) {
+        if (candidate.candidateSource !== "snapshot_native") continue;
+        if (candidate.coverageFallback !== true) continue;
+        if (!uncoveredStepSet.has(candidate.index)) continue;
+        gapStepsFilled.add(candidate.index);
+      }
+      inventoryGapStepsFilled = gapStepsFilled.size;
     }
   }
 
@@ -308,5 +381,21 @@ export async function runImproveAssertionPass(input: {
     appliedAssertions,
     skippedAssertions,
     filteredVolatileCandidates,
+    inventoryStepsEvaluated,
+    inventoryCandidatesAdded,
+    inventoryGapStepsFilled,
   };
+}
+
+function collectCoverageStepOriginalIndexes(
+  steps: import("../yaml-schema.js").Step[],
+  outputStepOriginalIndexes: number[]
+): Set<number> {
+  const out = new Set<number>();
+  for (let runtimeIndex = 0; runtimeIndex < steps.length; runtimeIndex += 1) {
+    const step = steps[runtimeIndex];
+    if (!step || !ASSERTION_COVERAGE_ACTIONS.has(step.action)) continue;
+    out.add(outputStepOriginalIndexes[runtimeIndex] ?? runtimeIndex);
+  }
+  return out;
 }

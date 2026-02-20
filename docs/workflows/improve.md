@@ -113,9 +113,10 @@ These rules govern how assertions are inserted:
 4. Volatility hard-filtering is policy-driven and only applied in apply mode.
 5. Runtime-failing candidates are never force-applied (`skipped_runtime_failure`).
 6. Deterministic coverage fallbacks (`click`/`press`/`hover` -> `assertVisible`) are suppressed in apply mode when a stronger non-fallback candidate exists for the same source step.
-7. Existing adjacent assertions are preserved (no automatic cleanup).
-8. Applied assertions are inserted as required steps (no `optional` field).
-9. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
+7. In `snapshot-native` mode, improve performs gap-only runtime locator inventory harvesting from post-step aria snapshots and adds inventory fallback candidates only for uncovered interaction steps.
+8. Existing adjacent assertions are preserved (no automatic cleanup).
+9. Applied assertions are inserted as required steps (no `optional` field).
+10. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
 
 ### Auto-Improve After Recording
 
@@ -141,6 +142,15 @@ Coverage fallback candidates are always generated, but they remain low priority:
 
 - If a stronger non-fallback candidate exists for the same step, fallback is force-marked `skipped_policy` in apply mode.
 - If fallback is the only candidate for a step, it can proceed through normal policy/runtime validation.
+
+### Snapshot-Native Inventory Harvesting
+
+When `--assertion-source snapshot-native` is active, improve reuses per-step post-action `ariaSnapshot()` state to harvest additional locator/assertion evidence for under-covered interaction steps.
+
+- Runs only for assertion generation mode (`--assertions candidates`).
+- Gap-only by default: steps already covered by non-fallback assertions do not get extra inventory candidates.
+- Uses no extra replay pass; it reuses snapshots already captured during runtime analysis.
+- Inventory candidates are marked as fallback (`coverageFallback: true`) and still pass through normal policy filtering and runtime validation.
 
 ### Assertion Source Fallback
 
@@ -174,6 +184,9 @@ The summary includes:
 - `assertionCoverageStepsWithApplied`
 - `assertionCoverageCandidateRate`
 - `assertionCoverageAppliedRate`
+- `assertionInventoryStepsEvaluated`
+- `assertionInventoryCandidatesAdded`
+- `assertionInventoryGapStepsFilled`
 
 `runtimeFailingStepsOptionalized` is a deprecated alias for one release cycle and mirrors `runtimeFailingStepsRetained`.
 

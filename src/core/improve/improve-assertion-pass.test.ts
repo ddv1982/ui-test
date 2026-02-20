@@ -5,6 +5,9 @@ import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn(() => []),
 }));
+const { buildSnapshotInventoryAssertionCandidatesMock } = vi.hoisted(() => ({
+  buildSnapshotInventoryAssertionCandidatesMock: vi.fn(() => []),
+}));
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn(async () => {}),
 }));
@@ -14,6 +17,11 @@ const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
 
 vi.mock("./assertion-candidates.js", () => ({
   buildAssertionCandidates: buildAssertionCandidatesMock,
+}));
+
+vi.mock("./assertion-candidates-inventory.js", () => ({
+  buildSnapshotInventoryAssertionCandidates:
+    buildSnapshotInventoryAssertionCandidatesMock,
 }));
 
 vi.mock("../runtime/step-executor.js", () => ({
@@ -60,6 +68,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
     vi.resetAllMocks();
     executeRuntimeStepMock.mockResolvedValue(undefined);
     waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+    buildSnapshotInventoryAssertionCandidatesMock.mockReturnValue([]);
   });
 
   it("forces fallback to skipped_policy when stronger candidate exists for the same step", async () => {
@@ -144,5 +153,151 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
           step.action === "assertVisible" && step.target.value === "#submit"
       )
     ).toBe(true);
+  });
+
+  it("adds inventory candidates for uncovered snapshot-native steps", async () => {
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#submit", kind: "css", source: "manual" },
+        },
+        confidence: 0.76,
+        rationale:
+          "Coverage fallback: verify interacted element remains visible after action.",
+        candidateSource: "deterministic",
+        coverageFallback: true,
+      },
+    ]);
+    buildSnapshotInventoryAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertText",
+          target: { value: "#status", kind: "css", source: "manual" },
+          text: "Saved",
+        },
+        confidence: 0.79,
+        rationale:
+          "Coverage fallback (inventory): full post-step aria inventory yielded high-signal text.",
+        candidateSource: "snapshot_native",
+        coverageFallback: true,
+      },
+    ]);
+
+    const result = await runImproveAssertionPass({
+      assertions: "candidates",
+      assertionSource: "snapshot-native",
+      assertionPolicy: "balanced",
+      applyAssertions: false,
+      page: {} as any,
+      outputSteps: [
+        { action: "navigate", url: "https://example.com" },
+        { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+      ],
+      findings: [],
+      outputStepOriginalIndexes: [0, 1],
+      nativeStepSnapshots: [
+        {
+          index: 1,
+          step: { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+          preSnapshot: "- generic [ref=e1]:\n",
+          postSnapshot: "- generic [ref=e1]:\n",
+        },
+      ],
+      diagnostics: [],
+    });
+
+    expect(buildSnapshotInventoryAssertionCandidatesMock).toHaveBeenCalledTimes(1);
+    expect(result.inventoryStepsEvaluated).toBe(1);
+    expect(result.inventoryCandidatesAdded).toBe(1);
+    expect(result.inventoryGapStepsFilled).toBe(1);
+    expect(
+      result.assertionCandidates.some(
+        (candidate) =>
+          candidate.candidateSource === "snapshot_native" &&
+          candidate.coverageFallback === true
+      )
+    ).toBe(true);
+  });
+
+  it("does not run inventory harvesting when non-fallback candidates already cover a step", async () => {
+    buildAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertText",
+          target: { value: "#status", kind: "css", source: "manual" },
+          text: "Saved",
+        },
+        confidence: 0.9,
+        rationale: "high-signal text",
+        candidateSource: "deterministic",
+      },
+    ]);
+
+    const result = await runImproveAssertionPass({
+      assertions: "candidates",
+      assertionSource: "snapshot-native",
+      assertionPolicy: "balanced",
+      applyAssertions: false,
+      page: {} as any,
+      outputSteps: [
+        { action: "navigate", url: "https://example.com" },
+        { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+      ],
+      findings: [],
+      outputStepOriginalIndexes: [0, 1],
+      nativeStepSnapshots: [
+        {
+          index: 1,
+          step: { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+          preSnapshot: "- generic [ref=e1]:\n",
+          postSnapshot: "- generic [ref=e1]:\n",
+        },
+      ],
+      diagnostics: [],
+    });
+
+    expect(buildSnapshotInventoryAssertionCandidatesMock).not.toHaveBeenCalled();
+    expect(result.inventoryStepsEvaluated).toBe(0);
+    expect(result.inventoryCandidatesAdded).toBe(0);
+    expect(result.inventoryGapStepsFilled).toBe(0);
+  });
+
+  it("does not run inventory harvesting for deterministic assertion source", async () => {
+    buildAssertionCandidatesMock.mockReturnValue(baseCandidates());
+
+    const result = await runImproveAssertionPass({
+      assertions: "candidates",
+      assertionSource: "deterministic",
+      assertionPolicy: "balanced",
+      applyAssertions: false,
+      page: {} as any,
+      outputSteps: [
+        { action: "navigate", url: "https://example.com" },
+        { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+      ],
+      findings: [],
+      outputStepOriginalIndexes: [0, 1],
+      nativeStepSnapshots: [
+        {
+          index: 1,
+          step: { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+          preSnapshot: "- generic [ref=e1]:\n",
+          postSnapshot: "- generic [ref=e1]:\n",
+        },
+      ],
+      diagnostics: [],
+    });
+
+    expect(buildSnapshotInventoryAssertionCandidatesMock).not.toHaveBeenCalled();
+    expect(result.inventoryStepsEvaluated).toBe(0);
+    expect(result.inventoryCandidatesAdded).toBe(0);
+    expect(result.inventoryGapStepsFilled).toBe(0);
   });
 });
