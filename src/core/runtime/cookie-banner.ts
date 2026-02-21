@@ -1,4 +1,4 @@
-import type { BrowserContext, Frame, Page } from "playwright";
+import type { BrowserContext, Frame, Locator, Page } from "playwright";
 import {
   COOKIE_CONSENT_CMP_SELECTORS,
   COOKIE_CONSENT_DISMISS_TEXTS,
@@ -208,7 +208,8 @@ export async function dismissCookieBannerIfPresent(
 
 export interface CookieBannerDismissResult {
   dismissed: boolean;
-  strategy?: "known_selector" | "text_match";
+  strategy?: "known_selector" | "text_match" | "modal_close_control";
+  category?: "cookie_consent" | "non_cookie_overlay";
   frameUrl?: string;
 }
 
@@ -225,6 +226,7 @@ export async function dismissCookieBannerWithDetails(
       return {
         dismissed: true,
         strategy: "known_selector",
+        category: "cookie_consent",
         frameUrl: frame.url(),
       };
     }
@@ -236,6 +238,18 @@ export async function dismissCookieBannerWithDetails(
       return {
         dismissed: true,
         strategy: "text_match",
+        category: "cookie_consent",
+        frameUrl: frame.url(),
+      };
+    }
+  }
+
+  for (const frame of frames) {
+    if (await clickKnownOverlayCloseControl(frame, timeout)) {
+      return {
+        dismissed: true,
+        strategy: "modal_close_control",
+        category: "non_cookie_overlay",
         frameUrl: frame.url(),
       };
     }
@@ -251,13 +265,54 @@ function clampDismissTimeout(timeoutMs: number): number {
   return timeoutMs;
 }
 
+async function readLocatorVisible(locator: Locator, timeout: number): Promise<boolean> {
+  try {
+    return await locator.isVisible({ timeout });
+  } catch {
+    return false;
+  }
+}
+
+async function clickLocator(locator: Locator, timeout: number): Promise<boolean> {
+  try {
+    await locator.click({ timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readLocatorCount(locator: Locator): Promise<number> {
+  try {
+    return await locator.count();
+  } catch {
+    return 0;
+  }
+}
+
+async function readLocatorAttribute(locator: Locator, name: string): Promise<string | null> {
+  try {
+    return await locator.getAttribute(name);
+  } catch {
+    return null;
+  }
+}
+
+async function readLocatorText(locator: Locator): Promise<string> {
+  try {
+    return (await locator.textContent()) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 async function clickKnownCmpSelector(frame: Frame, timeout: number): Promise<boolean> {
   const probeTimeout = Math.min(timeout, 400);
   for (const selector of COOKIE_CONSENT_CMP_SELECTORS) {
     const locator = frame.locator(selector).first();
-    const visible = await locator.isVisible({ timeout: probeTimeout }).catch(() => false);
+    const visible = await readLocatorVisible(locator, probeTimeout);
     if (!visible) continue;
-    const clicked = await locator.click({ timeout }).then(() => true).catch(() => false);
+    const clicked = await clickLocator(locator, timeout);
     if (clicked) return true;
   }
   return false;
@@ -269,12 +324,11 @@ async function isLikelyConsentFrame(frame: Frame, timeout: number): Promise<bool
     return true;
   }
 
-  const markerVisible = await frame
+  const markerLocator = frame
     .locator(CONSENT_CONTEXT_SELECTOR)
-    .first()
-    .isVisible({ timeout: Math.min(timeout, 400) })
-    .catch(() => false);
-  if (markerVisible) return true;
+    .first();
+  const visible = await readLocatorVisible(markerLocator, Math.min(timeout, 400));
+  if (visible) return true;
 
   return false;
 }
@@ -293,13 +347,13 @@ async function clickConsentControlByText(frame: Frame, timeout: number): Promise
 
   for (const role of roleCandidates) {
     const locator = frame.getByRole(role, { name: ACCEPT_NAME_PATTERN });
-    const count = await locator.count().catch(() => 0);
+    const count = await readLocatorCount(locator);
     const boundedCount = Math.min(count, 6);
     for (let index = 0; index < boundedCount; index += 1) {
       const candidate = locator.nth(index);
-      const visible = await candidate.isVisible({ timeout: probeTimeout }).catch(() => false);
+      const visible = await readLocatorVisible(candidate, probeTimeout);
       if (!visible) continue;
-      const clicked = await candidate.click({ timeout }).then(() => true).catch(() => false);
+      const clicked = await clickLocator(candidate, timeout);
       if (clicked) return true;
     }
   }
@@ -307,15 +361,91 @@ async function clickConsentControlByText(frame: Frame, timeout: number): Promise
   const inputLocator = frame.locator(
     'input[type="button"], input[type="submit"]'
   );
-  const inputCount = await inputLocator.count().catch(() => 0);
+  const inputCount = await readLocatorCount(inputLocator);
   const boundedInputCount = Math.min(inputCount, 6);
   for (let index = 0; index < boundedInputCount; index += 1) {
     const candidate = inputLocator.nth(index);
-    const visible = await candidate.isVisible({ timeout: probeTimeout }).catch(() => false);
+    const visible = await readLocatorVisible(candidate, probeTimeout);
     if (!visible) continue;
-    const value = await candidate.getAttribute("value").catch(() => "") ?? "";
+    const value = (await readLocatorAttribute(candidate, "value")) ?? "";
     if (!ACCEPT_NAME_PATTERN.test(value.trim())) continue;
-    const clicked = await candidate.click({ timeout }).then(() => true).catch(() => false);
+    const clicked = await clickLocator(candidate, timeout);
+    if (clicked) return true;
+  }
+
+  return false;
+}
+
+const NON_COOKIE_OVERLAY_ROOT_SELECTOR =
+  '[role="dialog"][aria-modal="true"], .modal[aria-modal="true"], .modal--breaking-push, .breaking-push-modal';
+const NON_COOKIE_OVERLAY_CLOSE_SELECTOR =
+  '[data-action*="close" i], [data-testid*="close" i], button[aria-label*="close" i], button[aria-label*="sluit" i], button[title*="close" i], button[title*="sluit" i], .modal__close, .modal__close button, .breaking-push-modal__close, .breaking-push-modal__close button';
+const NON_COOKIE_DISMISS_NAME_PATTERN = /\b(?:close|dismiss|cancel|skip|not now|no thanks|later|sluit|sluiten|annuleren|overslaan|niet nu|nee)\b/i;
+
+async function clickKnownOverlayCloseControl(frame: Frame, timeout: number): Promise<boolean> {
+  const probeTimeout = Math.min(timeout, 450);
+  const modalRoots = frame.locator(NON_COOKIE_OVERLAY_ROOT_SELECTOR);
+  const modalRootCount = await readLocatorCount(modalRoots);
+  const boundedModalRootCount = Math.min(modalRootCount, 4);
+  for (let index = 0; index < boundedModalRootCount; index += 1) {
+    const modalRoot = modalRoots.nth(index);
+    const rootVisible = await readLocatorVisible(modalRoot, probeTimeout);
+    if (!rootVisible) continue;
+    if (await clickOverlayCloseControlWithinRoot(modalRoot, timeout, probeTimeout)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function clickOverlayCloseControlWithinRoot(
+  modalRoot: Locator,
+  timeout: number,
+  probeTimeout: number
+): Promise<boolean> {
+  const selectorClose = modalRoot.locator(`:is(${NON_COOKIE_OVERLAY_CLOSE_SELECTOR})`).first();
+  const selectorCloseVisible = await readLocatorVisible(selectorClose, probeTimeout);
+  if (selectorCloseVisible) {
+    const selectorCloseHint =
+      (
+        [
+          await readLocatorAttribute(selectorClose, "data-action"),
+          await readLocatorAttribute(selectorClose, "data-testid"),
+          await readLocatorAttribute(selectorClose, "aria-label"),
+          await readLocatorAttribute(selectorClose, "title"),
+          await readLocatorAttribute(selectorClose, "class"),
+          await readLocatorAttribute(selectorClose, "id"),
+          await readLocatorText(selectorClose),
+        ]
+          .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
+          .join(" ")
+          .trim()
+          .toLowerCase()
+      ) ?? "";
+    if (selectorCloseHint && NON_COOKIE_DISMISS_NAME_PATTERN.test(selectorCloseHint)) {
+      const clicked = await clickLocator(selectorClose, timeout);
+      if (clicked) return true;
+    }
+  }
+
+  const controls = modalRoot.locator(":is(button, [role=\"button\"], a)");
+  const controlCount = await readLocatorCount(controls);
+  const boundedControlCount = Math.min(controlCount, 8);
+  for (let i = 0; i < boundedControlCount; i += 1) {
+    const candidate = controls.nth(i);
+    const label =
+      (
+        (await readLocatorAttribute(candidate, "aria-label")) ??
+        (await readLocatorAttribute(candidate, "title")) ??
+        (await readLocatorText(candidate))
+      )
+        ?.trim()
+        .toLowerCase() ?? "";
+    if (!label || !NON_COOKIE_DISMISS_NAME_PATTERN.test(label)) continue;
+    const visible = await readLocatorVisible(candidate, probeTimeout);
+    if (!visible) continue;
+    const clicked = await clickLocator(candidate, timeout);
     if (clicked) return true;
   }
 

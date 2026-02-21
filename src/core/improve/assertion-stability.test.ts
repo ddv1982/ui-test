@@ -3,7 +3,7 @@ import type { AssertionCandidate } from "./report-schema.js";
 import {
   assessAssertionCandidateStability,
   clampSmartSnapshotCandidateVolume,
-  shouldFilterVolatileSnapshotTextCandidate,
+  shouldFilterDynamicSnapshotTextCandidate,
 } from "./assertion-stability.js";
 import { ASSERTION_POLICY_CONFIG } from "./assertion-policy.js";
 
@@ -24,7 +24,7 @@ function makeCandidate(partial: Partial<AssertionCandidate>): AssertionCandidate
 }
 
 describe("assertion stability", () => {
-  it("flags volatile snapshot text candidates", () => {
+  it("flags dynamic snapshot text candidates", () => {
     const candidate = makeCandidate({
       afterAction: "navigate",
       candidate: {
@@ -35,10 +35,10 @@ describe("assertion stability", () => {
     });
 
     const assessed = assessAssertionCandidateStability(candidate);
-    expect((assessed.volatilityFlags?.length ?? 0)).toBeGreaterThan(0);
+    expect((assessed.dynamicSignals?.length ?? 0)).toBeGreaterThan(0);
     expect((assessed.stabilityScore ?? 1)).toBeLessThan(0.86);
     expect(
-      shouldFilterVolatileSnapshotTextCandidate({
+      shouldFilterDynamicSnapshotTextCandidate({
         ...candidate,
         ...assessed,
       })
@@ -57,7 +57,7 @@ describe("assertion stability", () => {
     });
     const assessed = assessAssertionCandidateStability(candidate);
     expect((assessed.stabilityScore ?? 0)).toBeGreaterThanOrEqual(0.8);
-    expect(assessed.volatilityFlags).toEqual([]);
+    expect(assessed.dynamicSignals).toEqual([]);
   });
 
   it("does not hard-filter navigate-context-only snapshot text candidates", () => {
@@ -71,9 +71,9 @@ describe("assertion stability", () => {
     });
 
     const assessed = assessAssertionCandidateStability(candidate);
-    expect(assessed.volatilityFlags).toContain("navigate_context");
+    expect(assessed.dynamicSignals).toContain("navigate_context");
     expect(
-      shouldFilterVolatileSnapshotTextCandidate({
+      shouldFilterDynamicSnapshotTextCandidate({
         ...candidate,
         ...assessed,
       })
@@ -95,7 +95,7 @@ describe("assertion stability", () => {
     expect((assessed.stabilityScore ?? 1)).toBeLessThan(0.75);
   });
 
-  it("emits explicit volatility flags for long timestamped snapshot text", () => {
+  it("emits explicit dynamic flags for long timestamped snapshot text", () => {
     const candidate = makeCandidate({
       candidate: {
         action: "assertText",
@@ -105,12 +105,12 @@ describe("assertion stability", () => {
     });
 
     const assessed = assessAssertionCandidateStability(candidate);
-    expect(assessed.volatilityFlags).toContain("contains_numeric_fragment");
-    expect(assessed.volatilityFlags).toContain("contains_date_or_time_fragment");
-    expect(assessed.volatilityFlags).toContain("contains_weather_or_news_fragment");
+    expect(assessed.dynamicSignals).toContain("contains_numeric_fragment");
+    expect(assessed.dynamicSignals).toContain("contains_date_or_time_fragment");
+    expect(assessed.dynamicSignals).toContain("contains_weather_or_news_fragment");
   });
 
-  it("applies graduated penalties instead of flat penalty for volatility flags", () => {
+  it("applies graduated penalties instead of flat penalty for dynamic flags", () => {
     const numericOnly = makeCandidate({
       candidate: {
         action: "assertText",
@@ -131,13 +131,13 @@ describe("assertion stability", () => {
     });
     const multiResult = assessAssertionCandidateStability(multiFlag);
     // Multiple flags: numeric (0.12) + date (0.15) + weather (0.15) = 0.42, capped at 0.30
-    expect(multiResult.volatilityFlags).toContain("contains_numeric_fragment");
-    expect(multiResult.volatilityFlags).toContain("contains_date_or_time_fragment");
-    expect(multiResult.volatilityFlags).toContain("contains_weather_or_news_fragment");
+    expect(multiResult.dynamicSignals).toContain("contains_numeric_fragment");
+    expect(multiResult.dynamicSignals).toContain("contains_date_or_time_fragment");
+    expect(multiResult.dynamicSignals).toContain("contains_weather_or_news_fragment");
     expect((multiResult.stabilityScore ?? 1)).toBeLessThan(0.7);
   });
 
-  it("detects pipe separator as a volatility flag", () => {
+  it("detects pipe separator as a dynamic flag", () => {
     const candidate = makeCandidate({
       candidate: {
         action: "assertText",
@@ -146,7 +146,7 @@ describe("assertion stability", () => {
       },
     });
     const assessed = assessAssertionCandidateStability(candidate);
-    expect(assessed.volatilityFlags).toContain("contains_pipe_separator");
+    expect(assessed.dynamicSignals).toContain("contains_pipe_separator");
   });
 
   it("gives stable structural assertVisible a scoring bonus", () => {
@@ -219,9 +219,9 @@ describe("assertion stability", () => {
     });
 
     const assessed = assessAssertionCandidateStability(candidate);
-    expect(assessed.volatilityFlags).toContain("contains_headline_like_text");
+    expect(assessed.dynamicSignals).toContain("contains_headline_like_text");
     expect(
-      shouldFilterVolatileSnapshotTextCandidate({
+      shouldFilterDynamicSnapshotTextCandidate({
         ...candidate,
         ...assessed,
       })
@@ -238,16 +238,16 @@ describe("assertion stability", () => {
     });
 
     const assessed = assessAssertionCandidateStability(candidate);
-    expect(assessed.volatilityFlags).toContain("contains_pipe_separator");
+    expect(assessed.dynamicSignals).toContain("contains_pipe_separator");
     expect(
-      shouldFilterVolatileSnapshotTextCandidate({
+      shouldFilterDynamicSnapshotTextCandidate({
         ...candidate,
         ...assessed,
       })
     ).toBe(true);
   });
 
-  it("does not hard-filter numeric/date-only volatility in balanced mode", () => {
+  it("does not hard-filter numeric/date-only dynamic in balanced mode", () => {
     const candidate = makeCandidate({
       candidate: {
         action: "assertText",
@@ -257,12 +257,12 @@ describe("assertion stability", () => {
     });
 
     const assessed = assessAssertionCandidateStability(candidate);
-    expect(assessed.volatilityFlags).toContain("contains_date_or_time_fragment");
-    expect(assessed.volatilityFlags).toContain("contains_weather_or_news_fragment");
+    expect(assessed.dynamicSignals).toContain("contains_date_or_time_fragment");
+    expect(assessed.dynamicSignals).toContain("contains_weather_or_news_fragment");
     expect(
-      shouldFilterVolatileSnapshotTextCandidate(
+      shouldFilterDynamicSnapshotTextCandidate(
         { ...candidate, ...assessed },
-        ASSERTION_POLICY_CONFIG.balanced.hardFilterVolatilityFlags
+        ASSERTION_POLICY_CONFIG.balanced.hardFilterDynamicSignals
       )
     ).toBe(false);
   });

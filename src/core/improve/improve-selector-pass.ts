@@ -4,21 +4,18 @@ import {
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
   waitForPostStepNetworkIdle,
 } from "../runtime/network-idle.js";
-import type { FallbackTarget, Step, Target } from "../yaml-schema.js";
+import { dismissCookieBannerWithDetails } from "../runtime/cookie-banner.js";
+import type { Step, Target } from "../yaml-schema.js";
 import type { StepSnapshot } from "./assertion-candidates-snapshot.js";
-import { generateAriaTargetCandidates } from "./candidate-generator-aria.js";
-import { generateTargetCandidates } from "./candidate-generator.js";
-import {
-  scoreTargetCandidates,
-  shouldAdoptCandidate,
-} from "./candidate-scorer.js";
-import { chooseDeterministicSelection, roundScore } from "./improve-helpers.js";
+import { scoreTargetCandidates } from "./candidate-scorer.js";
 import {
   DEFAULT_RUNTIME_TIMEOUT_MS,
   DEFAULT_SCORING_TIMEOUT_MS,
 } from "./improve-types.js";
 import type { ImproveDiagnostic, StepFinding } from "./report-schema.js";
-import { analyzeAndBuildLocatorRepairCandidates } from "./locator-repair.js";
+import { applySelectionAndRecordFinding } from "./selector-pass/apply-selection.js";
+import { collectCandidatesForStep } from "./selector-pass/collect-candidates.js";
+import { selectBestCandidateForStep } from "./selector-pass/select-candidate.js";
 
 export interface SelectorPassResult {
   outputSteps: Step[];
@@ -27,7 +24,14 @@ export interface SelectorPassResult {
   failedStepIndexes: number[];
   selectorRepairCandidates: number;
   selectorRepairsApplied: number;
+  selectorRepairsAdoptedOnTie: number;
+  selectorRepairsGeneratedByPlaywrightRuntime: number;
+  selectorRepairsAppliedFromPlaywrightRuntime: number;
+  selectorRepairsGeneratedByPrivateFallback: number;
+  selectorRepairsAppliedFromPrivateFallback: number;
 }
+
+type StepWithTarget = Step & { target: Target };
 
 export async function runImproveSelectorPass(input: {
   steps: Step[];
@@ -38,12 +42,18 @@ export async function runImproveSelectorPass(input: {
   wantsNativeSnapshots: boolean;
   diagnostics: ImproveDiagnostic[];
 }): Promise<SelectorPassResult> {
+  const runtimeRegenerationDisabled = isPlaywrightRuntimeRegenerationDisabled();
   const outputSteps = [...input.steps];
   const findings: StepFinding[] = [];
   const nativeStepSnapshots: StepSnapshot[] = [];
   const failedStepIndexes: number[] = [];
   let selectorRepairCandidates = 0;
   let selectorRepairsApplied = 0;
+  let selectorRepairsAdoptedOnTie = 0;
+  let selectorRepairsGeneratedByPlaywrightRuntime = 0;
+  let selectorRepairsAppliedFromPlaywrightRuntime = 0;
+  let selectorRepairsGeneratedByPrivateFallback = 0;
+  let selectorRepairsAppliedFromPrivateFallback = 0;
 
   for (let index = 0; index < outputSteps.length; index += 1) {
     const step = outputSteps[index];
@@ -52,44 +62,31 @@ export async function runImproveSelectorPass(input: {
     const originalIndex = input.outputStepOriginalIndexes[index] ?? index;
 
     if (step.action !== "navigate" && "target" in step && step.target) {
-      const candidates = generateTargetCandidates(step.target);
-      const existingCandidateKeys = new Set(
-        candidates.map((candidate) => selectorTargetKey(candidate.target))
-      );
-
-      const repairAnalysis = analyzeAndBuildLocatorRepairCandidates({
-        target: step.target,
-        stepNumber: originalIndex + 1,
+      const targetStep = step as StepWithTarget;
+      const candidateCollection = await collectCandidatesForStep({
+        step: targetStep,
+        page: input.page,
+        originalIndex,
+        runtimeRegenerationDisabled,
+        diagnostics: input.diagnostics,
       });
-      input.diagnostics.push(...repairAnalysis.diagnostics);
-      for (const candidate of repairAnalysis.candidates) {
-        const key = selectorTargetKey(candidate.target);
-        if (existingCandidateKeys.has(key)) continue;
-        existingCandidateKeys.add(key);
-        candidates.push(candidate);
-        selectorRepairCandidates += 1;
-      }
-
-      if (input.page) {
-        const existingValues = new Set(candidates.map((candidate) => candidate.target.value));
-        const ariaResult = await generateAriaTargetCandidates(
-          input.page,
-          step.target,
-          existingValues,
-          DEFAULT_SCORING_TIMEOUT_MS
-        );
-        candidates.push(...ariaResult.candidates);
-        input.diagnostics.push(...ariaResult.diagnostics);
-      }
+      selectorRepairCandidates += candidateCollection.selectorRepairCandidatesAdded;
+      selectorRepairsGeneratedByPlaywrightRuntime +=
+        candidateCollection.selectorRepairsGeneratedByPlaywrightRuntime;
+      selectorRepairsGeneratedByPrivateFallback +=
+        candidateCollection.selectorRepairsGeneratedByPrivateFallback;
 
       const scored = await scoreTargetCandidates(
         input.page,
-        candidates,
+        candidateCollection.candidates,
         DEFAULT_SCORING_TIMEOUT_MS
       );
-      const current =
-        scored.find((item) => item.candidate.source === "current") ?? scored[0];
-      if (!current) {
+      const selection = selectBestCandidateForStep({
+        scored,
+        step: targetStep,
+        applySelectors: input.applySelectors,
+      });
+      if (!selection) {
         input.diagnostics.push({
           code: "candidate_scoring_unavailable",
           level: "warn",
@@ -98,70 +95,37 @@ export async function runImproveSelectorPass(input: {
         continue;
       }
 
-      const selected = chooseDeterministicSelection(scored, current);
-      const improveOpportunity = shouldAdoptCandidate(current, selected);
-      const runtimeValidatedSelection = selected.matchCount === 1;
-      const adopt =
-        improveOpportunity && (!input.applySelectors || runtimeValidatedSelection);
-      const recommendedTarget = adopt ? selected.candidate.target : step.target;
-      const confidenceDelta = roundScore(selected.score - current.score);
-      const reasonCodes = [
-        ...new Set([...current.reasonCodes, ...selected.reasonCodes]),
-      ];
-
-      if (input.applySelectors && !adopt && improveOpportunity) {
-        input.diagnostics.push({
-          code: "apply_requires_runtime_unique_match",
-          level: "warn",
-          message: `Step ${originalIndex + 1}: skipped apply because candidate did not have a unique runtime match.`,
-        });
-      }
-
       findings.push({
         index: originalIndex,
         action: step.action,
-        changed: adopt,
+        changed: selection.adopt,
         oldTarget: step.target,
-        recommendedTarget,
-        oldScore: current.score,
-        recommendedScore: selected.score,
-        confidenceDelta,
-        reasonCodes,
+        recommendedTarget: selection.recommendedTarget,
+        oldScore: selection.current.score,
+        recommendedScore: selection.effectiveSelected.score,
+        confidenceDelta: selection.confidenceDelta,
+        reasonCodes: selection.reasonCodes,
       });
 
-      if (input.applySelectors && adopt) {
-        if (selected.reasonCodes.some((reasonCode) => reasonCode.startsWith("locator_repair_"))) {
-          selectorRepairsApplied += 1;
-          input.diagnostics.push({
-            code: "selector_repair_applied",
-            level: "info",
-            message:
-              `Step ${originalIndex + 1}: applied selector repair candidate (${selected.reasonCodes.join(", ")}).`,
-          });
-        }
-
-        // Collect up to 2 runner-up candidates as fallbacks
-        const fallbacks: FallbackTarget[] = [];
-        const selectedValue = selected.candidate.target.value;
-        for (const candidate of scored) {
-          if (fallbacks.length >= 2) break;
-          if (candidate.candidate.target.value === selectedValue) continue;
-          if (candidate.matchCount !== 1) continue;
-          if (candidate.score < 0.5) continue;
-          fallbacks.push({
-            value: candidate.candidate.target.value,
-            kind: candidate.candidate.target.kind,
-            source: candidate.candidate.target.source,
-          });
-        }
-
-        outputSteps[index] = {
-          ...step,
-          target: {
-            ...recommendedTarget,
-            ...(fallbacks.length > 0 ? { fallbacks } : {}),
-          },
-        };
+      if (input.applySelectors) {
+        const applyMetrics = applySelectionAndRecordFinding({
+          outputSteps,
+          step: targetStep,
+          stepIndex: index,
+          originalIndex,
+          selection,
+          scored,
+          diagnostics: input.diagnostics,
+          runtimeRepairCandidateKeys: candidateCollection.runtimeRepairCandidateKeys,
+          privateFallbackRuntimeRepairCandidateKeys:
+            candidateCollection.privateFallbackRuntimeRepairCandidateKeys,
+        });
+        selectorRepairsApplied += applyMetrics.selectorRepairsApplied;
+        selectorRepairsAdoptedOnTie += applyMetrics.selectorRepairsAdoptedOnTie;
+        selectorRepairsAppliedFromPlaywrightRuntime +=
+          applyMetrics.selectorRepairsAppliedFromPlaywrightRuntime;
+        selectorRepairsAppliedFromPrivateFallback +=
+          applyMetrics.selectorRepairsAppliedFromPrivateFallback;
       }
     }
 
@@ -187,6 +151,19 @@ export async function runImproveSelectorPass(input: {
     }
 
     try {
+      const dismissResult = await dismissCookieBannerWithDetails(
+        input.page,
+        Math.min(DEFAULT_RUNTIME_TIMEOUT_MS, 1200)
+      ).catch(() => ({ dismissed: false } as const));
+      if (dismissResult.dismissed && dismissResult.category === "non_cookie_overlay") {
+        input.diagnostics.push({
+          code: "overlay_dismissed_non_cookie",
+          level: "info",
+          message:
+            `Step ${originalIndex + 1}: dismissed non-cookie overlay via ${dismissResult.strategy ?? "unknown"}${dismissResult.frameUrl ? ` (${dismissResult.frameUrl})` : ""}.`,
+        });
+      }
+
       const runtimeStep = outputSteps[index] ?? step;
       await executeRuntimeStep(
         input.page,
@@ -273,14 +250,14 @@ export async function runImproveSelectorPass(input: {
     failedStepIndexes,
     selectorRepairCandidates,
     selectorRepairsApplied,
+    selectorRepairsAdoptedOnTie,
+    selectorRepairsGeneratedByPlaywrightRuntime,
+    selectorRepairsAppliedFromPlaywrightRuntime,
+    selectorRepairsGeneratedByPrivateFallback,
+    selectorRepairsAppliedFromPrivateFallback,
   };
 }
 
-function selectorTargetKey(target: Target): string {
-  return JSON.stringify({
-    value: target.value,
-    kind: target.kind,
-    source: target.source,
-    framePath: target.framePath ?? [],
-  });
+function isPlaywrightRuntimeRegenerationDisabled(): boolean {
+  return process.env["UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_REGEN"] === "1";
 }

@@ -18,6 +18,8 @@ export default defineConfig({
         "src/bin/**",
         "src/core/contracts/**",
         "src/core/improve/improve.ts", // re-export shim
+        "src/core/improve/assertion-apply.ts", // re-export shim
+        "src/core/improve/assertion-apply-types.ts", // type-only declarations
         "src/core/play/play-types.ts", // type-only declarations
         "src/core/transform/selector-normalize.ts", // parser-normalization utility with broad combinatorics
         "src/utils/chromium-runtime.ts", // environment-dependent launcher diagnostics

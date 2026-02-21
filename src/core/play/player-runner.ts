@@ -30,6 +30,11 @@ import {
 } from "./artifact-writer.js";
 import { runPlayStepLoop } from "./step-loop.js";
 import { installCookieBannerDismisser } from "../runtime/cookie-banner.js";
+import {
+  formatOverlayHandlerEvent,
+  installOverlayHandlers,
+  type OverlayHandlerRegistration,
+} from "../runtime/overlay-handler.js";
 import type { PlayOptions, TestResult } from "./play-types.js";
 import type { BrowserLaunchers, PlaywrightBrowser } from "../contracts/browser-launcher.js";
 
@@ -83,6 +88,7 @@ export async function play(
     tracingStarted: false,
     tracingStopped: false,
   };
+  let overlayHandlers: OverlayHandlerRegistration | undefined;
 
   let stepResults = [] as TestResult["steps"];
   let failureArtifacts = undefined as TestResult["failureArtifacts"];
@@ -96,6 +102,12 @@ export async function play(
     context = await browser.newContext();
     await installCookieBannerDismisser(context);
     const page = await context.newPage();
+    overlayHandlers = await installOverlayHandlers(page, {
+      timeoutMs: Math.min(timeout, 1_200),
+      onDismissed: (event) => {
+        artifactWarnings.push(formatOverlayHandlerEvent(event));
+      },
+    });
 
     if (artifactPaths) {
       traceState = await startTraceCapture(context, test.name, artifactWarnings);
@@ -143,6 +155,9 @@ export async function play(
     stepResults = loopResult.stepResults;
     failureArtifacts = loopResult.failureArtifacts;
   } finally {
+    if (overlayHandlers) {
+      await overlayHandlers.dispose();
+    }
     if (context) {
       await stopTraceCaptureIfNeeded(context, traceState, artifactWarnings);
       await context.close();

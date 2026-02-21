@@ -42,6 +42,77 @@ describe("jsonlToSteps", () => {
     ]);
   });
 
+  it("drops exact for dynamic locator text in reliable mode", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","selector":"a.story-link","locator":{"kind":"role","body":"link","options":{"name":"Live update Schiphol 12:30: verkeer rond luchthaven vast","exact":true}}}'
+    );
+
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value:
+            "getByRole('link', { name: 'Live update Schiphol 12:30: verkeer rond luchthaven vast' })",
+          kind: "locatorExpression",
+          source: "codegen-jsonl",
+        },
+      },
+    ]);
+  });
+
+  it("drops exact for breaking headline text with date/time in reliable mode", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","selector":"a.breaking-link","locator":{"kind":"role","body":"link","options":{"name":"Breaking: markten reageren 2026-02-21 12:30","exact":true}}}'
+    );
+
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value: "getByRole('link', { name: 'Breaking: markten reageren 2026-02-21 12:30' })",
+          kind: "locatorExpression",
+          source: "codegen-jsonl",
+        },
+      },
+    ]);
+  });
+
+  it("keeps exact for long stable separator text in reliable mode", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","selector":"a.doc-link","locator":{"kind":"role","body":"link","options":{"name":"Download annual financial report: document section","exact":true}}}'
+    );
+
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value:
+            "getByRole('link', { name: 'Download annual financial report: document section', exact: true })",
+          kind: "locatorExpression",
+          source: "codegen-jsonl",
+        },
+      },
+    ]);
+  });
+
+  it("keeps exact when only a single dynamic keyword is present", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","selector":"a.help-link","locator":{"kind":"role","body":"link","options":{"name":"Live support handbook for enterprise onboarding teams","exact":true}}}'
+    );
+
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value:
+            "getByRole('link', { name: 'Live support handbook for enterprise onboarding teams', exact: true })",
+          kind: "locatorExpression",
+          source: "codegen-jsonl",
+        },
+      },
+    ]);
+  });
+
   it("falls back to raw selector when locator normalization is invalid", () => {
     const steps = jsonlToSteps(
       '{"type":"click","selector":"#submit","locator":{"kind":"nth","body":"not-a-number"}}'
@@ -74,6 +145,27 @@ describe("jsonlToSteps", () => {
           value: "text=Save",
           kind: "playwrightSelector",
           source: "codegen-jsonl",
+        },
+      },
+    ]);
+  });
+
+  it("keeps exact when raw policy falls back to normalized locator expressions", () => {
+    const steps = jsonlToSteps(
+      '{"type":"click","locator":{"kind":"role","body":"link","options":{"name":"Nederlaag voor Trump: hooggerechtshof VS oordeelt dat heffingen onwettig zijn","exact":true}}}',
+      { selectorPolicy: "raw" }
+    );
+
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value:
+            "getByRole('link', { name: 'Nederlaag voor Trump: hooggerechtshof VS oordeelt dat heffingen onwettig zijn', exact: true })",
+          kind: "locatorExpression",
+          source: "codegen-jsonl",
+          confidence: 0.8,
+          warning: "Raw selector was unavailable, using normalized locator expression.",
         },
       },
     ]);

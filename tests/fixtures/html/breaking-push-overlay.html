@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Breaking Push Overlay Fixture</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+
+      .breaking-push-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 0, 0, 0.55);
+      }
+
+      .breaking-push-modal__panel {
+        position: relative;
+        width: min(520px, 92vw);
+        padding: 24px;
+        border-radius: 10px;
+        background: #fff;
+      }
+
+      .breaking-push-modal__close {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        min-width: 40px;
+        min-height: 40px;
+        border: 0;
+        border-radius: 999px;
+        background: #eee;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Breaking Push Overlay Fixture</h1>
+      <button id="continue-btn">Continue</button>
+      <p id="success" hidden>Action completed</p>
+    </main>
+
+    <div
+      id="breaking-push-modal"
+      class="breaking-push-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Breaking push announcement"
+    >
+      <div class="breaking-push-modal__panel">
+        <button
+          id="close-breaking-push"
+          class="breaking-push-modal__close"
+          type="button"
+          aria-label="Sluit melding"
+          title="Sluit melding"
+        >
+          ×
+        </button>
+        <p>Enable breaking push updates to get notified about major stories.</p>
+      </div>
+    </div>
+
+    <script>
+      const modal = document.getElementById("breaking-push-modal");
+      const closeButton = document.getElementById("close-breaking-push");
+      const continueButton = document.getElementById("continue-btn");
+      const success = document.getElementById("success");
+
+      if (closeButton && modal) {
+        closeButton.addEventListener("click", () => {
+          modal.remove();
+        });
+      }
+
+      if (continueButton && success) {
+        continueButton.addEventListener("click", () => {
+          success.hidden = false;
+        });
+      }
+    </script>
+  </body>
+</html>

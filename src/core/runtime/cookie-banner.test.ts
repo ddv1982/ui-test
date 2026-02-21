@@ -2,6 +2,7 @@ import vm from "node:vm";
 import { describe, expect, it, vi } from "vitest";
 import {
   dismissCookieBannerIfPresent,
+  dismissCookieBannerWithDetails,
   installCookieBannerDismisser,
   isLikelyOverlayInterceptionError,
 } from "./cookie-banner.js";
@@ -25,6 +26,7 @@ interface LocatorEntry {
   click?: () => Promise<void> | void;
   textContent?: string;
   value?: string;
+  attributes?: Record<string, string>;
 }
 
 function makeControl(
@@ -122,9 +124,20 @@ function executeInjectedDismissScript(input: {
   vm.runInNewContext(input.script, sandbox);
 }
 
-function makeLocator(entries: LocatorEntry[]) {
+function makeLocator(
+  entries: LocatorEntry[],
+  options?: {
+    locator?: (selector: string) => ReturnType<typeof makeLocator>;
+    role?: (role: string) => ReturnType<typeof makeLocator>;
+  }
+) {
   const read = (index: number): LocatorEntry | undefined =>
     index >= 0 && index < entries.length ? entries[index] : undefined;
+
+  const resolveNestedLocator = (selector: string) =>
+    options?.locator?.(selector) ?? makeLocator([]);
+  const resolveRoleLocator = (role: string) =>
+    options?.role?.(role) ?? makeLocator([]);
 
   const makeNth = (index: number) => ({
     first: () => makeNth(index),
@@ -133,10 +146,14 @@ function makeLocator(entries: LocatorEntry[]) {
       await read(index)?.click?.();
     },
     getAttribute: async (name: string) => {
-      if (name === "value") return read(index)?.value ?? null;
-      return null;
+      const entry = read(index);
+      if (!entry) return null;
+      if (name === "value") return entry.value ?? null;
+      return entry.attributes?.[name] ?? null;
     },
     textContent: async () => read(index)?.textContent ?? "",
+    locator: (selector: string) => resolveNestedLocator(selector),
+    getByRole: (role: string) => resolveRoleLocator(role),
   });
 
   return {
@@ -148,10 +165,14 @@ function makeLocator(entries: LocatorEntry[]) {
       await read(0)?.click?.();
     },
     getAttribute: async (name: string) => {
-      if (name === "value") return read(0)?.value ?? null;
-      return null;
+      const entry = read(0);
+      if (!entry) return null;
+      if (name === "value") return entry.value ?? null;
+      return entry.attributes?.[name] ?? null;
     },
     textContent: async () => read(0)?.textContent ?? "",
+    locator: (selector: string) => resolveNestedLocator(selector),
+    getByRole: (role: string) => resolveRoleLocator(role),
   };
 }
 
@@ -475,6 +496,185 @@ describe("dismissCookieBannerIfPresent", () => {
 
     expect(dismissed).toBe(false);
     expect(genericClick).not.toHaveBeenCalled();
+  });
+
+  it("dismisses known non-cookie overlays with modal close controls", async () => {
+    const closeClick = vi.fn(async () => {});
+    const modalRoot = makeLocator(
+      [{ visible: true }],
+      {
+        locator: (selector) => {
+          if (selector.includes("[data-action*=\"close\"")) {
+            return makeLocator([
+              {
+                visible: true,
+                click: closeClick,
+                textContent: "Sluit melding",
+                attributes: {
+                  "data-action": "close",
+                  "data-testid": "breaking-push-close",
+                },
+              },
+            ]);
+          }
+          if (selector.includes(":is(button")) {
+            return makeLocator([]);
+          }
+          return makeLocator([]);
+        },
+      }
+    );
+    const frame = {
+      url: () => "https://www.nu.nl/",
+      locator: (selector: string) => {
+        if (
+          selector.includes('[role="dialog"][aria-modal="true"]') ||
+          selector.includes(".breaking-push-modal")
+        ) {
+          return modalRoot;
+        }
+        if (selector === "body") {
+          return makeLocator([{ visible: true, textContent: "Breaking push modal content" }]);
+        }
+        return makeLocator([]);
+      },
+      getByRole: () => makeLocator([]),
+    };
+    const page = { frames: () => [frame] };
+
+    const result = await dismissCookieBannerWithDetails(page as any);
+
+    expect(result.dismissed).toBe(true);
+    expect(result.category).toBe("non_cookie_overlay");
+    expect(result.strategy).toBe("modal_close_control");
+    expect(closeClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses modal-scoped interactive fallback and ignores frame-level close controls", async () => {
+    const outsideCloseClick = vi.fn(async () => {});
+    const modalFallbackClick = vi.fn(async () => {});
+    const modalRoot = makeLocator(
+      [{ visible: true }],
+      {
+        locator: (selector) => {
+          if (selector.includes("[data-action*=\"close\"")) {
+            return makeLocator([{ visible: false }]);
+          }
+          if (selector.includes(":is(button")) {
+            return makeLocator([
+              {
+                visible: true,
+                click: modalFallbackClick,
+                textContent: "Niet nu",
+              },
+            ]);
+          }
+          return makeLocator([]);
+        },
+      }
+    );
+    const frame = {
+      url: () => "https://www.nu.nl/",
+      locator: (selector: string) => {
+        if (selector.includes("[data-action*=\"close\"")) {
+          return makeLocator([
+            {
+              visible: true,
+              click: outsideCloseClick,
+              textContent: "Close outside modal",
+              attributes: { "data-action": "close" },
+            },
+          ]);
+        }
+        if (
+          selector.includes('[role="dialog"][aria-modal="true"]') ||
+          selector.includes(".breaking-push-modal")
+        ) {
+          return modalRoot;
+        }
+        return makeLocator([]);
+      },
+      getByRole: () => makeLocator([]),
+    };
+    const page = { frames: () => [frame] };
+
+    const result = await dismissCookieBannerWithDetails(page as any);
+
+    expect(result.dismissed).toBe(true);
+    expect(result.category).toBe("non_cookie_overlay");
+    expect(result.strategy).toBe("modal_close_control");
+    expect(modalFallbackClick).toHaveBeenCalledTimes(1);
+    expect(outsideCloseClick).not.toHaveBeenCalled();
+  });
+
+  it("iterates modal roots and can dismiss via a later visible modal", async () => {
+    const secondModalCloseClick = vi.fn(async () => {});
+    const firstModalRoot = makeLocator(
+      [{ visible: true }],
+      {
+        locator: (selector) => {
+          if (selector.includes("[data-action*=\"close\"")) {
+            return makeLocator([{ visible: false }]);
+          }
+          if (selector.includes(":is(button")) {
+            return makeLocator([]);
+          }
+          return makeLocator([]);
+        },
+      }
+    );
+    const secondModalRoot = makeLocator(
+      [{ visible: true }],
+      {
+        locator: (selector) => {
+          if (selector.includes("[data-action*=\"close\"")) {
+            return makeLocator([
+              {
+                visible: true,
+                click: secondModalCloseClick,
+                textContent: "Sluit",
+                attributes: { "data-action": "close" },
+              },
+            ]);
+          }
+          if (selector.includes(":is(button")) {
+            return makeLocator([]);
+          }
+          return makeLocator([]);
+        },
+      }
+    );
+    const modalRoots = {
+      count: async () => 2,
+      nth: (index: number) => {
+        if (index === 0) return firstModalRoot;
+        if (index === 1) return secondModalRoot;
+        return makeLocator([]);
+      },
+      first: () => firstModalRoot,
+    } as any;
+
+    const frame = {
+      url: () => "https://www.nu.nl/",
+      locator: (selector: string) => {
+        if (
+          selector.includes('[role="dialog"][aria-modal="true"]') ||
+          selector.includes(".breaking-push-modal")
+        ) {
+          return modalRoots;
+        }
+        return makeLocator([]);
+      },
+      getByRole: () => makeLocator([]),
+    };
+    const page = { frames: () => [frame] };
+
+    const result = await dismissCookieBannerWithDetails(page as any);
+
+    expect(result.dismissed).toBe(true);
+    expect(result.category).toBe("non_cookie_overlay");
+    expect(result.strategy).toBe("modal_close_control");
+    expect(secondModalCloseClick).toHaveBeenCalledTimes(1);
   });
 
   it("does not treat partner-page content as consent context", async () => {

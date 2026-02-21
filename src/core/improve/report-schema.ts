@@ -49,7 +49,7 @@ export const assertionCandidateSchema = z.object({
   rationale: z.string().min(1),
   coverageFallback: z.boolean().optional(),
   stabilityScore: z.number().min(0).max(1).optional(),
-  volatilityFlags: z.array(z.string()).optional(),
+  dynamicSignals: z.array(z.string()).optional(),
   candidateSource: assertionCandidateSourceSchema.optional(),
   stableStructural: z.boolean().optional(),
   applyStatus: assertionApplyStatusSchema.optional(),
@@ -66,10 +66,20 @@ export const improveSummarySchema = z.object({
   skippedAssertions: z.number().int().nonnegative(),
   selectorRepairCandidates: z.number().int().nonnegative().optional(),
   selectorRepairsApplied: z.number().int().nonnegative().optional(),
+  selectorRepairsAdoptedOnTie: z.number().int().nonnegative().optional(),
+  selectorRepairsGeneratedByPlaywrightRuntime: z.number().int().nonnegative().optional(),
+  selectorRepairsAppliedFromPlaywrightRuntime: z.number().int().nonnegative().optional(),
+  selectorRepairsGeneratedByPrivateFallback: z.number().int().nonnegative().optional(),
+  selectorRepairsAppliedFromPrivateFallback: z.number().int().nonnegative().optional(),
+  deterministicAssertionsSkippedNavigationLikeClick: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional(),
   runtimeFailingStepsRetained: z.number().int().nonnegative().optional(),
   runtimeFailingStepsOptionalized: z.number().int().nonnegative().optional(),
   runtimeFailingStepsRemoved: z.number().int().nonnegative().optional(),
-  assertionCandidatesFilteredVolatile: z.number().int().nonnegative().optional(),
+  assertionCandidatesFilteredDynamic: z.number().int().nonnegative().optional(),
   assertionCoverageStepsTotal: z.number().int().nonnegative().optional(),
   assertionCoverageStepsWithCandidates: z.number().int().nonnegative().optional(),
   assertionCoverageStepsWithApplied: z.number().int().nonnegative().optional(),

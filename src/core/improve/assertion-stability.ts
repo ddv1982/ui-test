@@ -1,9 +1,9 @@
 import type { AssertionCandidate } from "./report-schema.js";
-import { detectVolatilityFlags } from "./volatility-detection.js";
+import { detectDynamicSignals } from "./dynamic-signal-detection.js";
 import type { SnapshotCandidateVolumeCap } from "./assertion-policy.js";
 
 const HIGH_SIGNAL_ROLES = new Set(["heading", "alert", "status"]);
-const HARD_FILTER_VOLATILITY_FLAGS = new Set([
+const HARD_FILTER_DYNAMIC_SIGNALS = new Set([
   "contains_numeric_fragment",
   "contains_date_or_time_fragment",
   "contains_weather_or_news_fragment",
@@ -19,13 +19,13 @@ const DEFAULT_SNAPSHOT_CANDIDATE_VOLUME_CAP: SnapshotCandidateVolumeCap = {
 
 export function assessAssertionCandidateStability(
   candidate: AssertionCandidate
-): Pick<AssertionCandidate, "stabilityScore" | "volatilityFlags"> {
+): Pick<AssertionCandidate, "stabilityScore" | "dynamicSignals"> {
   let score = candidate.confidence;
-  const volatilityFlags: string[] = [];
+  const dynamicSignals: string[] = [];
 
   if (candidate.afterAction === "navigate") {
     score -= 0.18;
-    volatilityFlags.push("navigate_context");
+    dynamicSignals.push("navigate_context");
   }
 
   if (candidate.candidateSource === "snapshot_native") {
@@ -56,7 +56,7 @@ export function assessAssertionCandidateStability(
       score += 0.05;
     } else if (text.length > 90) {
       score -= 0.08;
-      volatilityFlags.push("long_text");
+      dynamicSignals.push("long_text");
     }
 
     if ("target" in candidate.candidate) {
@@ -66,10 +66,10 @@ export function assessAssertionCandidateStability(
       }
     }
 
-    const volatility = detectVolatilityFlags(text);
-    volatilityFlags.push(...volatility);
-    if (volatility.length > 0) {
-      score -= volatilityPenalty(volatility);
+    const detectedSignals = detectDynamicSignals(text);
+    dynamicSignals.push(...detectedSignals);
+    if (detectedSignals.length > 0) {
+      score -= dynamicPenalty(detectedSignals);
     }
   }
 
@@ -83,19 +83,19 @@ export function assessAssertionCandidateStability(
 
   return {
     stabilityScore: clamp01(round3(score)),
-    volatilityFlags: [...new Set(volatilityFlags)],
+    dynamicSignals: [...new Set(dynamicSignals)],
   };
 }
 
-export function shouldFilterVolatileSnapshotTextCandidate(
+export function shouldFilterDynamicSnapshotTextCandidate(
   candidate: AssertionCandidate,
-  hardFilterVolatilityFlags: ReadonlySet<string> = HARD_FILTER_VOLATILITY_FLAGS
+  hardFilterDynamicSignals: ReadonlySet<string> = HARD_FILTER_DYNAMIC_SIGNALS
 ): boolean {
   return (
     candidate.candidateSource === "snapshot_native" &&
     candidate.candidate.action === "assertText" &&
-    (candidate.volatilityFlags ?? []).some((flag) =>
-      hardFilterVolatilityFlags.has(flag)
+    (candidate.dynamicSignals ?? []).some((flag) =>
+      hardFilterDynamicSignals.has(flag)
     )
   );
 }
@@ -142,7 +142,7 @@ function readGetByRoleName(value: string): { role: string; name: string } | unde
   return { role: match[1], name: match[2] };
 }
 
-const VOLATILITY_PENALTIES: Record<string, number> = {
+const DYNAMIC_SIGNAL_PENALTIES: Record<string, number> = {
   contains_numeric_fragment: 0.12,
   contains_date_or_time_fragment: 0.15,
   contains_weather_or_news_fragment: 0.15,
@@ -150,14 +150,14 @@ const VOLATILITY_PENALTIES: Record<string, number> = {
   contains_pipe_separator: 0.10,
 };
 
-const MAX_VOLATILITY_PENALTY = 0.30;
+const MAX_DYNAMIC_SIGNAL_PENALTY = 0.30;
 
-function volatilityPenalty(flags: string[]): number {
+function dynamicPenalty(flags: string[]): number {
   let total = 0;
   for (const flag of flags) {
-    total += VOLATILITY_PENALTIES[flag] ?? 0.10;
+    total += DYNAMIC_SIGNAL_PENALTIES[flag] ?? 0.10;
   }
-  return Math.min(total, MAX_VOLATILITY_PENALTY);
+  return Math.min(total, MAX_DYNAMIC_SIGNAL_PENALTY);
 }
 
 function clamp01(value: number): number {

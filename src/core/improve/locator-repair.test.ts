@@ -13,13 +13,18 @@ describe("analyzeAndBuildLocatorRepairCandidates", () => {
       stepNumber: 7,
     });
 
-    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_volatile")).toBe(true);
+    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_dynamic")).toBe(true);
+    expect(out.dynamicTarget).toBe(true);
+    expect(out.dynamicSignals).toContain("exact_true");
     expect(out.candidates.some((candidate) =>
       candidate.reasonCodes.includes("locator_repair_remove_exact")
     )).toBe(true);
     expect(out.candidates.some((candidate) =>
       candidate.reasonCodes.includes("locator_repair_regex")
     )).toBe(true);
+    expect(out.candidates.every((candidate) =>
+      (candidate.dynamicSignals ?? []).includes("exact_true")
+    )).toBe(false);
   });
 
   it("reports unsupported expression shapes without generating repair candidates", () => {
@@ -34,10 +39,12 @@ describe("analyzeAndBuildLocatorRepairCandidates", () => {
 
     expect(out.candidates).toHaveLength(0);
     expect(out.diagnostics).toHaveLength(1);
-    expect(out.diagnostics[0]?.code).toBe("selector_target_flagged_volatile");
+    expect(out.diagnostics[0]?.code).toBe("selector_target_flagged_dynamic");
+    expect(out.dynamicTarget).toBe(true);
+    expect(out.dynamicSignals).toContain("unsupported_expression_shape");
   });
 
-  it("flags headline-like text as volatile", () => {
+  it("flags headline-like text as dynamic", () => {
     const out = analyzeAndBuildLocatorRepairCandidates({
       target: {
         value: "getByRole('link', { name: 'Video Dolblije Erben Wennemars viert feest met schaatsploeg' })",
@@ -47,11 +54,11 @@ describe("analyzeAndBuildLocatorRepairCandidates", () => {
       stepNumber: 4,
     });
 
-    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_volatile")).toBe(true);
+    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_dynamic")).toBe(true);
     expect(out.diagnostics.some((d) => d.message.includes("contains_headline_like_text"))).toBe(true);
   });
 
-  it("flags pipe-separated text as volatile", () => {
+  it("flags pipe-separated text as dynamic", () => {
     const out = analyzeAndBuildLocatorRepairCandidates({
       target: {
         value: "getByRole('link', { name: 'Live Epstein | Trump vindt documenten' })",
@@ -61,11 +68,11 @@ describe("analyzeAndBuildLocatorRepairCandidates", () => {
       stepNumber: 5,
     });
 
-    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_volatile")).toBe(true);
+    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_dynamic")).toBe(true);
     expect(out.diagnostics.some((d) => d.message.includes("contains_pipe_separator"))).toBe(true);
   });
 
-  it("flags text with 'live' or 'video' volatile keywords", () => {
+  it("flags text with 'live' or 'video' dynamic keywords", () => {
     const out = analyzeAndBuildLocatorRepairCandidates({
       target: {
         value: "getByRole('link', { name: 'Video van vandaag' })",
@@ -75,7 +82,7 @@ describe("analyzeAndBuildLocatorRepairCandidates", () => {
       stepNumber: 6,
     });
 
-    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_volatile")).toBe(true);
+    expect(out.diagnostics.some((d) => d.code === "selector_target_flagged_dynamic")).toBe(true);
   });
 
   it("does not flag short stable text as headline-like", () => {
@@ -90,5 +97,7 @@ describe("analyzeAndBuildLocatorRepairCandidates", () => {
 
     expect(out.diagnostics).toHaveLength(0);
     expect(out.candidates).toHaveLength(0);
+    expect(out.dynamicTarget).toBe(false);
+    expect(out.dynamicSignals).toHaveLength(0);
   });
 });

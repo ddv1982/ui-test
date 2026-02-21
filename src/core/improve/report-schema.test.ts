@@ -17,10 +17,16 @@ describe("improveReportSchema", () => {
         skippedAssertions: 1,
         selectorRepairCandidates: 3,
         selectorRepairsApplied: 1,
+        selectorRepairsAdoptedOnTie: 1,
+        selectorRepairsGeneratedByPlaywrightRuntime: 1,
+        selectorRepairsAppliedFromPlaywrightRuntime: 1,
+        selectorRepairsGeneratedByPrivateFallback: 1,
+        selectorRepairsAppliedFromPrivateFallback: 1,
+        deterministicAssertionsSkippedNavigationLikeClick: 2,
         runtimeFailingStepsRetained: 2,
         runtimeFailingStepsOptionalized: 2,
         runtimeFailingStepsRemoved: 1,
-        assertionCandidatesFilteredVolatile: 1,
+        assertionCandidatesFilteredDynamic: 1,
         assertionCoverageStepsTotal: 4,
         assertionCoverageStepsWithCandidates: 3,
         assertionCoverageStepsWithApplied: 2,
@@ -54,7 +60,7 @@ describe("improveReportSchema", () => {
           confidence: 0.9,
           coverageFallback: true,
           stabilityScore: 0.91,
-          volatilityFlags: [],
+          dynamicSignals: [],
           rationale: "High confidence state check",
           candidateSource: "deterministic",
           applyStatus: "applied",
@@ -68,7 +74,7 @@ describe("improveReportSchema", () => {
           },
           confidence: 0.5,
           stabilityScore: 0.32,
-          volatilityFlags: ["contains_numeric_fragment"],
+          dynamicSignals: ["contains_numeric_fragment"],
           rationale: "Policy-capped state check",
           candidateSource: "snapshot_native",
           applyStatus: "skipped_policy",
@@ -81,9 +87,15 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.appliedAssertions).toBe(1);
     expect(parsed.summary.assertionApplyPolicy).toBe("balanced");
     expect(parsed.summary.selectorRepairCandidates).toBe(3);
+    expect(parsed.summary.selectorRepairsAdoptedOnTie).toBe(1);
+    expect(parsed.summary.selectorRepairsGeneratedByPlaywrightRuntime).toBe(1);
+    expect(parsed.summary.selectorRepairsAppliedFromPlaywrightRuntime).toBe(1);
+    expect(parsed.summary.selectorRepairsGeneratedByPrivateFallback).toBe(1);
+    expect(parsed.summary.selectorRepairsAppliedFromPrivateFallback).toBe(1);
+    expect(parsed.summary.deterministicAssertionsSkippedNavigationLikeClick).toBe(2);
     expect(parsed.summary.runtimeFailingStepsRetained).toBe(2);
     expect(parsed.summary.runtimeFailingStepsOptionalized).toBe(2);
-    expect(parsed.summary.assertionCandidatesFilteredVolatile).toBe(1);
+    expect(parsed.summary.assertionCandidatesFilteredDynamic).toBe(1);
     expect(parsed.summary.assertionCoverageStepsTotal).toBe(4);
     expect(parsed.summary.assertionCoverageStepsWithCandidates).toBe(3);
     expect(parsed.summary.assertionCoverageStepsWithApplied).toBe(2);

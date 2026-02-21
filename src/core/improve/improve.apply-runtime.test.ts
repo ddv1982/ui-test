@@ -19,6 +19,17 @@ const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
     typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
   >(async () => false),
 }));
+const { generateRuntimeRepairCandidatesMock } = vi.hoisted(() => ({
+  generateRuntimeRepairCandidatesMock: vi.fn<
+    typeof import("./selector-runtime-repair.js").generateRuntimeRepairCandidates
+  >(async () => ({
+    candidates: [],
+    diagnostics: [],
+    dynamicSignals: [],
+    runtimeUnique: false,
+    sourceMarkers: [],
+  })),
+}));
 
 vi.mock("playwright", () => ({
   chromium: {
@@ -112,8 +123,12 @@ vi.mock("./assertion-candidates.js", () => ({
   buildAssertionCandidates: buildAssertionCandidatesMock,
 }));
 
+vi.mock("./selector-runtime-repair.js", () => ({
+  generateRuntimeRepairCandidates: generateRuntimeRepairCandidatesMock,
+}));
+
 import { improveTestFile } from "./improve.js";
-import { scoreTargetCandidates } from "./candidate-scorer.js";
+import { scoreTargetCandidates, shouldAdoptCandidate } from "./candidate-scorer.js";
 
 function getExecutedStepAt(callIndex: number): Step {
   const call = executeRuntimeStepMock.mock.calls[callIndex];
@@ -131,6 +146,14 @@ describe("improve apply runtime replay", () => {
     buildAssertionCandidatesMock.mockReturnValue([]);
     waitForPostStepNetworkIdleMock.mockClear();
     waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+    generateRuntimeRepairCandidatesMock.mockClear();
+    generateRuntimeRepairCandidatesMock.mockResolvedValue({
+      candidates: [],
+      diagnostics: [],
+      dynamicSignals: [],
+      runtimeUnique: false,
+      sourceMarkers: [],
+    });
   });
 
   afterEach(async () => {
@@ -250,6 +273,204 @@ describe("improve apply runtime replay", () => {
 
     expect(result.report.summary.selectorRepairsApplied).toBe(1);
     expect(result.report.diagnostics.some((d) => d.code === "selector_repair_applied")).toBe(true);
+  });
+
+  it("adopts dynamic selector repairs on score ties when runtime match is unique", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-repair-tie-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        "      value: \"getByRole('link', { name: 'Schiphol vluchten winterweer update 12:30', exact: true })\"",
+        "      kind: locatorExpression",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    generateRuntimeRepairCandidatesMock.mockResolvedValueOnce({
+      candidates: [
+        {
+          id: "repair-playwright-runtime-1",
+          source: "derived",
+          target: {
+            value: "getByRole('link', { name: /winterweer.*update/i })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          reasonCodes: ["locator_repair_playwright_runtime"],
+          dynamicSignals: ["contains_weather_or_news_fragment"],
+        },
+      ],
+      diagnostics: [],
+      dynamicSignals: ["contains_weather_or_news_fragment"],
+      runtimeUnique: true,
+      sourceMarkers: [
+        {
+          candidateId: "repair-playwright-runtime-1",
+          source: "resolved_selector_fallback",
+        },
+      ],
+    });
+
+    vi.mocked(shouldAdoptCandidate).mockReturnValueOnce(false);
+    vi.mocked(scoreTargetCandidates).mockImplementationOnce(async (_page, candidates) => {
+      const current = candidates.find((candidate) => candidate.source === "current");
+      const repair = candidates.find((candidate) =>
+        candidate.reasonCodes.includes("locator_repair_playwright_runtime")
+      );
+      if (!current || !repair) {
+        throw new Error("Expected current and repair candidates");
+      }
+
+      return [
+        {
+          candidate: repair,
+          score: 0.8,
+          baseScore: 0.8,
+          uniquenessScore: 1,
+          visibilityScore: 1,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: [...repair.reasonCodes, "unique_match"],
+        },
+        {
+          candidate: current,
+          score: 0.8,
+          baseScore: 0.8,
+          uniquenessScore: 1,
+          visibilityScore: 1,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: [...current.reasonCodes, "dynamic_target"],
+        },
+      ];
+    });
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(result.report.summary.selectorRepairsAdoptedOnTie).toBe(1);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) =>
+          diagnostic.code === "selector_repair_adopted_on_tie_for_dynamic_target"
+      )
+    ).toBe(true);
+    expect(result.report.summary.selectorRepairsApplied).toBe(1);
+
+    const saved = await fs.readFile(yamlPath, "utf-8");
+    expect(saved).toContain("getByRole('link', { name:");
+    expect(saved).not.toContain("exact: true");
+  });
+
+  it("tracks runtime-generated selector repairs when applied", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-runtime-repair-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        "      value: \"getByRole('link', { name: 'Winterweer update Schiphol 12:30', exact: true })\"",
+        "      kind: locatorExpression",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    generateRuntimeRepairCandidatesMock.mockResolvedValueOnce({
+      candidates: [
+        {
+          id: "repair-playwright-runtime",
+          source: "derived",
+          target: {
+            value: "getByRole('link', { name: /winterweer.*schiphol/i })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          reasonCodes: ["locator_repair_playwright_runtime"],
+        },
+      ],
+      diagnostics: [
+        {
+          code: "selector_repair_generated_via_playwright_runtime",
+          level: "info",
+          message: "generated",
+        },
+      ],
+      dynamicSignals: ["contains_weather_or_news_fragment"],
+      runtimeUnique: true,
+      sourceMarkers: [
+        {
+          candidateId: "repair-playwright-runtime",
+          source: "resolved_selector_fallback",
+        },
+      ],
+    });
+
+    vi.mocked(scoreTargetCandidates).mockImplementationOnce(async (_page, candidates) => {
+      const current = candidates.find((candidate) => candidate.source === "current");
+      const runtimeRepair = candidates.find((candidate) =>
+        candidate.reasonCodes.includes("locator_repair_playwright_runtime")
+      );
+      if (!current || !runtimeRepair) {
+        throw new Error("Expected current and runtime repair candidates");
+      }
+
+      return [
+        {
+          candidate: runtimeRepair,
+          score: 0.91,
+          baseScore: 0.91,
+          uniquenessScore: 1,
+          visibilityScore: 1,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: ["locator_repair_playwright_runtime", "unique_match"],
+        },
+        {
+          candidate: current,
+          score: 0.5,
+          baseScore: 0.5,
+          uniquenessScore: 1,
+          visibilityScore: 1,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: ["existing_target", "dynamic_target"],
+        },
+      ];
+    });
+    vi.mocked(shouldAdoptCandidate).mockReturnValueOnce(true);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(result.report.summary.selectorRepairsGeneratedByPlaywrightRuntime).toBe(1);
+    expect(result.report.summary.selectorRepairsAppliedFromPlaywrightRuntime).toBe(1);
+    expect(result.report.summary.selectorRepairsApplied).toBe(1);
   });
 
   it("applies high-confidence assertion candidates with --apply", async () => {
@@ -686,7 +907,7 @@ describe("improve apply runtime replay", () => {
     ).toBe("applied");
   });
 
-  it("keeps volatile snapshot text candidates report-only", async () => {
+  it("keeps dynamic snapshot text candidates report-only", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
     tempDirs.push(dir);
 
@@ -730,10 +951,10 @@ describe("improve apply runtime replay", () => {
     });
 
     expect(result.report.summary.appliedAssertions).toBe(0);
-    expect(result.report.summary.assertionCandidatesFilteredVolatile).toBe(1);
+    expect(result.report.summary.assertionCandidatesFilteredDynamic).toBe(1);
     expect(result.report.assertionCandidates[0]?.applyStatus).toBe("skipped_policy");
     expect(
-      result.report.diagnostics.some((diagnostic) => diagnostic.code === "assertion_candidate_filtered_volatile")
+      result.report.diagnostics.some((diagnostic) => diagnostic.code === "assertion_candidate_filtered_dynamic")
     ).toBe(true);
 
     const saved = await fs.readFile(yamlPath, "utf-8");
@@ -817,7 +1038,7 @@ describe("improve apply runtime replay", () => {
     ).toBe(true);
   });
 
-  it("keeps volatile and capped snapshot candidates as not_requested in report-only mode", async () => {
+  it("keeps dynamic and capped snapshot candidates as not_requested in report-only mode", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-report-only-policy-"));
     tempDirs.push(dir);
 
@@ -848,7 +1069,7 @@ describe("improve apply runtime replay", () => {
           text: "Winterweer 12:30 update",
         },
         confidence: 0.98,
-        rationale: "volatile snapshot text",
+        rationale: "dynamic snapshot text",
       },
       {
         index: 1,
@@ -886,11 +1107,11 @@ describe("improve apply runtime replay", () => {
     expect(result.report.assertionCandidates).toHaveLength(3);
     expect(result.report.summary.appliedAssertions).toBe(0);
     expect(result.report.summary.skippedAssertions).toBe(0);
-    expect(result.report.summary.assertionCandidatesFilteredVolatile).toBe(0);
+    expect(result.report.summary.assertionCandidatesFilteredDynamic).toBe(0);
     expect(result.report.assertionCandidates.every((candidate) => candidate.applyStatus === "not_requested")).toBe(true);
     expect(
       result.report.diagnostics.some(
-        (diagnostic) => diagnostic.code === "assertion_candidate_filtered_volatile"
+        (diagnostic) => diagnostic.code === "assertion_candidate_filtered_dynamic"
       )
     ).toBe(false);
   });

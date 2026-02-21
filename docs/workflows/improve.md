@@ -34,7 +34,7 @@ ui-test improve e2e/login.yaml --no-apply
 
 `--no-apply` writes a JSON report and does not modify YAML. Useful in CI pipelines where interactive prompts are not available.
 
-In report-only runs (`--no-apply`), assertion candidates keep `applyStatus: not_requested`, including candidates that would be policy-capped or volatility-filtered in apply mode.
+In report-only runs (`--no-apply`), assertion candidates keep `applyStatus: not_requested`, including candidates that would be policy-capped or dynamic-filtered in apply mode.
 
 Before/after example — a CSS selector upgraded to a semantic locator:
 
@@ -75,9 +75,9 @@ ui-test improve e2e/login.yaml --apply --assertion-source deterministic
 
 | Policy | Behavior |
 |--------|----------|
-| `reliable` | Most conservative: stable-structural snapshot `assertVisible` only, tighter volatility filters, 1 applied assertion per step. |
-| `balanced` (default) | Runtime-validated snapshot `assertVisible` allowed, moderate volatility filters, up to 2 applied assertions per step. |
-| `aggressive` | Highest coverage: runtime-validated snapshot `assertVisible`, light volatility filtering, up to 3 applied assertions per step. |
+| `reliable` | Most conservative: stable-structural snapshot `assertVisible` only, tighter dynamic filters, 1 applied assertion per step. |
+| `balanced` (default) | Runtime-validated snapshot `assertVisible` allowed, moderate dynamic filters, up to 2 applied assertions per step. |
+| `aggressive` | Highest coverage: runtime-validated snapshot `assertVisible`, light dynamic filtering, up to 3 applied assertions per step. |
 
 Exact policy matrix:
 
@@ -169,6 +169,27 @@ When a browser is available, improve uses Playwright's `ariaSnapshot()` API to i
 
 These candidates are scored alongside syntactic candidates and adopted when they score significantly higher than the current selector (delta >= 0.15). This happens automatically — no extra flags needed.
 
+### Playwright Runtime Selector Regeneration
+
+For dynamic-flagged/brittle targets (for example long exact headline link names), improve also attempts a runtime selector regeneration pass:
+
+- Requires a unique runtime match (`matchCount === 1`) before generating a repair candidate.
+- Runs as a dedicated runtime-repair stage after baseline and heuristic locator-repair candidate generation.
+- Uses public Playwright locator conversion first (`page.locator(...).toString()`), with a guarded private `_resolveSelector()` fallback when needed.
+- Falls back safely to existing repair heuristics when internals are unavailable or conversion fails.
+- Set `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_REGEN=1` to disable runtime regeneration/conversion and use heuristic repairs only.
+- Set `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK=1` to disable only the private `_resolveSelector()` fallback while keeping public runtime conversion enabled.
+
+Runtime regeneration diagnostics:
+
+- `selector_repair_generated_via_playwright_runtime`
+- `selector_repair_playwright_runtime_unavailable`
+- `selector_repair_playwright_runtime_non_unique`
+- `selector_repair_playwright_runtime_conversion_failed`
+- `selector_repair_playwright_runtime_disabled`
+- `selector_repair_playwright_runtime_private_fallback_disabled`
+- `selector_repair_playwright_runtime_private_fallback_used`
+
 ### Report Contents
 
 The report includes step-level old/recommended targets, confidence scores, assertion candidates, and diagnostics.
@@ -177,10 +198,14 @@ The summary includes:
 
 - `selectorRepairCandidates`
 - `selectorRepairsApplied`
+- `selectorRepairsGeneratedByPlaywrightRuntime`
+- `selectorRepairsAppliedFromPlaywrightRuntime`
+- `selectorRepairsGeneratedByPrivateFallback`
+- `selectorRepairsAppliedFromPrivateFallback`
 - `runtimeFailingStepsRetained`
 - `runtimeFailingStepsOptionalized`
 - `runtimeFailingStepsRemoved`
-- `assertionCandidatesFilteredVolatile`
+- `assertionCandidatesFilteredDynamic`
 - `assertionCoverageStepsTotal`
 - `assertionCoverageStepsWithCandidates`
 - `assertionCoverageStepsWithApplied`
@@ -202,7 +227,7 @@ Each assertion candidate has an `applyStatus`:
 | `applied` | Written to YAML |
 | `skipped_low_confidence` | Below confidence threshold |
 | `skipped_runtime_failure` | Failed runtime validation |
-| `skipped_policy` | Apply-mode policy skip (for example visibility rules, volatility hard-filter, or profile cap reached) |
+| `skipped_policy` | Apply-mode policy skip (for example visibility rules, dynamic hard-filter, or profile cap reached) |
 | `skipped_existing` | Step already has an assertion |
 | `not_requested` | Report-only run (`--no-apply`): candidate was generated but not considered for apply/validation |
 

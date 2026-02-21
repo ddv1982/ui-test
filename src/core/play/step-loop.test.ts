@@ -205,6 +205,44 @@ describe("runPlayStepLoop warning behavior", () => {
     );
   });
 
+  it("retries once after non-cookie overlay dismissal", async () => {
+    executeRuntimeStepMock
+      .mockRejectedValueOnce(new Error("another element would receive the click"))
+      .mockResolvedValueOnce(undefined);
+    isLikelyOverlayInterceptionErrorMock.mockReturnValue(true);
+    dismissCookieBannerWithDetailsMock
+      .mockResolvedValueOnce({ dismissed: false })
+      .mockResolvedValueOnce({
+        dismissed: true,
+        strategy: "modal_close_control",
+        category: "non_cookie_overlay",
+      })
+      .mockResolvedValueOnce({ dismissed: false });
+    const artifactWarnings: string[] = [];
+
+    const result = await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [makeClickStep(1)],
+      timeout: 1_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-retry-non-cookie",
+      absoluteFilePath: "/tmp/test.yaml",
+      testName: "Retry Non-Cookie Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings,
+    });
+
+    expect(result.stepResults).toHaveLength(1);
+    expect(result.stepResults[0]?.passed).toBe(true);
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(2);
+    expect(warnMock).toHaveBeenCalledWith("Step 1 (click): retrying after overlay dismissal.");
+    expect(
+      artifactWarnings.some((warning) => warning.includes("retried after overlay dismissal"))
+    ).toBe(true);
+  });
+
   it("records cookie dismissal events in artifact warnings", async () => {
     const artifactWarnings: string[] = [];
     dismissCookieBannerWithDetailsMock.mockResolvedValue({
@@ -230,5 +268,56 @@ describe("runPlayStepLoop warning behavior", () => {
     expect(artifactWarnings.some((warning) => warning.includes("dismissed cookie banner"))).toBe(
       true
     );
+  });
+
+  it("continues when pre-step dismiss check throws", async () => {
+    dismissCookieBannerWithDetailsMock.mockRejectedValueOnce(new Error("dismiss probe failed"));
+    executeRuntimeStepMock.mockResolvedValueOnce(undefined);
+
+    const result = await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [makeClickStep(1)],
+      timeout: 1_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-dismiss-throw",
+      absoluteFilePath: "/tmp/test.yaml",
+      testName: "Dismiss Throw Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings: [],
+    });
+
+    expect(result.stepResults).toHaveLength(1);
+    expect(result.stepResults[0]?.passed).toBe(true);
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails cleanly when overlay retry dismiss check throws", async () => {
+    executeRuntimeStepMock.mockRejectedValueOnce(
+      new Error("another element would receive the click")
+    );
+    isLikelyOverlayInterceptionErrorMock.mockReturnValue(true);
+    dismissCookieBannerWithDetailsMock
+      .mockResolvedValueOnce({ dismissed: false })
+      .mockRejectedValueOnce(new Error("retry dismiss failed"));
+
+    const result = await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [makeClickStep(1)],
+      timeout: 1_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-retry-dismiss-throw",
+      absoluteFilePath: "/tmp/test.yaml",
+      testName: "Retry Dismiss Throw Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings: [],
+    });
+
+    expect(result.stepResults).toHaveLength(1);
+    expect(result.stepResults[0]?.passed).toBe(false);
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
   });
 });

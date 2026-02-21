@@ -58,7 +58,7 @@ describe("improveTestFile runner", () => {
       assertionCandidates: [],
       appliedAssertions: 0,
       skippedAssertions: 0,
-      filteredVolatileCandidates: 0,
+      filteredDynamicCandidates: 0,
     }));
   });
 

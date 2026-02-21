@@ -184,7 +184,9 @@ function resolveSelector(
         (value): value is string => typeof value === "string" && value.length > 0
       )
     : [];
-  const normalized = locatorNodeToExpression(action.locator);
+  const normalized = locatorNodeToExpression(action.locator, 0, {
+    dropDynamicExact: policy === "reliable",
+  });
 
   if (policy === "raw") {
     if (rawSelector) {

@@ -498,6 +498,30 @@ describe("player integration - step execution", () => {
     expect(result.steps.every((step) => step.passed)).toBe(true);
   }, 30000);
 
+  it("dismisses non-cookie overlays before executing interaction steps", async () => {
+    const testFile = await writeInlineFixture("breaking-push-overlay.yaml", {
+      name: "Breaking Push Overlay Dismissal",
+      baseUrl,
+      steps: [
+        { action: "navigate", url: "/breaking-push-overlay.html" },
+        {
+          action: "click",
+          target: { value: "#continue-btn", kind: "css", source: "manual" },
+        },
+        {
+          action: "assertVisible",
+          target: { value: "#success", kind: "css", source: "manual" },
+        },
+      ],
+    });
+
+    const result = await play(testFile, { headed: false, timeout: 5000 });
+
+    expect(result.passed).toBe(true);
+    expect(result.steps).toHaveLength(3);
+    expect(result.steps.every((step) => step.passed)).toBe(true);
+  }, 30000);
+
   it("runs the same YAML in headless and headed modes when headed Chromium is available", async () => {
     if (!headedSupported) {
       if (REQUIRE_HEADED_PARITY) {
@@ -513,6 +537,39 @@ describe("player integration - step execution", () => {
       baseUrl,
       steps: [
         { action: "navigate", url: "/consent-overlay.html" },
+        {
+          action: "click",
+          target: { value: "#continue-btn", kind: "css", source: "manual" },
+        },
+        {
+          action: "assertVisible",
+          target: { value: "#success", kind: "css", source: "manual" },
+        },
+      ],
+    });
+
+    const headlessResult = await play(testFile, { headed: false, timeout: 5000 });
+    const headedResult = await play(testFile, { headed: true, timeout: 5000 });
+
+    expect(headlessResult.passed).toBe(true);
+    expect(headedResult.passed).toBe(true);
+  }, 45000);
+
+  it("runs non-cookie overlay YAML in headless and headed modes when headed Chromium is available", async () => {
+    if (!headedSupported) {
+      if (REQUIRE_HEADED_PARITY) {
+        throw new Error(
+          "Headed Chromium is unavailable while parity is required (UI_TEST_REQUIRE_HEADED_PARITY=1)."
+        );
+      }
+      return;
+    }
+
+    const testFile = await writeInlineFixture("breaking-push-overlay-parity.yaml", {
+      name: "Breaking Push Overlay Parity",
+      baseUrl,
+      steps: [
+        { action: "navigate", url: "/breaking-push-overlay.html" },
         {
           action: "click",
           target: { value: "#continue-btn", kind: "css", source: "manual" },

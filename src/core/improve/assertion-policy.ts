@@ -27,7 +27,7 @@ export interface AssertionPolicyConfig {
   snapshotCandidateVolumeCap: SnapshotCandidateVolumeCap;
   allowSnapshotVisible: SnapshotVisiblePolicy;
   snapshotTextMinScore: number;
-  hardFilterVolatilityFlags: ReadonlySet<string>;
+  hardFilterDynamicSignals: ReadonlySet<string>;
   actionPriorityForApply: Readonly<Record<AssertionApplyAction, number>>;
 }
 
@@ -51,7 +51,7 @@ export const ASSERTION_POLICY_CONFIG: Readonly<
     snapshotCandidateVolumeCap: { navigate: 1, other: 2 },
     allowSnapshotVisible: "stable_structural_only",
     snapshotTextMinScore: 0.82,
-    hardFilterVolatilityFlags: new Set([
+    hardFilterDynamicSignals: new Set([
       "contains_numeric_fragment",
       "contains_date_or_time_fragment",
       "contains_weather_or_news_fragment",
@@ -66,7 +66,7 @@ export const ASSERTION_POLICY_CONFIG: Readonly<
     snapshotCandidateVolumeCap: { navigate: 2, other: 3 },
     allowSnapshotVisible: "runtime_validated",
     snapshotTextMinScore: 0.78,
-    hardFilterVolatilityFlags: new Set([
+    hardFilterDynamicSignals: new Set([
       "contains_headline_like_text",
       "contains_pipe_separator",
     ]),
@@ -77,7 +77,7 @@ export const ASSERTION_POLICY_CONFIG: Readonly<
     snapshotCandidateVolumeCap: { navigate: 3, other: 4 },
     allowSnapshotVisible: "runtime_validated",
     snapshotTextMinScore: 0.72,
-    hardFilterVolatilityFlags: new Set(["contains_headline_like_text"]),
+    hardFilterDynamicSignals: new Set(["contains_headline_like_text"]),
     actionPriorityForApply: ACTION_PRIORITY,
   },
 } as const;

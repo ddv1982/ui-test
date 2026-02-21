@@ -160,10 +160,10 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
         parts.push((summary.selectorRepairsApplied ?? 0) + " selector repairs applied");
       }
       if (summary.appliedAssertions > 0) parts.push(summary.appliedAssertions + " assertions applied");
-      if ((summary.assertionCandidatesFilteredVolatile ?? 0) > 0) {
+      if ((summary.assertionCandidatesFilteredDynamic ?? 0) > 0) {
         parts.push(
-          (summary.assertionCandidatesFilteredVolatile ?? 0) +
-            " volatile assertion candidates filtered"
+          (summary.assertionCandidatesFilteredDynamic ?? 0) +
+            " dynamic assertion candidates filtered"
         );
       }
       if (retainedSteps > 0) parts.push(retainedSteps + " failing steps retained");

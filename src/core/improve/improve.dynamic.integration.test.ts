@@ -18,7 +18,7 @@ let tempDir = "";
 let headedSupported = false;
 
 beforeAll(async () => {
-  tempDir = await mkdtemp(join(tmpdir(), "ui-test-improve-volatile-"));
+  tempDir = await mkdtemp(join(tmpdir(), "ui-test-improve-dynamic-"));
   headedSupported = await canLaunchHeadedChromium();
 
   await new Promise<void>((resolve, reject) => {
@@ -71,17 +71,17 @@ afterAll(async () => {
   await rm(tempDir, { recursive: true, force: true });
 });
 
-describe("improve volatile acceptance benchmark", () => {
+describe("improve dynamic acceptance benchmark", () => {
   it("repairs brittle exact news locator and turns baseline failure into pass", async () => {
-    const yamlPath = join(tempDir, "volatile-news.yaml");
+    const yamlPath = join(tempDir, "dynamic-news.yaml");
     await writeFile(
       yamlPath,
       [
-        "name: volatile-news",
+        "name: dynamic-news",
         `baseUrl: ${baseUrl}`,
         "steps:",
         "  - action: navigate",
-        '    url: "/volatile-news.html"',
+        '    url: "/dynamic-news.html"',
         "  - action: click",
         "    target:",
         '      value: "getByRole(\'link\', { name: \'Schiphol vluchten winterweer update 12:30\', exact: true })"',

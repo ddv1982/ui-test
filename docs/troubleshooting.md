@@ -82,6 +82,48 @@ Fix the underlying issue, then run the improve step manually:
 ui-test improve <file> --apply
 ```
 
+## Headed vs Headless Differences on Dynamic Sites
+
+Dynamic news pages can behave differently between headed and headless runs when overlays or fast-changing headlines are present.
+
+Current stability-first behavior:
+- `play` registers targeted Playwright locator handlers (`page.addLocatorHandler`) for consent and known non-cookie modal roots, and removes handlers after the run.
+- `play` attempts targeted pre-step dismissal for cookie consent and known non-cookie blocking modals (for example breaking-push style dialogs).
+- If a click fails with overlay interception, `play` performs one guarded retry after targeted overlay dismissal.
+- `record`/normalization in reliable mode drops `exact: true` for dynamic headline-like locator text.
+- `improve` attempts Playwright runtime selector regeneration for dynamic-flagged/brittle targets, but only adopts candidates with unique runtime match.
+- `improve` skips deterministic post-click `assertVisible` fallback assertions for navigation-like dynamic link clicks and favors URL/title/snapshot-native candidates when available.
+
+Useful diagnostics to confirm behavior:
+- `overlay_dismissed_non_cookie`
+- `deterministic_assertion_skipped_navigation_like_click`
+- `selector_repair_adopted_on_tie_for_dynamic_target`
+- `selector_repair_generated_via_playwright_runtime`
+- `selector_repair_playwright_runtime_unavailable`
+- `selector_repair_playwright_runtime_non_unique`
+- `selector_repair_playwright_runtime_conversion_failed`
+- `selector_repair_playwright_runtime_disabled`
+- `selector_repair_playwright_runtime_private_fallback_disabled`
+- `selector_repair_playwright_runtime_private_fallback_used`
+
+If your test still flakes:
+1. Re-run with traces enabled (default artifact capture) and inspect the failing step:
+   - `npx playwright show-trace .ui-test-artifacts/runs/<runId>/tests/<testSlug>/trace.zip`
+2. Re-run improve in apply mode:
+   - `ui-test improve <file> --apply`
+3. Prefer stable semantic targets (roles/test ids/nav labels) over long, exact headline text.
+4. If needed, disable runtime regeneration temporarily to isolate behavior:
+   - `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_REGEN=1 ui-test improve <file> --apply`
+5. If needed, keep public runtime conversion but disable private resolver fallback:
+   - `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK=1 ui-test improve <file> --apply`
+
+Runtime regeneration diagnostic meanings:
+1. `selector_repair_playwright_runtime_unavailable`: runtime resolver or uniqueness check could not run in this environment.
+2. `selector_repair_playwright_runtime_non_unique`: runtime match count was not unique, so no repair was generated.
+3. `selector_repair_playwright_runtime_disabled`: runtime regeneration was explicitly disabled by env var.
+4. `selector_repair_playwright_runtime_private_fallback_disabled`: private resolver fallback was explicitly disabled by env var.
+5. `selector_repair_playwright_runtime_private_fallback_used`: fallback path was used after public conversion was unavailable.
+
 ## Improve Apply Mode Fails
 
 If you see runtime validation errors:

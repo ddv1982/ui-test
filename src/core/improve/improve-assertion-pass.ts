@@ -24,7 +24,7 @@ import { augmentCandidatesWithSnapshotInventory } from "./improve-assertion-inve
 import {
   assessAssertionCandidateStability,
   clampSmartSnapshotCandidateVolume,
-  shouldFilterVolatileSnapshotTextCandidate,
+  shouldFilterDynamicSnapshotTextCandidate,
 } from "./assertion-stability.js";
 import { resolveAssertionPolicyConfig } from "./assertion-policy.js";
 import type {
@@ -39,7 +39,8 @@ export interface AssertionPassResult {
   assertionCandidates: AssertionCandidate[];
   appliedAssertions: number;
   skippedAssertions: number;
-  filteredVolatileCandidates: number;
+  filteredDynamicCandidates: number;
+  deterministicAssertionsSkippedNavigationLikeClick: number;
   inventoryStepsEvaluated: number;
   inventoryCandidatesAdded: number;
   inventoryGapStepsFilled: number;
@@ -61,10 +62,35 @@ export async function runImproveAssertionPass(input: {
   let outputSteps = [...input.outputSteps];
   const assertionPolicyConfig = resolveAssertionPolicyConfig(input.assertionPolicy);
 
+  let deterministicAssertionsSkippedNavigationLikeClick = 0;
   let rawAssertionCandidates =
-    input.assertions === "candidates"
-      ? buildAssertionCandidates(outputSteps, input.findings, input.outputStepOriginalIndexes)
-      : [];
+    [] as AssertionCandidate[];
+  if (input.assertions === "candidates") {
+    const deterministicCandidatesResult = buildAssertionCandidates(
+      outputSteps,
+      input.findings,
+      input.outputStepOriginalIndexes
+    ) as ReturnType<typeof buildAssertionCandidates> | AssertionCandidate[];
+    const deterministicCandidates = Array.isArray(deterministicCandidatesResult)
+      ? {
+          candidates: deterministicCandidatesResult,
+          skippedNavigationLikeClicks: [] as Array<{ index: number; reason: string }>,
+        }
+      : deterministicCandidatesResult;
+    rawAssertionCandidates = deterministicCandidates.candidates;
+    const skippedNavigationLikeClicks =
+      deterministicCandidates.skippedNavigationLikeClicks ?? [];
+    deterministicAssertionsSkippedNavigationLikeClick =
+      skippedNavigationLikeClicks.length;
+    for (const skipped of skippedNavigationLikeClicks) {
+      input.diagnostics.push({
+        code: "deterministic_assertion_skipped_navigation_like_click",
+        level: "info",
+        message:
+          `Step ${skipped.index + 1}: skipped deterministic assertVisible candidate (${skipped.reason}).`,
+      });
+    }
+  }
 
   if (input.assertions === "candidates" && input.assertionSource === "snapshot-native") {
     if (input.nativeStepSnapshots.length === 0) {
@@ -134,7 +160,7 @@ export async function runImproveAssertionPass(input: {
   }));
   let appliedAssertions = 0;
   let skippedAssertions = 0;
-  let filteredVolatileCandidates = 0;
+  let filteredDynamicCandidates = 0;
 
   if (input.applyAssertions && input.page) {
     const forcedPolicyMessages = new Map<number, string>();
@@ -153,25 +179,25 @@ export async function runImproveAssertionPass(input: {
       const candidate = rawAssertionCandidates[candidateIndex];
       if (!candidate) continue;
       if (
-        !shouldFilterVolatileSnapshotTextCandidate(
+        !shouldFilterDynamicSnapshotTextCandidate(
           candidate,
-          assertionPolicyConfig.hardFilterVolatilityFlags
+          assertionPolicyConfig.hardFilterDynamicSignals
         )
       ) {
         continue;
       }
-      filteredVolatileCandidates += 1;
+      filteredDynamicCandidates += 1;
       if (!forcedPolicyMessages.has(candidateIndex)) {
         forcedPolicyMessages.set(
           candidateIndex,
-          "Skipped by policy: volatile snapshot text candidate is report-only."
+          "Skipped by policy: dynamic snapshot text candidate is report-only."
         );
       }
       input.diagnostics.push({
-        code: "assertion_candidate_filtered_volatile",
+        code: "assertion_candidate_filtered_dynamic",
         level: "info",
         message:
-          `Assertion candidate ${candidateIndex + 1} (step ${candidate.index + 1}) was marked volatile and skipped for auto-apply.`,
+          `Assertion candidate ${candidateIndex + 1} (step ${candidate.index + 1}) was marked dynamic and skipped for auto-apply.`,
       });
     }
 
@@ -314,7 +340,8 @@ export async function runImproveAssertionPass(input: {
     assertionCandidates,
     appliedAssertions,
     skippedAssertions,
-    filteredVolatileCandidates,
+    filteredDynamicCandidates,
+    deterministicAssertionsSkippedNavigationLikeClick,
     inventoryStepsEvaluated,
     inventoryCandidatesAdded,
     inventoryGapStepsFilled,

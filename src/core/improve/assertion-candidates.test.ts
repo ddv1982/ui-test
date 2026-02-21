@@ -60,17 +60,19 @@ describe("buildAssertionCandidates", () => {
       ],
       findings
     );
+    const candidates = out.candidates;
 
-    expect(out).toHaveLength(4);
-    expect(out[0]?.candidate.action).toBe("assertValue");
-    expect(out[1]?.candidate.action).toBe("assertValue");
-    expect(out[2]?.candidate.action).toBe("assertChecked");
-    expect(out[3]?.candidate.action).toBe("assertChecked");
-    if (out[2]?.candidate.action === "assertChecked") {
-      expect(out[2].candidate.checked).toBe(true);
+    expect(candidates).toHaveLength(4);
+    expect(out.skippedNavigationLikeClicks).toHaveLength(0);
+    expect(candidates[0]?.candidate.action).toBe("assertValue");
+    expect(candidates[1]?.candidate.action).toBe("assertValue");
+    expect(candidates[2]?.candidate.action).toBe("assertChecked");
+    expect(candidates[3]?.candidate.action).toBe("assertChecked");
+    if (candidates[2]?.candidate.action === "assertChecked") {
+      expect(candidates[2].candidate.checked).toBe(true);
     }
-    if (out[3]?.candidate.action === "assertChecked") {
-      expect(out[3].candidate.checked).toBe(false);
+    if (candidates[3]?.candidate.action === "assertChecked") {
+      expect(candidates[3].candidate.checked).toBe(false);
     }
   });
 
@@ -123,16 +125,18 @@ describe("buildAssertionCandidates", () => {
       ],
       findings
     );
+    const candidates = out.candidates;
 
-    expect(out).toHaveLength(3);
-    for (const candidate of out) {
+    expect(candidates).toHaveLength(3);
+    expect(out.skippedNavigationLikeClicks).toHaveLength(0);
+    for (const candidate of candidates) {
       expect(candidate.candidate.action).toBe("assertVisible");
       expect(candidate.candidateSource).toBe("deterministic");
       expect(candidate.coverageFallback).toBe(true);
       expect(candidate.confidence).toBe(0.76);
       expect(candidate.rationale).toContain("Coverage fallback");
     }
-    const hoverCandidate = out[2]?.candidate;
+    const hoverCandidate = candidates[2]?.candidate;
     expect(hoverCandidate?.action).toBe("assertVisible");
     if (hoverCandidate?.action === "assertVisible") {
       expect(hoverCandidate.target.value).toBe("getByRole('link', { name: 'News' })");
@@ -162,14 +166,39 @@ describe("buildAssertionCandidates", () => {
       findings,
       [1, 2]
     );
+    const candidates = out.candidates;
 
-    expect(out).toHaveLength(1);
-    expect(out[0]?.index).toBe(2);
-    expect(out[0]?.candidate.action).toBe("assertValue");
-    const appliedCandidate = out[0]?.candidate;
+    expect(candidates).toHaveLength(1);
+    expect(out.skippedNavigationLikeClicks).toHaveLength(0);
+    expect(candidates[0]?.index).toBe(2);
+    expect(candidates[0]?.candidate.action).toBe("assertValue");
+    const appliedCandidate = candidates[0]?.candidate;
     expect(appliedCandidate?.action).toBe("assertValue");
     if (appliedCandidate?.action === "assertValue") {
       expect(appliedCandidate.target.value).toBe("getByRole('textbox', { name: 'Name' })");
     }
+  });
+
+  it("skips deterministic assertVisible fallback for navigation-like dynamic link clicks", () => {
+    const out = buildAssertionCandidates(
+      [
+        {
+          action: "click",
+          target: {
+            value:
+              "getByRole('link', { name: 'Nederlaag voor Trump: hooggerechtshof VS oordeelt dat heffingen onwettig zijn', exact: true })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+        },
+      ],
+      []
+    );
+
+    expect(out.candidates).toHaveLength(0);
+    expect(out.skippedNavigationLikeClicks).toHaveLength(1);
+    expect(out.skippedNavigationLikeClicks[0]?.reason).toContain(
+      "navigation-like dynamic click target"
+    );
   });
 });

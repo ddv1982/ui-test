@@ -1,3 +1,5 @@
+import { detectDynamicSignals } from "../improve/dynamic-signal-detection.js";
+
 export interface JsonlLocatorNode {
   kind: string;
   body?: unknown;
@@ -5,7 +7,15 @@ export interface JsonlLocatorNode {
   next?: JsonlLocatorNode;
 }
 
-export function locatorNodeToExpression(node: unknown, depth = 0): string | undefined {
+export interface LocatorNormalizeOptions {
+  dropDynamicExact?: boolean;
+}
+
+export function locatorNodeToExpression(
+  node: unknown,
+  depth = 0,
+  normalizeOptions: LocatorNormalizeOptions = {}
+): string | undefined {
   if (!isLocatorNode(node) || depth > 64) return undefined;
 
   const { kind, body, options = {}, next } = node;
@@ -54,10 +64,16 @@ export function locatorNodeToExpression(node: unknown, depth = 0): string | unde
 
     case "role": {
       const roleOptions: string[] = [];
+      let roleName = "";
       if (options["name"] !== undefined) {
         roleOptions.push(`name: ${toLiteral(options["name"])}`);
+        roleName = typeof options["name"] === "string" ? options["name"] : "";
       }
-      if (options["exact"] === true) roleOptions.push("exact: true");
+      const dropExact = shouldDropExactForDynamicText(
+        roleName,
+        normalizeOptions.dropDynamicExact === true
+      );
+      if (options["exact"] === true && !dropExact) roleOptions.push("exact: true");
       const attrs = Array.isArray(options["attrs"])
         ? options["attrs"].filter(
             (value): value is { name: unknown; value: unknown } => isPlainObject(value)
@@ -83,35 +99,35 @@ export function locatorNodeToExpression(node: unknown, depth = 0): string | unde
       break;
 
     case "has": {
-      const nested = locatorNodeToExpression(body, depth + 1);
+      const nested = locatorNodeToExpression(body, depth + 1, normalizeOptions);
       if (!nested) return undefined;
       current = `filter({ has: ${nested} })`;
       break;
     }
 
     case "hasNot": {
-      const nested = locatorNodeToExpression(body, depth + 1);
+      const nested = locatorNodeToExpression(body, depth + 1, normalizeOptions);
       if (!nested) return undefined;
       current = `filter({ hasNot: ${nested} })`;
       break;
     }
 
     case "and": {
-      const nested = locatorNodeToExpression(body, depth + 1);
+      const nested = locatorNodeToExpression(body, depth + 1, normalizeOptions);
       if (!nested) return undefined;
       current = `and(${nested})`;
       break;
     }
 
     case "or": {
-      const nested = locatorNodeToExpression(body, depth + 1);
+      const nested = locatorNodeToExpression(body, depth + 1, normalizeOptions);
       if (!nested) return undefined;
       current = `or(${nested})`;
       break;
     }
 
     case "chain": {
-      const nested = locatorNodeToExpression(body, depth + 1);
+      const nested = locatorNodeToExpression(body, depth + 1, normalizeOptions);
       if (!nested) return undefined;
       current = `locator(${nested})`;
       break;
@@ -122,23 +138,23 @@ export function locatorNodeToExpression(node: unknown, depth = 0): string | unde
       break;
 
     case "text":
-      current = toGetByTextMethod("getByText", body, options);
+      current = toGetByTextMethod("getByText", body, options, normalizeOptions);
       break;
 
     case "alt":
-      current = toGetByTextMethod("getByAltText", body, options);
+      current = toGetByTextMethod("getByAltText", body, options, normalizeOptions);
       break;
 
     case "placeholder":
-      current = toGetByTextMethod("getByPlaceholder", body, options);
+      current = toGetByTextMethod("getByPlaceholder", body, options, normalizeOptions);
       break;
 
     case "label":
-      current = toGetByTextMethod("getByLabel", body, options);
+      current = toGetByTextMethod("getByLabel", body, options, normalizeOptions);
       break;
 
     case "title":
-      current = toGetByTextMethod("getByTitle", body, options);
+      current = toGetByTextMethod("getByTitle", body, options, normalizeOptions);
       break;
 
     default:
@@ -146,7 +162,7 @@ export function locatorNodeToExpression(node: unknown, depth = 0): string | unde
   }
 
   if (!next) return current;
-  const nextExpression = locatorNodeToExpression(next, depth + 1);
+  const nextExpression = locatorNodeToExpression(next, depth + 1, normalizeOptions);
   if (!nextExpression) return current;
   return `${current}.${nextExpression}`;
 }
@@ -154,9 +170,15 @@ export function locatorNodeToExpression(node: unknown, depth = 0): string | unde
 function toGetByTextMethod(
   methodName: "getByText" | "getByAltText" | "getByPlaceholder" | "getByLabel" | "getByTitle",
   body: unknown,
-  options: Record<string, unknown>
+  options: Record<string, unknown>,
+  normalizeOptions: LocatorNormalizeOptions
 ): string {
-  if (options["exact"] === true) {
+  const bodyText = typeof body === "string" ? body : "";
+  const dropExact = shouldDropExactForDynamicText(
+    bodyText,
+    normalizeOptions.dropDynamicExact === true
+  );
+  if (options["exact"] === true && !dropExact) {
     return `${methodName}(${toLiteral(body)}, { exact: true })`;
   }
   return `${methodName}(${toLiteral(body)})`;
@@ -214,4 +236,32 @@ function formatFallbackLiteral(value: unknown): string {
     return value.description ? `Symbol(${value.description})` : "Symbol()";
   }
   return Object.prototype.toString.call(value);
+}
+
+function shouldDropExactForDynamicText(text: string, enabled: boolean): boolean {
+  if (!enabled) return false;
+
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) return false;
+
+  if (normalized.length <= 24) {
+    return false;
+  }
+  const dynamicSignals = detectDynamicSignals(text);
+  const hasWeatherOrNewsSignal = dynamicSignals.includes(
+    "contains_weather_or_news_fragment"
+  );
+  const hasDateOrTimeSignal = dynamicSignals.includes(
+    "contains_date_or_time_fragment"
+  );
+  const hasNumericSignal = dynamicSignals.includes("contains_numeric_fragment");
+  const hasHeadlineSignal = dynamicSignals.includes("contains_headline_like_text");
+
+  const hasDynamicNumericSignal = hasNumericSignal && hasHeadlineSignal;
+  const strongSignalCount = [
+    hasDateOrTimeSignal,
+    hasWeatherOrNewsSignal,
+    hasDynamicNumericSignal,
+  ].filter(Boolean).length;
+  return strongSignalCount >= 2;
 }

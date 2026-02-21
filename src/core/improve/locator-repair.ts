@@ -4,7 +4,8 @@ import type { Target } from "../yaml-schema.js";
 import type { ImproveDiagnostic } from "./report-schema.js";
 import type { TargetCandidate } from "./candidate-generator.js";
 import { quote } from "./candidate-generator.js";
-import { VOLATILE_KEYWORDS, detectVolatilityFlags } from "./volatility-detection.js";
+import { type DynamicSignal } from "./dynamic-target.js";
+import { DYNAMIC_KEYWORDS, detectDynamicSignals } from "./dynamic-signal-detection.js";
 
 type SupportedRootMethod =
   | "getByRole"
@@ -42,6 +43,8 @@ const STABLE_STOPWORDS = new Set([
 export interface LocatorRepairAnalysis {
   candidates: TargetCandidate[];
   diagnostics: ImproveDiagnostic[];
+  dynamicTarget: boolean;
+  dynamicSignals: DynamicSignal[];
 }
 
 export function analyzeAndBuildLocatorRepairCandidates(input: {
@@ -49,7 +52,7 @@ export function analyzeAndBuildLocatorRepairCandidates(input: {
   stepNumber: number;
 }): LocatorRepairAnalysis {
   if (input.target.kind !== "locatorExpression") {
-    return { candidates: [], diagnostics: [] };
+    return { candidates: [], diagnostics: [], dynamicTarget: false, dynamicSignals: [] };
   }
 
   const expression = input.target.value.trim();
@@ -60,35 +63,37 @@ export function analyzeAndBuildLocatorRepairCandidates(input: {
         candidates: [],
         diagnostics: [
           {
-            code: "selector_target_flagged_volatile",
+            code: "selector_target_flagged_dynamic",
             level: "info",
             message:
-              `Step ${input.stepNumber}: selector looked brittle but could not be rewritten because expression shape is unsupported.`,
+              `Step ${input.stepNumber}: selector looked dynamic but could not be rewritten because expression shape is unsupported.`,
           },
         ],
+        dynamicTarget: true,
+        dynamicSignals: ["unsupported_expression_shape"],
       };
     }
-    return { candidates: [], diagnostics: [] };
+    return { candidates: [], diagnostics: [], dynamicTarget: false, dynamicSignals: [] };
   }
 
-  const volatilityFlags = detectVolatilityFlags(parse.queryText);
-  const brittleFlags: string[] = [];
-  if (parse.exact) brittleFlags.push("exact_true");
-  if (parse.queryText.length >= 48) brittleFlags.push("long_text");
-  brittleFlags.push(...volatilityFlags);
+  const detectedSignals = detectDynamicSignals(parse.queryText);
+  const dynamicSignals: DynamicSignal[] = [];
+  if (parse.exact) dynamicSignals.push("exact_true");
+  if (parse.queryText.length >= 48) dynamicSignals.push("long_text");
+  dynamicSignals.push(...detectedSignals.map((signal) => signal as DynamicSignal));
 
-  if (brittleFlags.length === 0) {
-    return { candidates: [], diagnostics: [] };
+  if (dynamicSignals.length === 0) {
+    return { candidates: [], diagnostics: [], dynamicTarget: false, dynamicSignals: [] };
   }
 
   const candidates: TargetCandidate[] = [];
   const seen = new Set<string>();
   const diagnostics: ImproveDiagnostic[] = [
     {
-      code: "selector_target_flagged_volatile",
+      code: "selector_target_flagged_dynamic",
       level: "info",
       message:
-        `Step ${input.stepNumber}: selector flagged as brittle (${brittleFlags.join(", ")}). Trying repair variants.`,
+        `Step ${input.stepNumber}: selector flagged as dynamic (${dynamicSignals.join(", ")}). Trying repair variants.`,
     },
   ];
 
@@ -112,6 +117,7 @@ export function analyzeAndBuildLocatorRepairCandidates(input: {
       target,
       source: "derived",
       reasonCodes: [reasonCode],
+      dynamicSignals: dynamicSignals.filter((signal) => signal !== "exact_true"),
     });
   };
 
@@ -128,7 +134,12 @@ export function analyzeAndBuildLocatorRepairCandidates(input: {
     );
   }
 
-  return { candidates, diagnostics };
+  return {
+    candidates,
+    diagnostics,
+    dynamicTarget: true,
+    dynamicSignals,
+  };
 }
 
 function looksPotentiallyBrittleExpression(expression: string): boolean {
@@ -136,7 +147,7 @@ function looksPotentiallyBrittleExpression(expression: string): boolean {
   const quoted = extractFirstQuotedString(expression);
   if (!quoted) return false;
   if (quoted.length >= 48) return true;
-  return detectVolatilityFlags(quoted).length > 0;
+  return detectDynamicSignals(quoted).length > 0;
 }
 
 function extractFirstQuotedString(value: string): string | undefined {
@@ -336,7 +347,7 @@ function buildStableRegexPattern(value: string): string | undefined {
     .split(/[^a-z0-9]+/g)
     .filter((token) => token.length >= 3)
     .filter((token) => !STABLE_STOPWORDS.has(token))
-    .filter((token) => !VOLATILE_KEYWORDS.has(token))
+    .filter((token) => !DYNAMIC_KEYWORDS.has(token))
     .filter((token) => !/^\d+$/.test(token))
     .slice(0, 4);
 

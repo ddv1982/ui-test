@@ -308,4 +308,105 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
     expect(result.inventoryCandidatesAdded).toBe(0);
     expect(result.inventoryGapStepsFilled).toBe(0);
   });
+
+  it("prefers URL assertions over coverage fallback visibility checks", async () => {
+    buildAssertionCandidatesMock.mockReturnValue({
+      candidates: [
+        {
+          index: 1,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "#headline-link", kind: "css", source: "manual" },
+          },
+          confidence: 0.76,
+          rationale: "Coverage fallback: verify interacted element remains visible after action.",
+          candidateSource: "deterministic",
+          coverageFallback: true,
+        },
+      ],
+      skippedNavigationLikeClicks: [],
+    } as any);
+
+    const result = await runImproveAssertionPass({
+      assertions: "candidates",
+      assertionSource: "snapshot-native",
+      assertionPolicy: "balanced",
+      applyAssertions: true,
+      page: {} as any,
+      outputSteps: [
+        { action: "navigate", url: "https://example.com" },
+        { action: "click", target: { value: "#headline-link", kind: "css", source: "manual" } },
+      ],
+      findings: [],
+      outputStepOriginalIndexes: [0, 1],
+      nativeStepSnapshots: [
+        {
+          index: 1,
+          step: {
+            action: "click",
+            target: { value: "#headline-link", kind: "css", source: "manual" },
+          },
+          preSnapshot: "- generic [ref=e1]:\n  - link \"Old headline\"",
+          postSnapshot: "- generic [ref=e1]:\n  - heading \"Article page\"",
+          preUrl: "https://example.com/news",
+          postUrl: "https://example.com/news/article-123",
+          preTitle: "News",
+          postTitle: "Article page",
+        },
+      ],
+      diagnostics: [],
+    });
+
+    expect(
+      result.assertionCandidates.some(
+        (candidate) =>
+          candidate.candidate.action === "assertUrl" &&
+          candidate.applyStatus === "applied"
+      )
+    ).toBe(true);
+    expect(
+      result.assertionCandidates.some(
+        (candidate) =>
+          candidate.coverageFallback === true &&
+          candidate.applyStatus !== "applied"
+      )
+    ).toBe(true);
+  });
+
+  it("emits diagnostics when deterministic fallback is skipped for navigation-like clicks", async () => {
+    buildAssertionCandidatesMock.mockReturnValue({
+      candidates: [],
+      skippedNavigationLikeClicks: [
+        {
+          index: 1,
+          reason: "navigation-like dynamic click target",
+        },
+      ],
+    } as any);
+    const diagnostics: import("./report-schema.js").ImproveDiagnostic[] = [];
+
+    const result = await runImproveAssertionPass({
+      assertions: "candidates",
+      assertionSource: "deterministic",
+      assertionPolicy: "balanced",
+      applyAssertions: false,
+      outputSteps: [
+        { action: "navigate", url: "https://example.com" },
+        { action: "click", target: { value: "#headline-link", kind: "css", source: "manual" } },
+      ],
+      findings: [],
+      outputStepOriginalIndexes: [0, 1],
+      nativeStepSnapshots: [],
+      diagnostics,
+    });
+
+    expect(result.deterministicAssertionsSkippedNavigationLikeClick).toBe(1);
+    expect(
+      diagnostics.some(
+        (diagnostic) =>
+          diagnostic.code === "deterministic_assertion_skipped_navigation_like_click"
+      )
+    ).toBe(true);
+  });
 });

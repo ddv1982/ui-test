@@ -111,7 +111,7 @@ describe("assertion apply helpers", () => {
           },
           confidence: 0.99,
           stabilityScore: 0.61,
-          rationale: "volatile text",
+          rationale: "dynamic text",
           candidateSource: "snapshot_native",
         },
         {

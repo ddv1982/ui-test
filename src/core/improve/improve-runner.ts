@@ -231,11 +231,23 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         skippedAssertions: assertionPass.skippedAssertions,
         selectorRepairCandidates: selectorPass.selectorRepairCandidates ?? 0,
         selectorRepairsApplied: selectorPass.selectorRepairsApplied ?? 0,
+        selectorRepairsAdoptedOnTie:
+          selectorPass.selectorRepairsAdoptedOnTie ?? 0,
+        selectorRepairsGeneratedByPlaywrightRuntime:
+          selectorPass.selectorRepairsGeneratedByPlaywrightRuntime ?? 0,
+        selectorRepairsAppliedFromPlaywrightRuntime:
+          selectorPass.selectorRepairsAppliedFromPlaywrightRuntime ?? 0,
+        selectorRepairsGeneratedByPrivateFallback:
+          selectorPass.selectorRepairsGeneratedByPrivateFallback ?? 0,
+        selectorRepairsAppliedFromPrivateFallback:
+          selectorPass.selectorRepairsAppliedFromPrivateFallback ?? 0,
+        deterministicAssertionsSkippedNavigationLikeClick:
+          assertionPass.deterministicAssertionsSkippedNavigationLikeClick ?? 0,
         runtimeFailingStepsRetained: failedIndexesToRetain.size,
         runtimeFailingStepsOptionalized: failedIndexesToRetain.size,
         runtimeFailingStepsRemoved: failedIndexesToRemove.size,
-        assertionCandidatesFilteredVolatile:
-          assertionPass.filteredVolatileCandidates ?? 0,
+        assertionCandidatesFilteredDynamic:
+          assertionPass.filteredDynamicCandidates ?? 0,
         assertionCoverageStepsTotal: assertionCoverage.total,
         assertionCoverageStepsWithCandidates: assertionCoverage.withCandidates,
         assertionCoverageStepsWithApplied: assertionCoverage.withApplied,

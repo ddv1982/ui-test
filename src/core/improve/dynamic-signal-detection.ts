@@ -1,9 +1,9 @@
 /**
- * Shared volatility detection heuristics used by both locator-repair and
- * assertion-stability to identify dynamic/headline-like content.
+ * Shared dynamic-signal detection heuristics used by locator-repair and
+ * assertion-stability to identify headline-like changing content.
  */
 
-export const VOLATILE_KEYWORDS = new Set([
+export const DYNAMIC_KEYWORDS = new Set([
   "weather",
   "winterweer",
   "winter",
@@ -24,11 +24,12 @@ export const VOLATILE_KEYWORDS = new Set([
   "yesterday",
 ]);
 
-/** Detect volatility flags from free text (assertion text or locator name). */
-export function detectVolatilityFlags(value: string): string[] {
+/** Detect dynamic signals from free text (assertion text or locator name). */
+export function detectDynamicSignals(value: string): string[] {
   const out: string[] = [];
   const normalized = value.trim().toLowerCase();
   if (!normalized) return out;
+  const normalizedWords = normalized.split(/[^a-z0-9]+/u).filter((word) => word.length > 0);
 
   if (/\b\d{2,}\b/.test(normalized)) out.push("contains_numeric_fragment");
   if (
@@ -39,8 +40,8 @@ export function detectVolatilityFlags(value: string): string[] {
     out.push("contains_date_or_time_fragment");
   }
 
-  for (const keyword of VOLATILE_KEYWORDS) {
-    if (normalized.includes(keyword)) {
+  for (const keyword of DYNAMIC_KEYWORDS) {
+    if (normalizedWords.includes(keyword)) {
       out.push("contains_weather_or_news_fragment");
       break;
     }

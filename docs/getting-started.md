@@ -126,6 +126,14 @@ This opens a browser. Interact with your app, then close the browser to save the
 
 After recording, `ui-test` automatically improves selectors, adds assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, retains non-transient and safeguarded content/business interactions as required steps). Use `--no-improve` to skip this.
 
+On dynamic content pages (for example news homepages), recorder/improve use stability-first defaults:
+- Reliable selector normalization avoids brittle `exact: true` headline locators when headline text appears dynamic.
+- Improve can adopt safer repair selectors for dynamic targets even on score ties when runtime matching is unique.
+- Improve can convert dynamic `internal`/`playwrightSelector` targets into `locatorExpression` targets via Playwright runtime APIs when uniquely matched.
+- Navigation-like dynamic link clicks avoid deterministic post-click `assertVisible` insertion; URL/title/snapshot-native assertions are preferred.
+- You can disable runtime selector regeneration/conversion for debugging with `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_REGEN=1`.
+- You can keep public runtime regeneration but disable private resolver fallback with `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK=1`.
+
 ## Improve Tests
 
 `improve` upgrades selectors, generates assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, retains non-transient and safeguarded content/business interactions as required steps).
@@ -139,6 +147,8 @@ ui-test improve e2e/login.yaml --no-apply
 By default, `improve` prompts you to confirm before applying changes. Use `--apply` to skip the prompt (CI-friendly), or `--no-apply` for a report-only run without prompting.
 
 Apply-mode runs can mark candidates as `skipped_policy` when policy caps/filters are enforced. Report-only runs (`--no-apply`) keep candidate status as `not_requested`.
+
+When replaying in headed mode, `play` registers targeted Playwright locator handlers for consent/non-cookie overlays, keeps targeted pre-step dismissal as fallback, and retries once after a verified overlay dismissal when click interception is detected.
 
 Control assertion generation with `--assertions`:
 

@@ -10,10 +10,10 @@ Run `npm run test:coverage` to generate current coverage numbers.
 
 Latest local run snapshot (`npm run test:coverage`):
 
-- **Statements:** 81.61%
-- **Branches:** 68.60%
-- **Functions:** 91.71%
-- **Lines:** 85.79%
+- **Statements:** 82.34%
+- **Branches:** 70.10%
+- **Functions:** 94.89%
+- **Lines:** 86.44%
 
 ## Coverage Thresholds
 
@@ -28,7 +28,8 @@ Current enforced thresholds from `vitest.config.ts`:
 
 - Unit tests cover parser, schema validation, and player helpers (`resolveLocator`, `resolveNavigateUrl`, `stepDescription`).
 - Integration tests validate full `play()` execution with a real browser and dynamic localhost fixture server.
-- Improve integration coverage includes a volatile-news acceptance benchmark that asserts brittle exact headline locators are repaired and replay passes post-improve.
+- Improve integration coverage includes a dynamic-news acceptance benchmark that asserts brittle exact headline locators are repaired and replay passes post-improve.
+- Overlay resilience now includes Playwright locator-handler registration with targeted fallback dismissal coverage in runtime tests.
 - Headed/headless parity is validated separately via `npm run test:parity:headed`.
 
 ## Coverage Exclusions

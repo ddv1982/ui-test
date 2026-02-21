@@ -52,8 +52,12 @@ export async function runPlayStepLoop(input: {
         dismissTimeout
       ).catch(() => ({ dismissed: false } as const));
       if (dismissResult.dismissed) {
+        const dismissedLabel =
+          dismissResult.category === "non_cookie_overlay"
+            ? "non-cookie overlay"
+            : "cookie banner";
         input.artifactWarnings.push(
-          `Step ${i + 1}: dismissed cookie banner via ${dismissResult.strategy ?? "unknown"}${dismissResult.frameUrl ? ` (${dismissResult.frameUrl})` : ""}.`
+          `Step ${i + 1}: dismissed ${dismissedLabel} via ${dismissResult.strategy ?? "unknown"}${dismissResult.frameUrl ? ` (${dismissResult.frameUrl})` : ""}.`
         );
       }
 
@@ -109,11 +113,15 @@ export async function runPlayStepLoop(input: {
             dismissTimeout
           ).catch(() => ({ dismissed: false } as const));
           if (retryDismissResult.dismissed) {
+            const retriedLabel =
+              retryDismissResult.category === "non_cookie_overlay"
+                ? "overlay"
+                : "consent overlay";
             input.artifactWarnings.push(
-              `Step ${i + 1}: retried after consent overlay dismissal.`
+              `Step ${i + 1}: retried after ${retriedLabel} dismissal.`
             );
             ui.warn(
-              `Step ${i + 1} (${step.action}): retrying after consent overlay dismissal.`
+              `Step ${i + 1} (${step.action}): retrying after ${retriedLabel} dismissal.`
             );
             continue;
           }

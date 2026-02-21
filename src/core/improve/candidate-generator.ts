@@ -1,10 +1,12 @@
 import type { Target } from "../yaml-schema.js";
+import type { DynamicSignal } from "./dynamic-target.js";
 
 export interface TargetCandidate {
   id: string;
   target: Target;
   source: "current" | "derived";
   reasonCodes: string[];
+  dynamicSignals?: DynamicSignal[];
 }
 
 export function generateTargetCandidates(target: Target): TargetCandidate[] {
