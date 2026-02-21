@@ -48,9 +48,9 @@ Workflows run on GitHub-hosted `ubuntu-latest` runners.
 
 Primary CI workflow (`.github/workflows/ci.yml`) has these jobs:
 
-- `quality-ci`: runs as a Node `18`/`22` matrix, installs Chromium, runs `npm run quality:ci`, then `npm run test:coverage`.
+- `quality-ci`: runs as a Node `20`/`22` matrix, installs Chromium, runs `npm run quality:ci`, then `npm run test:coverage`.
 - `headed-parity`: installs Chromium, runs `xvfb-run -a npm run test:parity:headed`.
-- `build`: runs as a Node `18`/`22` matrix and executes `npm run build`, `npm run typecheck:prod`, and packaging/install dry-run checks.
+- `build`: runs as a Node `20`/`22` matrix and executes `npm run build`, `npm run typecheck:prod`, and packaging/install dry-run checks.
 - `consumer-smoke`: runs `npm run test:smoke` after `quality-ci`, `headed-parity`, and `build` succeed.
 
 ## Recorder Stability Override
