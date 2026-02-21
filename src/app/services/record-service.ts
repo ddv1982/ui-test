@@ -1,5 +1,5 @@
 import { input } from "@inquirer/prompts";
-import { record as runRecording } from "../../core/recorder.js";
+import { record as runRecording, type RecordOptions } from "../../core/recorder.js";
 import { improveTestFile } from "../../core/improve/improve.js";
 import { PLAY_DEFAULT_BASE_URL, PLAY_DEFAULT_TEST_DIR } from "../../core/play/play-defaults.js";
 import { resolveRecordProfile, hasUrlProtocol, normalizeRecordUrl } from "../options/record-profile.js";
@@ -7,6 +7,7 @@ import { formatRecordingProfileSummary } from "../options/profile-summary.js";
 import { ensureChromiumAvailable } from "../../utils/chromium-runtime.js";
 import { UserError } from "../../utils/errors.js";
 import { ui } from "../../utils/ui.js";
+import { defaultRunInteractiveCommand } from "../../infra/process/process-runner-adapter.js";
 
 export interface RecordCliOptions {
   name?: string;
@@ -66,34 +67,55 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       default: PLAY_DEFAULT_TEST_DIR,
     }));
 
-  const profile = resolveRecordProfile({ ...opts, outputDir });
+  const profileInput = { ...opts, outputDir };
+  const profile = resolveRecordProfile(profileInput);
 
   if (profile.browser === "chromium") {
     await ensureChromiumAvailable();
   }
 
-  ui.info(
-    formatRecordingProfileSummary({
-      browser: profile.browser,
-      selectorPolicy: profile.selectorPolicy,
-      device: profile.device,
-      testIdAttribute: profile.testIdAttribute,
-      loadStorage: profile.loadStorage,
-      saveStorage: profile.saveStorage,
-    })
-  );
+  const summaryOptions: {
+    browser: typeof profile.browser;
+    selectorPolicy: typeof profile.selectorPolicy;
+    device?: string;
+    testIdAttribute?: string;
+    loadStorage?: string;
+    saveStorage?: string;
+  } = {
+    browser: profile.browser,
+    selectorPolicy: profile.selectorPolicy,
+  };
+  if (profile.device !== undefined) summaryOptions.device = profile.device;
+  if (profile.testIdAttribute !== undefined) {
+    summaryOptions.testIdAttribute = profile.testIdAttribute;
+  }
+  if (profile.loadStorage !== undefined) summaryOptions.loadStorage = profile.loadStorage;
+  if (profile.saveStorage !== undefined) summaryOptions.saveStorage = profile.saveStorage;
+  ui.info(formatRecordingProfileSummary(summaryOptions));
 
-  const result = await runRecording({
+  const recordingOptions: RecordOptions = {
     name,
     url,
-    description: description || undefined,
     outputDir: profile.outputDir,
     selectorPolicy: profile.selectorPolicy,
     browser: profile.browser,
-    device: profile.device,
-    testIdAttribute: profile.testIdAttribute,
-    loadStorage: profile.loadStorage,
-    saveStorage: profile.saveStorage,
+  };
+  const cleanedDescription = description || undefined;
+  if (cleanedDescription !== undefined) {
+    recordingOptions.description = cleanedDescription;
+  }
+  if (profile.device !== undefined) recordingOptions.device = profile.device;
+  if (profile.testIdAttribute !== undefined) {
+    recordingOptions.testIdAttribute = profile.testIdAttribute;
+  }
+  if (profile.loadStorage !== undefined) {
+    recordingOptions.loadStorage = profile.loadStorage;
+  }
+  if (profile.saveStorage !== undefined) {
+    recordingOptions.saveStorage = profile.saveStorage;
+  }
+  const result = await runRecording(recordingOptions, {
+    runInteractiveCommand: defaultRunInteractiveCommand,
   });
 
   console.log();

@@ -2,15 +2,22 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Step } from "../yaml-schema.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
-  executeRuntimeStepMock: vi.fn(async () => {}),
+  executeRuntimeStepMock: vi.fn<
+    typeof import("../runtime/step-executor.js").executeRuntimeStep
+  >(async () => {}),
 }));
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
-  buildAssertionCandidatesMock: vi.fn(() => []),
+  buildAssertionCandidatesMock: vi.fn<
+    typeof import("./assertion-candidates.js").buildAssertionCandidates
+  >(() => []),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
-  waitForPostStepNetworkIdleMock: vi.fn(async () => false),
+  waitForPostStepNetworkIdleMock: vi.fn<
+    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
+  >(async () => false),
 }));
 
 vi.mock("playwright", () => ({
@@ -108,6 +115,12 @@ vi.mock("./assertion-candidates.js", () => ({
 import { improveTestFile } from "./improve.js";
 import { scoreTargetCandidates } from "./candidate-scorer.js";
 
+function getExecutedStepAt(callIndex: number): Step {
+  const call = executeRuntimeStepMock.mock.calls[callIndex];
+  expect(call).toBeDefined();
+  return call![1];
+}
+
 describe("improve apply runtime replay", () => {
   const tempDirs: string[] = [];
 
@@ -155,12 +168,12 @@ describe("improve apply runtime replay", () => {
     expect(result.outputPath).toBe(yamlPath);
     expect(executeRuntimeStepMock).toHaveBeenCalledTimes(2);
 
-    const secondStepArg = executeRuntimeStepMock.mock.calls[1]?.[1] as {
-      action: string;
-      target?: { value: string };
-    };
+    const secondStepArg = getExecutedStepAt(1);
     expect(secondStepArg.action).toBe("click");
-    expect(secondStepArg.target?.value).toBe("getByRole('button', { name: 'Save' })");
+    expect("target" in secondStepArg).toBe(true);
+    if ("target" in secondStepArg && secondStepArg.target) {
+      expect(secondStepArg.target.value).toBe("getByRole('button', { name: 'Save' })");
+    }
 
     const saved = await fs.readFile(yamlPath, "utf-8");
     expect(saved).toContain("getByRole('button', { name: 'Save' })");
@@ -459,7 +472,7 @@ describe("improve apply runtime replay", () => {
     >("./assertion-candidates.js");
     buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
 
-    const ariaSnapshotMock = vi.fn<[], Promise<string>>();
+    const ariaSnapshotMock = vi.fn(async (): Promise<string> => "- generic");
     ariaSnapshotMock.mockResolvedValueOnce("- generic");
     ariaSnapshotMock.mockResolvedValueOnce("- generic");
     const clickSnapshot = [
@@ -620,7 +633,7 @@ describe("improve apply runtime replay", () => {
     );
 
     executeRuntimeStepMock.mockImplementation(async (_page, step) => {
-      if ((step as { action: string }).action === "assertText") {
+      if (step.action === "assertText") {
         throw new Error("dynamic text changed");
       }
     });
@@ -903,7 +916,7 @@ describe("improve apply runtime replay", () => {
       "utf-8"
     );
     executeRuntimeStepMock.mockImplementation(async (_page, step) => {
-      if ((step as { action: string }).action === "assertVisible") {
+      if (step.action === "assertVisible") {
         throw new Error("Expected element to be visible");
       }
     });
@@ -1007,7 +1020,7 @@ describe("improve apply runtime replay", () => {
   it("adds snapshot-native assertion candidates when using default assertion source", async () => {
     const { chromium } = await import("playwright");
 
-    const ariaSnapshotMock = vi.fn<[], Promise<string>>();
+    const ariaSnapshotMock = vi.fn(async (): Promise<string> => "- generic");
     // Navigate step: pre/post identical → no delta
     ariaSnapshotMock.mockResolvedValueOnce("- generic");
     ariaSnapshotMock.mockResolvedValueOnce("- generic");
@@ -1212,10 +1225,7 @@ describe("improve apply runtime replay", () => {
       assertions: "none",
     });
 
-    const replayedActions = executeRuntimeStepMock.mock.calls.map((call) => {
-      const step = call[1] as { action: string };
-      return step.action;
-    });
+    const replayedActions = executeRuntimeStepMock.mock.calls.map((call) => call[1].action);
     expect(replayedActions.includes("assertVisible")).toBe(true);
 
     const saved = await fs.readFile(yamlPath, "utf-8");

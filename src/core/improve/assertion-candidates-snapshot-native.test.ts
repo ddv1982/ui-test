@@ -109,7 +109,7 @@ describe("snapshot-native assertion candidates", () => {
     expect(out).toHaveLength(1);
     const step = out[0]!.candidate;
     expect(step.action).not.toBe("navigate");
-    if (step.action !== "navigate") {
+    if ("target" in step && step.target) {
       expect(step.target.framePath).toEqual(["iframe[name=\"app-frame\"]"]);
     }
   });

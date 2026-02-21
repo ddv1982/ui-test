@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Consent Overlay Fixture</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+
+      #consent-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 0, 0, 0.45);
+      }
+
+      #consent-panel {
+        width: min(520px, 90vw);
+        padding: 16px;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      #accept-consent {
+        min-width: 180px;
+        min-height: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Consent Fixture</h1>
+      <button id="continue-btn">Continue</button>
+      <p id="success" hidden>Action completed</p>
+    </main>
+
+    <div id="consent-overlay" class="cookie-consent-modal" role="dialog" aria-label="Cookie consent">
+      <div id="consent-panel">
+        <p>We use cookies to improve your experience.</p>
+        <button id="accept-consent" type="button">Accept all</button>
+      </div>
+    </div>
+
+    <script>
+      const overlay = document.getElementById("consent-overlay");
+      const accept = document.getElementById("accept-consent");
+      const continueButton = document.getElementById("continue-btn");
+      const success = document.getElementById("success");
+
+      if (accept && overlay) {
+        accept.addEventListener("click", () => {
+          overlay.remove();
+        });
+      }
+
+      if (continueButton && success) {
+        continueButton.addEventListener("click", () => {
+          success.hidden = false;
+        });
+      }
+    </script>
+  </body>
+</html>

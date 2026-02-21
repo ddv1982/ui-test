@@ -111,6 +111,17 @@ export async function captureFailureArtifacts(input: {
   }
 
   try {
+    const reportArtifacts: {
+      tracePath?: string;
+      screenshotPath?: string;
+    } = {};
+    if (tracePath !== undefined) {
+      reportArtifacts.tracePath = tracePath;
+    }
+    if (screenshotPath !== undefined) {
+      reportArtifacts.screenshotPath = screenshotPath;
+    }
+
     const report = buildPlayFailureReport({
       runId: input.runId,
       testName: input.testName,
@@ -126,13 +137,10 @@ export async function captureFailureArtifacts(input: {
         index: stepResult.index,
         action: stepResult.step.action,
         passed: stepResult.passed,
-        error: stepResult.error,
+        ...(stepResult.error === undefined ? {} : { error: stepResult.error }),
         durationMs: stepResult.durationMs,
       })),
-      artifacts: {
-        tracePath,
-        screenshotPath,
-      },
+      artifacts: reportArtifacts,
       warnings: [...input.artifactWarnings],
     });
 
@@ -143,11 +151,18 @@ export async function captureFailureArtifacts(input: {
     input.artifactWarnings.push(`Failed to write failure report JSON: ${message}`);
   }
 
-  return {
+  const artifacts: PlayFailureArtifacts = {
     runId: input.runId,
     testSlug: input.artifactPaths.testSlug,
-    reportPath,
-    tracePath,
-    screenshotPath,
   };
+  if (reportPath !== undefined) {
+    artifacts.reportPath = reportPath;
+  }
+  if (tracePath !== undefined) {
+    artifacts.tracePath = tracePath;
+  }
+  if (screenshotPath !== undefined) {
+    artifacts.screenshotPath = screenshotPath;
+  }
+  return artifacts;
 }

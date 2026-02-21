@@ -66,17 +66,23 @@ export function collectRuntimeInfo(
   const localUiTestPackageJson = localPackageRoot
     ? path.join(localPackageRoot, "package.json")
     : undefined;
-  return {
+  const info: RuntimeInfo = {
     cliVersion: getCliVersion(),
     nodeVersion,
     cwd: resolvedCwd,
     workspaceRoot,
     invocation: classifyInvocationPath(workspaceRoot, argv1),
-    localPackageRoot,
-    localPackageVersion: localUiTestPackageJson
-      ? readPackageVersion(localUiTestPackageJson)
-      : undefined,
   };
+  if (localPackageRoot !== undefined) {
+    info.localPackageRoot = localPackageRoot;
+  }
+  const localPackageVersion = localUiTestPackageJson
+    ? readPackageVersion(localUiTestPackageJson)
+    : undefined;
+  if (localPackageVersion !== undefined) {
+    info.localPackageVersion = localPackageVersion;
+  }
+  return info;
 }
 
 export function classifyInvocationPath(cwd: string, argv1: string | undefined): InvocationInfo {
@@ -203,8 +209,9 @@ function findNearestPackageJsonMatching(
 function readPackageVersion(packageJsonPath: string): string | undefined {
   const parsed = readPackageJson(packageJsonPath);
   if (!parsed) return undefined;
-  if (typeof parsed.version === "string" && parsed.version.trim().length > 0) {
-    return parsed.version.trim();
+  const version = parsed["version"];
+  if (typeof version === "string" && version.trim().length > 0) {
+    return version.trim();
   }
   return undefined;
 }
@@ -224,10 +231,10 @@ function isUiTestPackage(packageJsonPath: string): boolean {
   const parsed = readPackageJson(packageJsonPath);
   if (!parsed) return false;
 
-  if (parsed.name === "ui-test") return true;
+  if (parsed["name"] === "ui-test") return true;
 
-  const bin = parsed.bin;
-  if (typeof bin === "string") return parsed.name === "ui-test";
+  const bin = parsed["bin"];
+  if (typeof bin === "string") return parsed["name"] === "ui-test";
   if (!bin || typeof bin !== "object" || Array.isArray(bin)) return false;
   return Object.prototype.hasOwnProperty.call(bin, "ui-test");
 }
@@ -240,14 +247,14 @@ function readUiTestNpxDependencySpec(argv1: string | undefined): string | undefi
   const parsed = readPackageJson(packageLockPath);
   if (!parsed) return undefined;
 
-  const packages = parsed.packages;
+  const packages = parsed["packages"];
   if (!packages || typeof packages !== "object" || Array.isArray(packages)) return undefined;
   const rootPackage = (packages as Record<string, unknown>)[""];
   if (!rootPackage || typeof rootPackage !== "object" || Array.isArray(rootPackage)) {
     return undefined;
   }
 
-  const dependencies = (rootPackage as Record<string, unknown>).dependencies;
+  const dependencies = (rootPackage as Record<string, unknown>)["dependencies"];
   if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) {
     return undefined;
   }

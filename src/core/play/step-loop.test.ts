@@ -4,10 +4,25 @@ import type { Step } from "../yaml-schema.js";
 import { runPlayStepLoop } from "./step-loop.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
-  executeRuntimeStepMock: vi.fn(async () => {}),
+  executeRuntimeStepMock: vi.fn<
+    typeof import("../runtime/step-executor.js").executeRuntimeStep
+  >(async () => {}),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
-  waitForPostStepNetworkIdleMock: vi.fn(async () => false),
+  waitForPostStepNetworkIdleMock: vi.fn<
+    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
+  >(async () => false),
+}));
+const {
+  dismissCookieBannerWithDetailsMock,
+  isLikelyOverlayInterceptionErrorMock,
+} = vi.hoisted(() => ({
+  dismissCookieBannerWithDetailsMock: vi.fn<
+    typeof import("../runtime/cookie-banner.js").dismissCookieBannerWithDetails
+  >(async () => ({ dismissed: false })),
+  isLikelyOverlayInterceptionErrorMock: vi.fn<
+    typeof import("../runtime/cookie-banner.js").isLikelyOverlayInterceptionError
+  >(() => false),
 }));
 const { warnMock, successMock, errorMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
@@ -21,6 +36,11 @@ vi.mock("../runtime/step-executor.js", () => ({
 
 vi.mock("../runtime/network-idle.js", () => ({
   waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
+}));
+
+vi.mock("../runtime/cookie-banner.js", () => ({
+  dismissCookieBannerWithDetails: dismissCookieBannerWithDetailsMock,
+  isLikelyOverlayInterceptionError: isLikelyOverlayInterceptionErrorMock,
 }));
 
 vi.mock("../../utils/ui.js", () => ({
@@ -46,6 +66,10 @@ describe("runPlayStepLoop per-step timeout", () => {
   beforeEach(() => {
     executeRuntimeStepMock.mockClear();
     waitForPostStepNetworkIdleMock.mockClear();
+    dismissCookieBannerWithDetailsMock.mockClear();
+    isLikelyOverlayInterceptionErrorMock.mockClear();
+    dismissCookieBannerWithDetailsMock.mockResolvedValue({ dismissed: false });
+    isLikelyOverlayInterceptionErrorMock.mockReturnValue(false);
     warnMock.mockClear();
     successMock.mockClear();
     errorMock.mockClear();
@@ -90,6 +114,10 @@ describe("runPlayStepLoop warning behavior", () => {
   beforeEach(() => {
     executeRuntimeStepMock.mockClear();
     waitForPostStepNetworkIdleMock.mockClear();
+    dismissCookieBannerWithDetailsMock.mockClear();
+    isLikelyOverlayInterceptionErrorMock.mockClear();
+    dismissCookieBannerWithDetailsMock.mockResolvedValue({ dismissed: false });
+    isLikelyOverlayInterceptionErrorMock.mockReturnValue(false);
     warnMock.mockClear();
     successMock.mockClear();
     errorMock.mockClear();
@@ -143,5 +171,64 @@ describe("runPlayStepLoop warning behavior", () => {
     expect(result.stepResults).toHaveLength(2);
     expect(result.stepResults.every((stepResult) => stepResult.passed)).toBe(true);
     expect(warnMock).not.toHaveBeenCalled();
+  });
+
+  it("retries once when click fails due overlay interception", async () => {
+    executeRuntimeStepMock
+      .mockRejectedValueOnce(new Error("subtree intercepts pointer events"))
+      .mockResolvedValueOnce(undefined);
+    isLikelyOverlayInterceptionErrorMock.mockReturnValue(true);
+    dismissCookieBannerWithDetailsMock
+      .mockResolvedValueOnce({ dismissed: false })
+      .mockResolvedValueOnce({ dismissed: true, strategy: "text_match" })
+      .mockResolvedValueOnce({ dismissed: false });
+
+    const result = await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [makeClickStep(1)],
+      timeout: 1_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-retry",
+      absoluteFilePath: "/tmp/test.yaml",
+      testName: "Retry Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings: [],
+    });
+
+    expect(result.stepResults).toHaveLength(1);
+    expect(result.stepResults[0]?.passed).toBe(true);
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(2);
+    expect(warnMock).toHaveBeenCalledWith(
+      "Step 1 (click): retrying after consent overlay dismissal."
+    );
+  });
+
+  it("records cookie dismissal events in artifact warnings", async () => {
+    const artifactWarnings: string[] = [];
+    dismissCookieBannerWithDetailsMock.mockResolvedValue({
+      dismissed: true,
+      strategy: "known_selector",
+      frameUrl: "https://consent.example.com",
+    });
+
+    await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [makeClickStep(1)],
+      timeout: 1_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-observable",
+      absoluteFilePath: "/tmp/test.yaml",
+      testName: "Observability Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings,
+    });
+
+    expect(artifactWarnings.some((warning) => warning.includes("dismissed cookie banner"))).toBe(
+      true
+    );
   });
 });

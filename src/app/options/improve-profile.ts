@@ -27,7 +27,7 @@ export function resolveImproveProfile(
   input: ImproveProfileInput
 ): ResolvedImproveProfile {
   const apply = input.apply ?? false;
-  return {
+  const profile: ResolvedImproveProfile = {
     assertions: parseImproveAssertions(input.assertions) ?? "candidates",
     assertionSource:
       parseImproveAssertionSource(input.assertionSource) ??
@@ -37,8 +37,13 @@ export function resolveImproveProfile(
       DEFAULT_IMPROVE_ASSERTION_POLICY,
     applySelectors: apply,
     applyAssertions: apply,
-    reportPath: input.report,
   };
+
+  if (input.report !== undefined) {
+    profile.reportPath = input.report;
+  }
+
+  return profile;
 }
 
 export function parseImproveAssertions(value: string | undefined): ImproveAssertionsMode | undefined {

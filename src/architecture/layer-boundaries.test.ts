@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 type Layer = "commands" | "app" | "core" | "infra" | "utils" | "bin" | "root";
@@ -14,13 +15,23 @@ interface Violation {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const srcRoot = path.resolve(__dirname, "..");
+const repoRoot = path.resolve(srcRoot, "..");
+const compilerOptions = loadCompilerOptions();
+const moduleResolutionHost: ts.ModuleResolutionHost = {
+  fileExists: ts.sys.fileExists,
+  readFile: ts.sys.readFile,
+  directoryExists: ts.sys.directoryExists,
+  getDirectories: ts.sys.getDirectories,
+  realpath: ts.sys.realpath,
+  getCurrentDirectory: () => repoRoot,
+};
 
 const disallowedImports: Record<Layer, Set<Layer>> = {
   app: new Set(["commands", "bin"]),
   bin: new Set(["commands", "app", "core", "infra", "utils"]),
-  commands: new Set(["infra"]),
-  core: new Set(["commands", "app", "bin"]),
-  infra: new Set(["commands", "app", "core", "bin"]),
+  commands: new Set(["core", "infra", "bin", "root"]),
+  core: new Set(["commands", "app", "infra", "bin", "root"]),
+  infra: new Set(["commands", "app", "core", "bin", "root"]),
   root: new Set(),
   utils: new Set(["commands", "app", "core", "infra", "bin"]),
 };
@@ -37,7 +48,7 @@ describe("layer boundaries", () => {
         continue;
       }
 
-      const imports = await findRelativeImports(file);
+      const imports = await findModuleSpecifiers(file);
       for (const specifier of imports) {
         const resolvedImportPath = await resolveImportPath(file, specifier);
         if (!resolvedImportPath) continue;
@@ -85,25 +96,70 @@ async function listSourceFiles(dir: string): Promise<string[]> {
   return out;
 }
 
-async function findRelativeImports(filePath: string): Promise<string[]> {
+async function findModuleSpecifiers(filePath: string): Promise<string[]> {
   const content = await fs.readFile(filePath, "utf-8");
-  const imports: string[] = [];
-  const pattern = /(?:import|export)\s+(?:[^"'`]*?\sfrom\s*)?["']([^"']+)["']/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(content)) !== null) {
-    const specifier = match[1];
-    if (!specifier || !specifier.startsWith(".")) continue;
-    imports.push(specifier);
+  const source = ts.createSourceFile(
+    filePath,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+
+  const imports = new Set<string>();
+
+  const maybeAdd = (value: string | undefined) => {
+    if (!value) return;
+    imports.add(value);
+  };
+
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node)) {
+      maybeAdd(readStringLiteral(node.moduleSpecifier));
+    } else if (ts.isExportDeclaration(node)) {
+      maybeAdd(readStringLiteral(node.moduleSpecifier));
+    } else if (ts.isCallExpression(node)) {
+      if (
+        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        node.arguments.length > 0
+      ) {
+        maybeAdd(readStringLiteral(node.arguments[0]));
+      }
+    } else if (ts.isImportTypeNode(node)) {
+      const argument = node.argument;
+      if (ts.isLiteralTypeNode(argument)) {
+        maybeAdd(readStringLiteral(argument.literal));
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(source);
+  return [...imports];
+}
+
+function readStringLiteral(node: ts.Node | undefined): string | undefined {
+  if (!node) return undefined;
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return node.text;
   }
-  return imports;
+  return undefined;
 }
 
 async function resolveImportPath(
   filePath: string,
   specifier: string
 ): Promise<string | undefined> {
-  const fromDir = path.dirname(filePath);
-  const candidate = path.resolve(fromDir, specifier);
+  const tsResolved = resolveWithTypeScript(filePath, specifier);
+  if (tsResolved) {
+    return tsResolved;
+  }
+
+  const manualBase = resolveManualBase(filePath, specifier);
+  if (!manualBase) return undefined;
+
+  const candidate = manualBase;
   const normalized = candidate.endsWith(".js")
     ? candidate.slice(0, -3) + ".ts"
     : candidate;
@@ -118,6 +174,40 @@ async function resolveImportPath(
     }
   }
 
+  return undefined;
+}
+
+function resolveWithTypeScript(
+  filePath: string,
+  specifier: string
+): string | undefined {
+  const resolution = ts.resolveModuleName(
+    specifier,
+    filePath,
+    compilerOptions,
+    moduleResolutionHost
+  ).resolvedModule;
+  if (!resolution) return undefined;
+
+  const resolvedPath = path.resolve(resolution.resolvedFileName);
+  if (!resolvedPath.startsWith(srcRoot)) return undefined;
+  if (resolvedPath.endsWith(".d.ts")) return undefined;
+  return resolvedPath;
+}
+
+function resolveManualBase(
+  filePath: string,
+  specifier: string
+): string | undefined {
+  if (specifier.startsWith(".")) {
+    return path.resolve(path.dirname(filePath), specifier);
+  }
+  if (specifier.startsWith("src/")) {
+    return path.resolve(repoRoot, specifier);
+  }
+  if (specifier.startsWith("@/")) {
+    return path.resolve(srcRoot, specifier.slice(2));
+  }
   return undefined;
 }
 
@@ -145,4 +235,31 @@ function layerForFile(filePath: string): Layer {
 
 function toRepoPath(filePath: string): string {
   return path.relative(path.resolve(srcRoot, ".."), filePath).replaceAll(path.sep, "/");
+}
+
+function loadCompilerOptions(): ts.CompilerOptions {
+  const configPath = ts.findConfigFile(repoRoot, ts.sys.fileExists, "tsconfig.json");
+  if (!configPath) {
+    return {
+      module: ts.ModuleKind.Node16,
+      moduleResolution: ts.ModuleResolutionKind.Node16,
+    };
+  }
+
+  const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+  if (configFile.error) {
+    return {
+      module: ts.ModuleKind.Node16,
+      moduleResolution: ts.ModuleResolutionKind.Node16,
+    };
+  }
+
+  const parsed = ts.parseJsonConfigFileContent(
+    configFile.config,
+    ts.sys,
+    path.dirname(configPath),
+    undefined,
+    configPath
+  );
+  return parsed.options;
 }

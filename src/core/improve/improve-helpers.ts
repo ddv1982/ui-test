@@ -5,7 +5,7 @@ import type {
   AssertionCandidate,
   AssertionCandidateSource,
 } from "./report-schema.js";
-import type { TargetCandidateScore } from "./candidate-scorer.js";
+import { roundScore } from "./score-math.js";
 
 export function isFallbackTarget(target: Target): boolean {
   return (
@@ -20,10 +20,6 @@ export function defaultReportPath(testPath: string): string {
   const ext = path.extname(testPath);
   const base = ext ? testPath.slice(0, -ext.length) : testPath;
   return `${base}.improve-report.json`;
-}
-
-export function roundScore(value: number): number {
-  return Math.round(value * 1000) / 1000;
 }
 
 export function buildOriginalToRuntimeIndex(
@@ -61,10 +57,10 @@ export function buildOutputStepOriginalIndexes(
   return out;
 }
 
-export function chooseDeterministicSelection(
-  scored: TargetCandidateScore[],
-  fallback: TargetCandidateScore
-): TargetCandidateScore {
+export function chooseDeterministicSelection<T extends { score: number }>(
+  scored: T[],
+  fallback: T
+): T {
   if (scored.length === 0) return fallback;
 
   const first = scored[0];
@@ -194,3 +190,5 @@ export function buildAssertionCandidateSourceCounts(
   }
   return counts;
 }
+
+export { roundScore };

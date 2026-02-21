@@ -38,6 +38,7 @@ describe("profile summary formatting", () => {
 
   it("formats play summary", () => {
     const out = formatPlayProfileSummary({
+      browser: "chromium",
       headed: false,
       timeout: 10000,
       delayMs: 0,

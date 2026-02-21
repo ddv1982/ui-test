@@ -3,16 +3,24 @@ import type { AssertionCandidate } from "./report-schema.js";
 import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
-  buildAssertionCandidatesMock: vi.fn(() => []),
+  buildAssertionCandidatesMock: vi.fn<
+    typeof import("./assertion-candidates.js").buildAssertionCandidates
+  >(() => []),
 }));
 const { buildSnapshotInventoryAssertionCandidatesMock } = vi.hoisted(() => ({
-  buildSnapshotInventoryAssertionCandidatesMock: vi.fn(() => []),
+  buildSnapshotInventoryAssertionCandidatesMock: vi.fn<
+    typeof import("./assertion-candidates-inventory.js").buildSnapshotInventoryAssertionCandidates
+  >(() => []),
 }));
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
-  executeRuntimeStepMock: vi.fn(async () => {}),
+  executeRuntimeStepMock: vi.fn<
+    typeof import("../runtime/step-executor.js").executeRuntimeStep
+  >(async () => {}),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
-  waitForPostStepNetworkIdleMock: vi.fn(async () => false),
+  waitForPostStepNetworkIdleMock: vi.fn<
+    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
+  >(async () => false),
 }));
 
 vi.mock("./assertion-candidates.js", () => ({

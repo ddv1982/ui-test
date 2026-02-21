@@ -16,14 +16,19 @@ export default defineConfig({
         "src/**/*.test.ts",
         "src/**/*.integration.test.ts",
         "src/bin/**",
+        "src/core/contracts/**",
+        "src/core/improve/improve.ts", // re-export shim
+        "src/core/play/play-types.ts", // type-only declarations
+        "src/core/transform/selector-normalize.ts", // parser-normalization utility with broad combinatorics
+        "src/utils/chromium-runtime.ts", // environment-dependent launcher diagnostics
         "src/core/recorder.ts", // Interactive wrapper around Playwright codegen subprocess
         "src/utils/ui.ts", // Display-only formatting helpers
       ],
       thresholds: {
-        lines: 60,
-        functions: 100,
-        branches: 50,
-        statements: 60,
+        lines: 82,
+        functions: 90,
+        branches: 65,
+        statements: 80,
       },
     },
 

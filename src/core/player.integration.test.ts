@@ -5,6 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import yaml from "js-yaml";
+import { chromium } from "playwright";
 import { play } from "./play/player-runner.js";
 import { createTestSlug } from "./play-failure-report.js";
 import { ui } from "../utils/ui.js";
@@ -12,13 +13,16 @@ import { ui } from "../utils/ui.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTML_FIXTURE_DIR = join(__dirname, "../../tests/fixtures/html");
 const YAML_FIXTURE_DIR = join(__dirname, "../../tests/fixtures/yaml");
+const REQUIRE_HEADED_PARITY = process.env["UI_TEST_REQUIRE_HEADED_PARITY"] === "1";
 
 let server: Server;
 let baseUrl = "";
 let tempDir = "";
+let headedSupported = false;
 
 beforeAll(async () => {
   tempDir = await mkdtemp(join(tmpdir(), "ui-test-integration-"));
+  headedSupported = await canLaunchHeadedChromium();
 
   await new Promise<void>((resolve, reject) => {
     server = createServer(async (req, res) => {
@@ -101,6 +105,18 @@ async function exists(pathToCheck: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function canLaunchHeadedChromium(): Promise<boolean> {
+  let browser: import("playwright").Browser | undefined;
+  try {
+    browser = await chromium.launch({ headless: false });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await browser?.close().catch(() => {});
   }
 }
 
@@ -457,5 +473,62 @@ describe("player integration - step execution", () => {
       warnSpy.mockRestore();
     }
   }, 30000);
+
+  it("dismisses consent overlays before executing interaction steps", async () => {
+    const testFile = await writeInlineFixture("consent-overlay.yaml", {
+      name: "Consent Overlay Dismissal",
+      baseUrl,
+      steps: [
+        { action: "navigate", url: "/consent-overlay.html" },
+        {
+          action: "click",
+          target: { value: "#continue-btn", kind: "css", source: "manual" },
+        },
+        {
+          action: "assertVisible",
+          target: { value: "#success", kind: "css", source: "manual" },
+        },
+      ],
+    });
+
+    const result = await play(testFile, { headed: false, timeout: 5000 });
+
+    expect(result.passed).toBe(true);
+    expect(result.steps).toHaveLength(3);
+    expect(result.steps.every((step) => step.passed)).toBe(true);
+  }, 30000);
+
+  it("runs the same YAML in headless and headed modes when headed Chromium is available", async () => {
+    if (!headedSupported) {
+      if (REQUIRE_HEADED_PARITY) {
+        throw new Error(
+          "Headed Chromium is unavailable while parity is required (UI_TEST_REQUIRE_HEADED_PARITY=1)."
+        );
+      }
+      return;
+    }
+
+    const testFile = await writeInlineFixture("consent-overlay-parity.yaml", {
+      name: "Consent Overlay Parity",
+      baseUrl,
+      steps: [
+        { action: "navigate", url: "/consent-overlay.html" },
+        {
+          action: "click",
+          target: { value: "#continue-btn", kind: "css", source: "manual" },
+        },
+        {
+          action: "assertVisible",
+          target: { value: "#success", kind: "css", source: "manual" },
+        },
+      ],
+    });
+
+    const headlessResult = await play(testFile, { headed: false, timeout: 5000 });
+    const headedResult = await play(testFile, { headed: true, timeout: 5000 });
+
+    expect(headlessResult.passed).toBe(true);
+    expect(headedResult.passed).toBe(true);
+  }, 45000);
 
 });

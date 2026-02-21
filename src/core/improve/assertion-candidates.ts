@@ -22,8 +22,7 @@ export function buildAssertionCandidates(
 
   const out: AssertionCandidate[] = [];
 
-  for (let index = 0; index < steps.length; index += 1) {
-    const step = steps[index];
+  for (const [index, step] of steps.entries()) {
     if (step.action === "navigate") continue;
 
     const stepTarget = getStepTarget(step);

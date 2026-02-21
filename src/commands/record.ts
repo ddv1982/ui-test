@@ -28,19 +28,50 @@ export function registerRecord(program: Command) {
 }
 
 function parseRecordCliOptions(value: unknown): RecordCliOptions {
-  if (!value || typeof value !== "object") return {};
-  const record = value as Record<string, unknown>;
-  return {
-    name: asOptionalString(record.name),
-    url: asOptionalString(record.url),
-    description: asOptionalString(record.description),
-    outputDir: asOptionalString(record.outputDir),
-    selectorPolicy: asOptionalString(record.selectorPolicy),
-    browser: asOptionalString(record.browser),
-    device: asOptionalString(record.device),
-    testIdAttribute: asOptionalString(record.testIdAttribute),
-    loadStorage: asOptionalString(record.loadStorage),
-    saveStorage: asOptionalString(record.saveStorage),
-    improve: asOptionalBoolean(record.improve),
-  };
+  if (!isRawRecordCliOptions(value)) return {};
+  const out: RecordCliOptions = {};
+
+  const name = asOptionalString(value.name);
+  const url = asOptionalString(value.url);
+  const description = asOptionalString(value.description);
+  const outputDir = asOptionalString(value.outputDir);
+  const selectorPolicy = asOptionalString(value.selectorPolicy);
+  const browser = asOptionalString(value.browser);
+  const device = asOptionalString(value.device);
+  const testIdAttribute = asOptionalString(value.testIdAttribute);
+  const loadStorage = asOptionalString(value.loadStorage);
+  const saveStorage = asOptionalString(value.saveStorage);
+  const improve = asOptionalBoolean(value.improve);
+
+  if (name !== undefined) out.name = name;
+  if (url !== undefined) out.url = url;
+  if (description !== undefined) out.description = description;
+  if (outputDir !== undefined) out.outputDir = outputDir;
+  if (selectorPolicy !== undefined) out.selectorPolicy = selectorPolicy;
+  if (browser !== undefined) out.browser = browser;
+  if (device !== undefined) out.device = device;
+  if (testIdAttribute !== undefined) out.testIdAttribute = testIdAttribute;
+  if (loadStorage !== undefined) out.loadStorage = loadStorage;
+  if (saveStorage !== undefined) out.saveStorage = saveStorage;
+  if (improve !== undefined) out.improve = improve;
+
+  return out;
+}
+
+interface RawRecordCliOptions {
+  name?: unknown;
+  url?: unknown;
+  description?: unknown;
+  outputDir?: unknown;
+  selectorPolicy?: unknown;
+  browser?: unknown;
+  device?: unknown;
+  testIdAttribute?: unknown;
+  loadStorage?: unknown;
+  saveStorage?: unknown;
+  improve?: unknown;
+}
+
+function isRawRecordCliOptions(value: unknown): value is RawRecordCliOptions {
+  return value !== null && typeof value === "object";
 }

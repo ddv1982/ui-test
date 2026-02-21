@@ -188,11 +188,17 @@ export async function runImproveSelectorPass(input: {
 
     try {
       const runtimeStep = outputSteps[index] ?? step;
-      await executeRuntimeStep(input.page, runtimeStep, {
-        timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
-        baseUrl: input.testBaseUrl,
-        mode: "analysis",
-      });
+      await executeRuntimeStep(
+        input.page,
+        runtimeStep,
+        input.testBaseUrl === undefined
+          ? { timeout: DEFAULT_RUNTIME_TIMEOUT_MS, mode: "analysis" }
+          : {
+              timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
+              baseUrl: input.testBaseUrl,
+              mode: "analysis",
+            }
+      );
     } catch (err) {
       failedStepIndexes.push(index);
       input.diagnostics.push({
@@ -245,16 +251,17 @@ export async function runImproveSelectorPass(input: {
           postUrl = "";
           postTitle = "";
         }
-        nativeStepSnapshots.push({
+        const stepSnapshot: StepSnapshot = {
           index,
           step,
           preSnapshot,
           postSnapshot,
-          preUrl,
-          postUrl,
-          preTitle,
-          postTitle,
-        });
+        };
+        if (preUrl !== undefined) stepSnapshot.preUrl = preUrl;
+        if (postUrl !== undefined) stepSnapshot.postUrl = postUrl;
+        if (preTitle !== undefined) stepSnapshot.preTitle = preTitle;
+        if (postTitle !== undefined) stepSnapshot.postTitle = postTitle;
+        nativeStepSnapshots.push(stepSnapshot);
       }
     }
   }

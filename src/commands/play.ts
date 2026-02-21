@@ -33,18 +33,43 @@ export function registerPlay(program: Command) {
 }
 
 function parsePlayProfileInput(value: unknown): PlayProfileInput {
-  if (!value || typeof value !== "object") return {};
-  const record = value as Record<string, unknown>;
-  return {
-    headed: asOptionalBoolean(record.headed),
-    timeout: asOptionalString(record.timeout),
-    delay: asOptionalString(record.delay),
-    waitNetworkIdle: asOptionalBoolean(record.waitNetworkIdle),
-    saveFailureArtifacts: asOptionalBoolean(record.saveFailureArtifacts),
-    artifactsDir: asOptionalString(record.artifactsDir),
-    start: asOptionalBoolean(record.start),
-    browser: asOptionalString(record.browser),
-  };
+  if (!isRawPlayProfileOptions(value)) return {};
+  const out: PlayProfileInput = {};
+
+  const headed = asOptionalBoolean(value.headed);
+  const timeout = asOptionalString(value.timeout);
+  const delay = asOptionalString(value.delay);
+  const waitNetworkIdle = asOptionalBoolean(value.waitNetworkIdle);
+  const saveFailureArtifacts = asOptionalBoolean(value.saveFailureArtifacts);
+  const artifactsDir = asOptionalString(value.artifactsDir);
+  const start = asOptionalBoolean(value.start);
+  const browser = asOptionalString(value.browser);
+
+  if (headed !== undefined) out.headed = headed;
+  if (timeout !== undefined) out.timeout = timeout;
+  if (delay !== undefined) out.delay = delay;
+  if (waitNetworkIdle !== undefined) out.waitNetworkIdle = waitNetworkIdle;
+  if (saveFailureArtifacts !== undefined) out.saveFailureArtifacts = saveFailureArtifacts;
+  if (artifactsDir !== undefined) out.artifactsDir = artifactsDir;
+  if (start !== undefined) out.start = start;
+  if (browser !== undefined) out.browser = browser;
+
+  return out;
 }
 
 export { runPlay };
+
+interface RawPlayProfileOptions {
+  headed?: unknown;
+  timeout?: unknown;
+  delay?: unknown;
+  waitNetworkIdle?: unknown;
+  saveFailureArtifacts?: unknown;
+  artifactsDir?: unknown;
+  start?: unknown;
+  browser?: unknown;
+}
+
+function isRawPlayProfileOptions(value: unknown): value is RawPlayProfileOptions {
+  return value !== null && typeof value === "object";
+}

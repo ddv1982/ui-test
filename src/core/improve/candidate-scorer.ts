@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 import type { Target } from "../yaml-schema.js";
 import { resolveLocator } from "../runtime/locator-runtime.js";
 import type { TargetCandidate } from "./candidate-generator.js";
-import { roundScore } from "./improve-helpers.js";
+import { roundScore } from "./score-math.js";
 
 export interface TargetCandidateScore {
   candidate: TargetCandidate;

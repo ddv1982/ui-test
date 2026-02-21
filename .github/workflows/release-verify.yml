@@ -33,6 +33,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Typed lint
+        run: npm run lint:typed
+
+      - name: Typecheck (prod)
+        run: npm run typecheck:prod
+
       - name: Build
         run: npm run build
 

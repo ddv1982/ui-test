@@ -91,12 +91,15 @@ export function parseBrowsersFlag(input: string): PlaywrightBrowser[] {
 }
 
 function parseSetupCliOptions(value: unknown): SetupCliOptions {
-  if (!value || typeof value !== "object") return {};
-  const record = value as Record<string, unknown>;
-  return {
-    runPlay: asOptionalBoolean(record.runPlay),
-    browsers: asOptionalString(record.browsers),
-  };
+  if (!isRawSetupCliOptions(value)) return {};
+  const out: SetupCliOptions = {};
+  const runPlay = asOptionalBoolean(value.runPlay);
+  const browsers = asOptionalString(value.browsers);
+
+  if (runPlay !== undefined) out.runPlay = runPlay;
+  if (browsers !== undefined) out.browsers = browsers;
+
+  return out;
 }
 
 function ensureNodeVersion() {
@@ -128,3 +131,11 @@ function printSetupNextSteps(runPlay: boolean) {
   console.log("  ui-test --help");
 }
 
+interface RawSetupCliOptions {
+  runPlay?: unknown;
+  browsers?: unknown;
+}
+
+function isRawSetupCliOptions(value: unknown): value is RawSetupCliOptions {
+  return value !== null && typeof value === "object";
+}

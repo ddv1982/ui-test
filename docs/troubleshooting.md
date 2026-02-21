@@ -99,9 +99,9 @@ If you see runtime validation errors:
 
 ### Additional causes
 
-- **Deterministic source**: only generates `assertValue` (for fill/select) and `assertChecked` (for check/uncheck). Click/press assertions are intentionally not auto-generated.
-- **Snapshot source**: `assertVisible` is report-only (`skipped_policy`); `assertText` can be inserted after runtime validation.
-- **Assertion cap**: at most one assertion is auto-applied per source step; extras show as `skipped_policy`.
+- **Deterministic source**: generates `assertValue` (fill/select), `assertChecked` (check/uncheck), and low-priority coverage fallback `assertVisible` candidates for click/press/hover interactions.
+- **Snapshot source**: `assertVisible` is policy-driven (`reliable`: stable-structural only; `balanced`/`aggressive`: runtime-validated). `assertText` can be inserted after runtime validation.
+- **Assertion cap**: apply cap is policy-driven (`reliable=1`, `balanced=2`, `aggressive=3`) per source step; extras show as `skipped_policy`.
 - **Legacy YAML**: `optional: true` is no longer supported on steps. Remove this field from existing tests.
 - **Version mismatch?** Run `ui-test doctor` to check invocation/version details.
 

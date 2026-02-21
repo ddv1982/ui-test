@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { fileURLToPath } from "node:url";
 import {
   jsonlToRecordingSteps,
   type RecordSelectorPolicy,
@@ -12,10 +11,19 @@ import { stepsToYaml } from "./transform/yaml-io.js";
 import type { Step } from "./yaml-schema.js";
 import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";
-import { runInteractiveCommand } from "../infra/process/command-runner.js";
+import type {
+  RunInteractiveCommand,
+} from "./contracts/process-runner.js";
+import {
+  defaultRunInteractiveCommand,
+  detectJsonlCapability,
+  resolvePlaywrightCliPath,
+  runCodegen,
+  type CodegenBrowser,
+  type CodegenRunOptions,
+} from "./recorder-codegen.js";
 
-export type RecordBrowser = "chromium" | "firefox" | "webkit";
-type JsonlCapability = "supported" | "unsupported" | "unknown";
+export type RecordBrowser = CodegenBrowser;
 
 export interface RecordOptions {
   name: string;
@@ -37,12 +45,21 @@ export interface RecordResult {
   degraded: boolean;
 }
 
-export async function record(options: RecordOptions): Promise<RecordResult> {
+export interface RecorderDependencies {
+  runInteractiveCommand?: RunInteractiveCommand;
+}
+
+export async function record(
+  options: RecordOptions,
+  dependencies: RecorderDependencies = {}
+): Promise<RecordResult> {
   const playwrightBin = await findPlaywrightCli();
+  const runInteractiveCommand =
+    dependencies.runInteractiveCommand ?? defaultRunInteractiveCommand;
   const selectorPolicy = options.selectorPolicy ?? "reliable";
   const browser = options.browser ?? "chromium";
   const jsonlCapability = await detectJsonlCapability(playwrightBin);
-  const jsonlDisabledByEnv = process.env.UI_TEST_DISABLE_JSONL === "1";
+  const jsonlDisabledByEnv = process.env["UI_TEST_DISABLE_JSONL"] === "1";
 
   if (jsonlDisabledByEnv) {
     ui.warn("JSONL recording disabled by UI_TEST_DISABLE_JSONL=1; using playwright-test fallback mode.");
@@ -65,16 +82,29 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
     codegenJsonlError = new Error("JSONL target internals not detected in installed Playwright package.");
   } else {
     try {
-      await runCodegen(playwrightBin, {
+      const jsonlCodegenOptions: CodegenRunOptions = {
         url: options.url,
         outputFile: jsonlTmpFile,
         target: "jsonl",
         browser,
-        device: options.device,
-        testIdAttribute: options.testIdAttribute,
-        loadStorage: options.loadStorage,
-        saveStorage: options.saveStorage,
-      });
+      };
+      if (options.device !== undefined) {
+        jsonlCodegenOptions.device = options.device;
+      }
+      if (options.testIdAttribute !== undefined) {
+        jsonlCodegenOptions.testIdAttribute = options.testIdAttribute;
+      }
+      if (options.loadStorage !== undefined) {
+        jsonlCodegenOptions.loadStorage = options.loadStorage;
+      }
+      if (options.saveStorage !== undefined) {
+        jsonlCodegenOptions.saveStorage = options.saveStorage;
+      }
+      await runCodegen(
+        playwrightBin,
+        jsonlCodegenOptions,
+        runInteractiveCommand
+      );
     } catch (err) {
       codegenJsonlError = err instanceof Error ? err : new Error(String(err));
     }
@@ -114,7 +144,12 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   ui.warn("JSONL recording yielded no usable steps. Falling back to playwright-test codegen parsing.");
   ui.warn(`JSONL failure reason: ${codegenJsonlError.message}`);
 
-  const fallback = await recordWithPlaywrightTestFallback(playwrightBin, options, browser);
+  const fallback = await recordWithPlaywrightTestFallback(
+    playwrightBin,
+    options,
+    browser,
+    runInteractiveCommand
+  );
   const normalizedSteps = normalizeFirstNavigate(fallback.steps, options.url);
   const outputPath = await saveRecordingYaml(options, normalizedSteps);
 
@@ -129,22 +164,36 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
 async function recordWithPlaywrightTestFallback(
   playwrightBin: string,
   options: RecordOptions,
-  browser: RecordBrowser
+  browser: RecordBrowser,
+  runInteractiveCommand: RunInteractiveCommand
 ): Promise<{ steps: Step[]; stats: RecordingTransformStats }> {
   const tmpFile = path.join(os.tmpdir(), `ui-test-recording-fallback-${Date.now()}.spec.ts`);
 
   let fallbackError: Error | undefined;
   try {
-    await runCodegen(playwrightBin, {
+    const fallbackCodegenOptions: CodegenRunOptions = {
       url: options.url,
       outputFile: tmpFile,
       target: "playwright-test",
       browser,
-      device: options.device,
-      testIdAttribute: options.testIdAttribute,
-      loadStorage: options.loadStorage,
-      saveStorage: options.saveStorage,
-    });
+    };
+    if (options.device !== undefined) {
+      fallbackCodegenOptions.device = options.device;
+    }
+    if (options.testIdAttribute !== undefined) {
+      fallbackCodegenOptions.testIdAttribute = options.testIdAttribute;
+    }
+    if (options.loadStorage !== undefined) {
+      fallbackCodegenOptions.loadStorage = options.loadStorage;
+    }
+    if (options.saveStorage !== undefined) {
+      fallbackCodegenOptions.saveStorage = options.saveStorage;
+    }
+    await runCodegen(
+      playwrightBin,
+      fallbackCodegenOptions,
+      runInteractiveCommand
+    );
   } catch (err) {
     fallbackError = err instanceof Error ? err : new Error(String(err));
   }
@@ -188,10 +237,15 @@ async function saveRecordingYaml(options: RecordOptions, steps: Step[]): Promise
     // ignore
   }
 
-  const yamlContent = stepsToYaml(options.name, steps, {
-    description: options.description,
-    baseUrl,
-  });
+  const yamlOptions: { description?: string; baseUrl?: string } = {};
+  if (options.description !== undefined) {
+    yamlOptions.description = options.description;
+  }
+  if (baseUrl !== undefined) {
+    yamlOptions.baseUrl = baseUrl;
+  }
+
+  const yamlContent = stepsToYaml(options.name, steps, yamlOptions);
 
   const slug = slugify(options.name) || `test-${Date.now()}`;
   const filename = `${slug}.yaml`;
@@ -216,83 +270,6 @@ async function findPlaywrightCli(): Promise<string> {
   return "npx";
 }
 
-async function detectJsonlCapability(playwrightBin: string): Promise<JsonlCapability> {
-  if (playwrightBin === "npx") return "unknown";
-
-  const resolvedCliPath = resolvePlaywrightCliPath(playwrightBin);
-  if (!resolvedCliPath.includes("node_modules")) return "unknown";
-
-  const jsonlGeneratorPath = path.resolve(
-    path.dirname(resolvedCliPath),
-    "../playwright-core/lib/server/codegen/jsonl.js"
-  );
-
-  try {
-    await fs.access(jsonlGeneratorPath);
-    return "supported";
-  } catch {
-    return "unsupported";
-  }
-}
-
-interface CodegenRunOptions {
-  url: string;
-  outputFile: string;
-  target: "jsonl" | "playwright-test";
-  browser: RecordBrowser;
-  device?: string;
-  testIdAttribute?: string;
-  loadStorage?: string;
-  saveStorage?: string;
-}
-
-function runCodegen(playwrightBin: string, options: CodegenRunOptions): Promise<void> {
-  return runCodegenInternal(playwrightBin, options);
-}
-
-async function runCodegenInternal(playwrightBin: string, options: CodegenRunOptions): Promise<void> {
-  const argsCore = [
-    "codegen",
-    "--target",
-    options.target,
-    "--output",
-    options.outputFile,
-    "--browser",
-    options.browser,
-  ];
-
-  if (options.device?.trim()) {
-    argsCore.push("--device", options.device.trim());
-  }
-  if (options.testIdAttribute?.trim()) {
-    argsCore.push("--test-id-attribute", options.testIdAttribute.trim());
-  }
-  if (options.loadStorage?.trim()) {
-    argsCore.push("--load-storage", options.loadStorage.trim());
-  }
-  if (options.saveStorage?.trim()) {
-    argsCore.push("--save-storage", options.saveStorage.trim());
-  }
-
-  argsCore.push(options.url);
-  const args = playwrightBin === "npx" ? ["playwright", ...argsCore] : argsCore;
-  const result = await runInteractiveCommand(playwrightBin, args, {
-    stdio: ["inherit", "inherit", "inherit"],
-  });
-
-  if (result.exitCode === 0) return;
-  if (result.signal) {
-    throw new Error(`Playwright codegen exited via signal ${result.signal}`);
-  }
-  throw new Error(`Playwright codegen exited with code ${result.exitCode ?? "unknown"}`);
-}
-
-function resolvePlaywrightCliPath(pathOrFileUrl: string): string {
-  return pathOrFileUrl.startsWith("file://")
-    ? fileURLToPath(pathOrFileUrl)
-    : pathOrFileUrl;
-}
-
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -311,8 +288,9 @@ export function normalizeFirstNavigate(steps: Step[], startingUrl: string): Step
 
   if (steps.length === 0) return steps;
 
-  if (steps[0].action === "navigate") {
-    return [{ ...steps[0], url: startPath }, ...steps.slice(1)];
+  const firstStep = steps[0];
+  if (firstStep?.action === "navigate") {
+    return [{ ...firstStep, url: startPath }, ...steps.slice(1)];
   }
 
   // No navigate as first step — inject one

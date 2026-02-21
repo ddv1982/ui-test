@@ -3,19 +3,23 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
+import { chromium } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { improveTestFile } from "./improve.js";
 import { play } from "../play/player-runner.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTML_FIXTURE_DIR = join(__dirname, "../../../tests/fixtures/html");
+const REQUIRE_HEADED_PARITY = process.env["UI_TEST_REQUIRE_HEADED_PARITY"] === "1";
 
 let server: Server;
 let baseUrl = "";
 let tempDir = "";
+let headedSupported = false;
 
 beforeAll(async () => {
   tempDir = await mkdtemp(join(tmpdir(), "ui-test-improve-volatile-"));
+  headedSupported = await canLaunchHeadedChromium();
 
   await new Promise<void>((resolve, reject) => {
     server = createServer(async (req, res) => {
@@ -110,7 +114,31 @@ describe("improve volatile acceptance benchmark", () => {
     expect(improvedYaml).not.toContain("optional:");
     expect(improvedYaml).toContain("getByRole('link'");
 
-    const replay = await play(yamlPath, { headed: false, timeout: 2500 });
-    expect(replay.passed).toBe(true);
+    const headlessReplay = await play(yamlPath, { headed: false, timeout: 2500 });
+    expect(headlessReplay.passed).toBe(true);
+
+    if (!headedSupported) {
+      if (REQUIRE_HEADED_PARITY) {
+        throw new Error(
+          "Headed Chromium is unavailable while parity is required (UI_TEST_REQUIRE_HEADED_PARITY=1)."
+        );
+      }
+      return;
+    }
+
+    const headedReplay = await play(yamlPath, { headed: true, timeout: 2500 });
+    expect(headedReplay.passed).toBe(true);
   }, 45000);
 });
+
+async function canLaunchHeadedChromium(): Promise<boolean> {
+  let browser: import("playwright").Browser | undefined;
+  try {
+    browser = await chromium.launch({ headless: false });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await browser?.close().catch(() => {});
+  }
+}

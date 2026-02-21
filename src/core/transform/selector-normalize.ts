@@ -13,8 +13,8 @@ export function locatorNodeToExpression(node: unknown, depth = 0): string | unde
 
   switch (kind) {
     case "default": {
-      const hasText = options.hasText;
-      const hasNotText = options.hasNotText;
+      const hasText = options["hasText"];
+      const hasNotText = options["hasNotText"];
       if (hasText !== undefined) {
         current = `locator(${toLiteral(body)}, { hasText: ${toLiteral(hasText)} })`;
       } else if (hasNotText !== undefined) {
@@ -54,10 +54,12 @@ export function locatorNodeToExpression(node: unknown, depth = 0): string | unde
 
     case "role": {
       const roleOptions: string[] = [];
-      if (options.name !== undefined) roleOptions.push(`name: ${toLiteral(options.name)}`);
-      if (options.exact === true) roleOptions.push("exact: true");
-      const attrs = Array.isArray(options.attrs)
-        ? options.attrs.filter(
+      if (options["name"] !== undefined) {
+        roleOptions.push(`name: ${toLiteral(options["name"])}`);
+      }
+      if (options["exact"] === true) roleOptions.push("exact: true");
+      const attrs = Array.isArray(options["attrs"])
+        ? options["attrs"].filter(
             (value): value is { name: unknown; value: unknown } => isPlainObject(value)
           )
         : [];
@@ -154,7 +156,7 @@ function toGetByTextMethod(
   body: unknown,
   options: Record<string, unknown>
 ): string {
-  if (options.exact === true) {
+  if (options["exact"] === true) {
     return `${methodName}(${toLiteral(body)}, { exact: true })`;
   }
   return `${methodName}(${toLiteral(body)})`;
@@ -192,14 +194,14 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isLocatorNode(value: unknown): value is JsonlLocatorNode {
-  return isPlainObject(value) && typeof value.kind === "string";
+  return isPlainObject(value) && typeof value["kind"] === "string";
 }
 
 function isRegexLike(value: unknown): value is { source: string; flags: string } {
   return (
     isPlainObject(value) &&
-    typeof value.source === "string" &&
-    typeof value.flags === "string"
+    typeof value["source"] === "string" &&
+    typeof value["flags"] === "string"
   );
 }
 

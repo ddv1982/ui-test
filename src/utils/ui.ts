@@ -16,12 +16,14 @@ export const ui = {
 
   table(rows: string[][]) {
     if (rows.length === 0) return;
-    const colWidths = rows[0].map((_, col) =>
+    const firstRow = rows[0];
+    if (!firstRow) return;
+    const colWidths = firstRow.map((_, col) =>
       Math.max(...rows.map((row) => (row[col] ?? "").length))
     );
     for (const row of rows) {
       const line = row
-        .map((cell, i) => cell.padEnd(colWidths[i]))
+        .map((cell, i) => cell.padEnd(colWidths[i] ?? 0))
         .join("  ");
       console.log("  " + line);
     }

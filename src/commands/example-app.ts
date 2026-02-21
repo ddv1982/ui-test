@@ -129,12 +129,22 @@ function writeResponse(
 }
 
 function parseExampleAppOptions(value: unknown): ExampleAppOptions {
-  if (!value || typeof value !== "object") return {};
-  const record = value as Record<string, unknown>;
-  return {
-    host: asOptionalString(record.host),
-    port: asOptionalString(record.port),
-  };
+  if (!isRawExampleAppOptions(value)) return {};
+  const out: ExampleAppOptions = {};
+  const host = asOptionalString(value.host);
+  const port = asOptionalString(value.port);
+  if (host !== undefined) out.host = host;
+  if (port !== undefined) out.port = port;
+  return out;
 }
 
 export { runExampleApp, normalizeRequestPath };
+
+interface RawExampleAppOptions {
+  host?: unknown;
+  port?: unknown;
+}
+
+function isRawExampleAppOptions(value: unknown): value is RawExampleAppOptions {
+  return value !== null && typeof value === "object";
+}

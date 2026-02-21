@@ -202,24 +202,46 @@ export async function dismissCookieBannerIfPresent(
   page: Page,
   timeoutMs = 1200
 ): Promise<boolean> {
-  if (!page || typeof page.frames !== "function") return false;
+  const result = await dismissCookieBannerWithDetails(page, timeoutMs);
+  return result.dismissed;
+}
+
+export interface CookieBannerDismissResult {
+  dismissed: boolean;
+  strategy?: "known_selector" | "text_match";
+  frameUrl?: string;
+}
+
+export async function dismissCookieBannerWithDetails(
+  page: Page,
+  timeoutMs = 1200
+): Promise<CookieBannerDismissResult> {
+  if (!page || typeof page.frames !== "function") return { dismissed: false };
   const timeout = clampDismissTimeout(timeoutMs);
   const frames = page.frames();
 
   for (const frame of frames) {
     if (await clickKnownCmpSelector(frame, timeout)) {
-      return true;
+      return {
+        dismissed: true,
+        strategy: "known_selector",
+        frameUrl: frame.url(),
+      };
     }
   }
 
   for (const frame of frames) {
     if (!(await isLikelyConsentFrame(frame, timeout))) continue;
     if (await clickConsentControlByText(frame, timeout)) {
-      return true;
+      return {
+        dismissed: true,
+        strategy: "text_match",
+        frameUrl: frame.url(),
+      };
     }
   }
 
-  return false;
+  return { dismissed: false };
 }
 
 function clampDismissTimeout(timeoutMs: number): number {
@@ -298,4 +320,17 @@ async function clickConsentControlByText(frame: Frame, timeout: number): Promise
   }
 
   return false;
+}
+
+const OVERLAY_INTERCEPTION_PATTERNS = [
+  /intercepts pointer events/i,
+  /subtree intercepts pointer events/i,
+  /another element would receive the click/i,
+  /element is obscured/i,
+  /element is not visible/i,
+];
+
+export function isLikelyOverlayInterceptionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return OVERLAY_INTERCEPTION_PATTERNS.some((pattern) => pattern.test(message));
 }

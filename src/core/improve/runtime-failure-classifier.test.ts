@@ -71,6 +71,7 @@ describe("classifyRuntimeFailingStep", () => {
           kind: "locatorExpression",
           source: "manual",
         },
+        key: "Enter",
       }
     );
 

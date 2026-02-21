@@ -9,13 +9,13 @@ function truncate(s: string, max: number): string {
 }
 
 function readQuotedString(input: string, quoteIndex: number): string | undefined {
-  const quote = input[quoteIndex];
+  const quote = input.charAt(quoteIndex);
   if (quote !== "'" && quote !== '"') return undefined;
 
   let result = "";
   let escaped = false;
   for (let i = quoteIndex + 1; i < input.length; i++) {
-    const ch = input[i];
+    const ch = input.charAt(i);
     if (escaped) {
       result += ch;
       escaped = false;
@@ -38,7 +38,7 @@ function findUnquotedMarker(input: string, marker: string, fromIndex: number): n
   let escaped = false;
 
   for (let i = fromIndex; i < input.length; i += 1) {
-    const ch = input[i];
+    const ch = input.charAt(i);
     if (quote) {
       if (escaped) {
         escaped = false;
@@ -74,7 +74,11 @@ function readQuotedValueAfter(input: string, marker: string): string | undefined
     if (markerIndex === -1) return undefined;
 
     let i = markerIndex + marker.length;
-    while (i < input.length && /\s/.test(input[i])) i += 1;
+    while (i < input.length) {
+      const next = input.charAt(i);
+      if (!/\s/.test(next)) break;
+      i += 1;
+    }
 
     const value = readQuotedString(input, i);
     if (value !== undefined) return value;

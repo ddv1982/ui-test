@@ -37,13 +37,31 @@ export function registerImprove(program: Command) {
 }
 
 function parseImproveCliOptions(value: unknown): ImproveCliOptions {
-  if (!value || typeof value !== "object") return {};
-  const record = value as Record<string, unknown>;
-  return {
-    apply: asOptionalBoolean(record.apply),
-    assertions: asOptionalString(record.assertions),
-    assertionSource: asOptionalString(record.assertionSource),
-    assertionPolicy: asOptionalString(record.assertionPolicy),
-    report: asOptionalString(record.report),
-  };
+  if (!isRawImproveCliOptions(value)) return {};
+  const out: ImproveCliOptions = {};
+  const apply = asOptionalBoolean(value.apply);
+  const assertions = asOptionalString(value.assertions);
+  const assertionSource = asOptionalString(value.assertionSource);
+  const assertionPolicy = asOptionalString(value.assertionPolicy);
+  const report = asOptionalString(value.report);
+
+  if (apply !== undefined) out.apply = apply;
+  if (assertions !== undefined) out.assertions = assertions;
+  if (assertionSource !== undefined) out.assertionSource = assertionSource;
+  if (assertionPolicy !== undefined) out.assertionPolicy = assertionPolicy;
+  if (report !== undefined) out.report = report;
+
+  return out;
+}
+
+interface RawImproveCliOptions {
+  apply?: unknown;
+  assertions?: unknown;
+  assertionSource?: unknown;
+  assertionPolicy?: unknown;
+  report?: unknown;
+}
+
+function isRawImproveCliOptions(value: unknown): value is RawImproveCliOptions {
+  return value !== null && typeof value === "object";
 }

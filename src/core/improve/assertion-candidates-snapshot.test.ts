@@ -174,7 +174,7 @@ describe("snapshot assertion candidates", () => {
     expect(stableCandidates).toHaveLength(1);
     const step = stableCandidates[0]?.candidate;
     expect(step?.action).not.toBe("navigate");
-    if (step && step.action !== "navigate") {
+    if (step && "target" in step && step.target) {
       expect(step.target.value).toContain("navigation");
     }
   });
@@ -227,8 +227,12 @@ describe("snapshot assertion candidates", () => {
     ], "snapshot_native");
 
     expect(out).toHaveLength(1);
-    expect("framePath" in out[0]!.candidate.target).toBe(true);
-    expect(out[0]?.candidate.target.framePath).toEqual(["iframe[name=\"app-frame\"]"]);
+    const firstCandidate = out[0]?.candidate;
+    expect(firstCandidate && "target" in firstCandidate).toBe(true);
+    if (firstCandidate && "target" in firstCandidate && firstCandidate.target) {
+      expect("framePath" in firstCandidate.target).toBe(true);
+      expect(firstCandidate.target.framePath).toEqual(["iframe[name=\"app-frame\"]"]);
+    }
   });
 
   it("applies text-change cap after filtering so later qualifying changes are retained", () => {
@@ -290,6 +294,7 @@ describe("snapshot assertion candidates", () => {
       (candidate) =>
         candidate.candidate.action === "assertEnabled" &&
         candidate.candidate.enabled === true &&
+        "target" in candidate.candidate &&
         candidate.candidate.target.value.includes("Submit order")
     );
     expect(enabledCandidate).toBeDefined();

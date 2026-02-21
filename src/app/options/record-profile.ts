@@ -27,15 +27,23 @@ export interface ResolvedRecordProfile {
 export function resolveRecordProfile(
   input: RecordProfileInput
 ): ResolvedRecordProfile {
-  return {
+  const profile: ResolvedRecordProfile = {
     selectorPolicy: parseSelectorPolicy(input.selectorPolicy) ?? "reliable",
     browser: parseRecordBrowser(input.browser) ?? "chromium",
-    device: cleanOptional(input.device),
-    testIdAttribute: cleanOptional(input.testIdAttribute),
-    loadStorage: cleanOptional(input.loadStorage),
-    saveStorage: cleanOptional(input.saveStorage),
     outputDir: input.outputDir ?? PLAY_DEFAULT_TEST_DIR,
   };
+
+  const device = cleanOptional(input.device);
+  const testIdAttribute = cleanOptional(input.testIdAttribute);
+  const loadStorage = cleanOptional(input.loadStorage);
+  const saveStorage = cleanOptional(input.saveStorage);
+
+  if (device !== undefined) profile.device = device;
+  if (testIdAttribute !== undefined) profile.testIdAttribute = testIdAttribute;
+  if (loadStorage !== undefined) profile.loadStorage = loadStorage;
+  if (saveStorage !== undefined) profile.saveStorage = saveStorage;
+
+  return profile;
 }
 
 function cleanOptional(value: string | undefined): string | undefined {
@@ -163,7 +171,11 @@ function isPrivateIpv4(host: string): boolean {
     return false;
   }
 
-  const [a, b] = octets;
+  const a = octets[0];
+  const b = octets[1];
+  if (a === undefined || b === undefined) {
+    return false;
+  }
   return (
     a === 10 ||
     a === 127 ||

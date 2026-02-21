@@ -1,46 +1,23 @@
 import { parse } from "acorn";
 import type { Step, Target } from "../yaml-schema.js";
 import { classifySelector } from "../selector-classifier.js";
-
-interface AstNode {
-  type: string;
-  start?: number;
-  end?: number;
-  [key: string]: unknown;
-}
-
-interface IdentifierNode extends AstNode {
-  type: "Identifier";
-  name: string;
-}
-
-interface MemberExpressionNode extends AstNode {
-  type: "MemberExpression";
-  computed: boolean;
-  object: unknown;
-  property: unknown;
-}
-
-interface CallExpressionNode extends AstNode {
-  type: "CallExpression";
-  callee: unknown;
-  arguments: unknown[];
-}
-
-interface AwaitExpressionNode extends AstNode {
-  type: "AwaitExpression";
-  argument: unknown;
-}
-
-interface ArrowFunctionExpressionNode extends AstNode {
-  type: "ArrowFunctionExpression";
-  body: unknown;
-}
-
-interface FunctionExpressionNode extends AstNode {
-  type: "FunctionExpression";
-  body: unknown;
-}
+import {
+  isArrowFunctionExpression,
+  isAstNode,
+  isAwaitExpression,
+  isCallExpression,
+  isFunctionExpression,
+  isIdentifier,
+  isMemberCall,
+  isMemberExpression,
+  isUnknownArray,
+  stringifyLiteralValue,
+  walkAst,
+  type ArrowFunctionExpressionNode,
+  type AstNode,
+  type CallExpressionNode,
+  type FunctionExpressionNode,
+} from "./playwright-ast-nodes.js";
 
 export function playwrightCodeToSteps(code: string): Step[] {
   let ast: unknown;
@@ -112,22 +89,6 @@ function isTestCallCallee(callee: unknown): boolean {
   }
 
   return false;
-}
-
-function walkAst(node: unknown, visitor: (node: AstNode) => void): void {
-  if (!node || typeof node !== "object") return;
-  if (Array.isArray(node)) {
-    for (const item of node) walkAst(item, visitor);
-    return;
-  }
-
-  if (isAstNode(node)) {
-    visitor(node);
-  }
-
-  for (const value of Object.values(node as Record<string, unknown>)) {
-    walkAst(value, visitor);
-  }
 }
 
 function awaitedCallToStep(call: CallExpressionNode, source: string): Step | null {
@@ -252,18 +213,20 @@ function firstStringArgument(argumentsList: unknown, source: string): string | n
   if (!first || typeof first !== "object") return null;
 
   const firstNode = first as AstNode;
-  if (firstNode.type === "Literal" && typeof firstNode.value === "string") {
-    return firstNode.value;
+  if (firstNode.type === "Literal" && typeof firstNode["value"] === "string") {
+    return firstNode["value"];
   }
 
   if (
     firstNode.type === "TemplateLiteral" &&
-    Array.isArray(firstNode.expressions) &&
-    firstNode.expressions.length === 0 &&
-    Array.isArray(firstNode.quasis)
+    Array.isArray(firstNode["expressions"]) &&
+    firstNode["expressions"].length === 0 &&
+    Array.isArray(firstNode["quasis"])
   ) {
-    const firstQuasi = firstNode.quasis[0] as { value?: { cooked?: string } } | undefined;
-    return firstQuasi?.value?.cooked ?? null;
+    const firstQuasi = firstNode["quasis"][0] as
+      | { value?: { cooked?: string } }
+      | undefined;
+    return firstQuasi?.["value"]?.["cooked"] ?? null;
   }
 
   if (typeof firstNode.start === "number" && typeof firstNode.end === "number") {
@@ -281,32 +244,32 @@ function extractSelectOptionValue(argument: unknown, source: string): string {
   if (!argument || typeof argument !== "object") return "";
   const node = argument as AstNode;
 
-  if (node.type === "Literal" && node.value != null) {
-    return stringifyLiteralValue(node.value) ?? "";
+  if (node.type === "Literal" && node["value"] != null) {
+    return stringifyLiteralValue(node["value"]) ?? "";
   }
 
-  if (node.type === "ArrayExpression" && Array.isArray(node.elements)) {
-    const first = node.elements[0] as AstNode | undefined;
-    if (first?.type === "Literal" && first.value != null) {
-      return stringifyLiteralValue(first.value) ?? "";
+  if (node.type === "ArrayExpression" && Array.isArray(node["elements"])) {
+    const first = node["elements"][0] as AstNode | undefined;
+    if (first?.type === "Literal" && first["value"] != null) {
+      return stringifyLiteralValue(first["value"]) ?? "";
     }
     return "";
   }
 
-  if (node.type === "ObjectExpression" && Array.isArray(node.properties)) {
-    const prop = node.properties.find((entry): entry is AstNode => {
+  if (node.type === "ObjectExpression" && Array.isArray(node["properties"])) {
+    const prop = node["properties"].find((entry): entry is AstNode => {
       if (!entry || typeof entry !== "object") return false;
       const propNode = entry as AstNode;
-      if (propNode.type !== "Property" || propNode.computed !== false) return false;
+      if (propNode.type !== "Property" || propNode["computed"] !== false) return false;
       return (
-        isIdentifier(propNode.key) &&
-        (propNode.key.name === "value" || propNode.key.name === "label")
+        isIdentifier(propNode["key"]) &&
+        (propNode["key"]["name"] === "value" || propNode["key"]["name"] === "label")
       );
     });
 
-    const valueNode = prop?.value as AstNode | undefined;
-    if (valueNode?.type === "Literal" && valueNode.value != null) {
-      return stringifyLiteralValue(valueNode.value) ?? "";
+    const valueNode = prop?.["value"] as AstNode | undefined;
+    if (valueNode?.type === "Literal" && valueNode["value"] != null) {
+      return stringifyLiteralValue(valueNode["value"]) ?? "";
     }
   }
 
@@ -314,69 +277,4 @@ function extractSelectOptionValue(argument: unknown, source: string): string {
     return source.slice(node.start, node.end).trim();
   }
   return "";
-}
-
-function isAstNode(value: unknown): value is AstNode {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "type" in value &&
-    typeof (value as { type?: unknown }).type === "string"
-  );
-}
-
-function isUnknownArray(value: unknown): value is unknown[] {
-  return Array.isArray(value);
-}
-
-function stringifyLiteralValue(value: unknown): string | null {
-  if (value === null) return "null";
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    typeof value === "bigint"
-  ) {
-    return String(value);
-  }
-  return null;
-}
-
-function isCallExpression(value: unknown): value is CallExpressionNode {
-  return isAstNode(value) && value.type === "CallExpression" && Array.isArray(value.arguments);
-}
-
-function isAwaitExpression(value: unknown): value is AwaitExpressionNode {
-  return isAstNode(value) && value.type === "AwaitExpression";
-}
-
-function isMemberExpression(value: unknown): value is MemberExpressionNode {
-  return (
-    isAstNode(value) &&
-    value.type === "MemberExpression" &&
-    typeof value.computed === "boolean"
-  );
-}
-
-function isIdentifier(value: unknown): value is IdentifierNode {
-  return isAstNode(value) && value.type === "Identifier" && typeof value.name === "string";
-}
-
-function isArrowFunctionExpression(value: unknown): value is ArrowFunctionExpressionNode {
-  return isAstNode(value) && value.type === "ArrowFunctionExpression";
-}
-
-function isFunctionExpression(value: unknown): value is FunctionExpressionNode {
-  return isAstNode(value) && value.type === "FunctionExpression";
-}
-
-function isMemberCall(value: unknown): value is {
-  callee: {
-    object: unknown;
-    property: IdentifierNode;
-  };
-  arguments: unknown[];
-} {
-  if (!isCallExpression(value) || !isMemberExpression(value.callee)) return false;
-  return value.callee.computed === false && isIdentifier(value.callee.property);
 }

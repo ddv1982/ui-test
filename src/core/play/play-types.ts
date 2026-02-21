@@ -1,5 +1,5 @@
 import type { Step } from "../yaml-schema.js";
-import type { PlaywrightBrowser } from "../../infra/playwright/browser-provisioner.js";
+import type { PlaywrightBrowser } from "../contracts/browser-launcher.js";
 
 export interface PlayOptions {
   headed?: boolean;

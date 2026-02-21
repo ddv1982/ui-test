@@ -94,17 +94,23 @@ describe("runPlay startup behavior", () => {
       }
     );
     expect(play).toHaveBeenCalledTimes(1);
-    expect(play).toHaveBeenCalledWith(path.resolve("e2e/example.yaml"), {
-      headed: false,
-      timeout: PLAY_DEFAULT_TIMEOUT_MS,
-      baseUrl: PLAY_DEFAULT_BASE_URL,
-      delayMs: PLAY_DEFAULT_DELAY_MS,
-      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
-      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
-      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
-      runId: "run-test-id",
-      browser: "chromium",
-    });
+    expect(play).toHaveBeenCalledWith(
+      path.resolve("e2e/example.yaml"),
+      {
+        headed: false,
+        timeout: PLAY_DEFAULT_TIMEOUT_MS,
+        baseUrl: PLAY_DEFAULT_BASE_URL,
+        delayMs: PLAY_DEFAULT_DELAY_MS,
+        waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+        saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+        artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
+        runId: "run-test-id",
+        browser: "chromium",
+      },
+      expect.objectContaining({
+        browserLaunchers: expect.any(Object),
+      })
+    );
     if (process.platform !== "win32") {
       expect(process.kill).toHaveBeenCalledWith(-43210, "SIGTERM");
     } else {
@@ -142,17 +148,23 @@ describe("runPlay startup behavior", () => {
 
     expect(spawn).not.toHaveBeenCalled();
     expect(play).toHaveBeenCalledTimes(1);
-    expect(play).toHaveBeenCalledWith(path.resolve("e2e/nu-nl.yaml"), {
-      headed: false,
-      timeout: PLAY_DEFAULT_TIMEOUT_MS,
-      baseUrl: PLAY_DEFAULT_BASE_URL,
-      delayMs: PLAY_DEFAULT_DELAY_MS,
-      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
-      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
-      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
-      runId: "run-test-id",
-      browser: "chromium",
-    });
+    expect(play).toHaveBeenCalledWith(
+      path.resolve("e2e/nu-nl.yaml"),
+      {
+        headed: false,
+        timeout: PLAY_DEFAULT_TIMEOUT_MS,
+        baseUrl: PLAY_DEFAULT_BASE_URL,
+        delayMs: PLAY_DEFAULT_DELAY_MS,
+        waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+        saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+        artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
+        runId: "run-test-id",
+        browser: "chromium",
+      },
+      expect.objectContaining({
+        browserLaunchers: expect.any(Object),
+      })
+    );
   });
 
   it("auto-starts for all-tests run only when discovered set is example-only", async () => {
@@ -164,17 +176,23 @@ describe("runPlay startup behavior", () => {
 
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(play).toHaveBeenCalledTimes(1);
-    expect(play).toHaveBeenCalledWith(path.resolve(PLAY_DEFAULT_EXAMPLE_TEST_FILE), {
-      headed: false,
-      timeout: PLAY_DEFAULT_TIMEOUT_MS,
-      baseUrl: PLAY_DEFAULT_BASE_URL,
-      delayMs: PLAY_DEFAULT_DELAY_MS,
-      waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
-      saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
-      artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
-      runId: "run-test-id",
-      browser: "chromium",
-    });
+    expect(play).toHaveBeenCalledWith(
+      path.resolve(PLAY_DEFAULT_EXAMPLE_TEST_FILE),
+      {
+        headed: false,
+        timeout: PLAY_DEFAULT_TIMEOUT_MS,
+        baseUrl: PLAY_DEFAULT_BASE_URL,
+        delayMs: PLAY_DEFAULT_DELAY_MS,
+        waitForNetworkIdle: PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE,
+        saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
+        artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
+        runId: "run-test-id",
+        browser: "chromium",
+      },
+      expect.objectContaining({
+        browserLaunchers: expect.any(Object),
+      })
+    );
   });
 
   it("does not auto-start for mixed all-tests run", async () => {

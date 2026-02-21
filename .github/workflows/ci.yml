@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
+  quality-ci:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,8 +27,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run lint checks
-        run: npm run lint
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run quality gate
+        run: npm run quality:ci
+
+      - name: Run coverage gate
+        run: npm run test:coverage
+
+  headed-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run headed parity gate
+        run: xvfb-run -a npm run test:parity:headed
 
   build:
     runs-on: ubuntu-latest
@@ -47,6 +73,9 @@ jobs:
       - name: Build package
         run: npm run build
 
+      - name: Run production typecheck
+        run: npm run typecheck:prod
+
       - name: Verify silent npm pack output
         run: npm run -s pack:check:silent
 
@@ -56,29 +85,8 @@ jobs:
       - name: Verify remote package global install dry run
         run: npm run -s remote-global-install:dry-run
 
-  framework-tests:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Run framework test suite
-        run: npm run test:framework
-
   consumer-smoke:
-    needs: build
+    needs: [build, quality-ci, headed-parity]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

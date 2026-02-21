@@ -132,7 +132,11 @@ describe("buildAssertionCandidates", () => {
       expect(candidate.confidence).toBe(0.76);
       expect(candidate.rationale).toContain("Coverage fallback");
     }
-    expect(out[2]?.candidate.target.value).toBe("getByRole('link', { name: 'News' })");
+    const hoverCandidate = out[2]?.candidate;
+    expect(hoverCandidate?.action).toBe("assertVisible");
+    if (hoverCandidate?.action === "assertVisible") {
+      expect(hoverCandidate.target.value).toBe("getByRole('link', { name: 'News' })");
+    }
   });
 
   it("uses original step indexes mapping when provided", () => {
@@ -162,6 +166,10 @@ describe("buildAssertionCandidates", () => {
     expect(out).toHaveLength(1);
     expect(out[0]?.index).toBe(2);
     expect(out[0]?.candidate.action).toBe("assertValue");
-    expect(out[0]?.candidate.target.value).toBe("getByRole('textbox', { name: 'Name' })");
+    const appliedCandidate = out[0]?.candidate;
+    expect(appliedCandidate?.action).toBe("assertValue");
+    if (appliedCandidate?.action === "assertValue") {
+      expect(appliedCandidate.target.value).toBe("getByRole('textbox', { name: 'Name' })");
+    }
   });
 });

@@ -51,15 +51,20 @@ export async function runImprove(
     })
   );
 
-  const result = await improveTestFile({
+  const improveOptions = {
     testFile,
     applySelectors: profile.applySelectors,
     applyAssertions: profile.applyAssertions,
     assertions: profile.assertions,
     assertionSource: profile.assertionSource,
     assertionPolicy: profile.assertionPolicy,
-    reportPath: profile.reportPath,
-  });
+  };
+
+  const result = await improveTestFile(
+    profile.reportPath === undefined
+      ? improveOptions
+      : { ...improveOptions, reportPath: profile.reportPath }
+  );
 
   ui.success(`Improve report saved to ${result.reportPath}`);
   if (result.outputPath) {

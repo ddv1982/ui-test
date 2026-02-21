@@ -1,6 +1,10 @@
 import vm from "node:vm";
 import { describe, expect, it, vi } from "vitest";
-import { dismissCookieBannerIfPresent, installCookieBannerDismisser } from "./cookie-banner.js";
+import {
+  dismissCookieBannerIfPresent,
+  installCookieBannerDismisser,
+  isLikelyOverlayInterceptionError,
+} from "./cookie-banner.js";
 
 interface FakeControl {
   click: ReturnType<typeof vi.fn>;
@@ -659,5 +663,19 @@ describe("dismissCookieBannerIfPresent", () => {
 
     expect(dismissed).toBe(true);
     expect(consentClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("isLikelyOverlayInterceptionError", () => {
+  it("detects common pointer interception messages", () => {
+    expect(
+      isLikelyOverlayInterceptionError(
+        new Error("subtree intercepts pointer events while attempting click")
+      )
+    ).toBe(true);
+  });
+
+  it("returns false for unrelated errors", () => {
+    expect(isLikelyOverlayInterceptionError(new Error("navigation timeout exceeded"))).toBe(false);
   });
 });

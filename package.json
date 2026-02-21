@@ -25,6 +25,9 @@
     "lint": "eslint src --max-warnings=0",
     "lint:fix": "eslint src --fix",
     "lint:typed": "eslint -c eslint.typed.config.mjs src --max-warnings=0",
+    "typecheck:prod": "tsc -p tsconfig.build.json --noEmit",
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
+    "quality:ci": "npm run lint && npm run lint:typed && npm run typecheck:prod && npm test",
     "test": "vitest run",
     "test:framework": "vitest run",
     "test:smoke": "node ./scripts/smoke-consumer.mjs",
@@ -34,6 +37,7 @@
     "test:watch": "vitest",
     "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run src/**/*.integration.test.ts",
+    "test:parity:headed": "node ./scripts/run-headed-parity.mjs",
     "test:coverage": "vitest run --coverage"
   },
   "keywords": [

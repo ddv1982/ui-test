@@ -1,11 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { chromium, type Browser, type Page } from "playwright";
 import { stepsToYaml, yamlToTest } from "../transform/yaml-io.js";
 import { testSchema, type Step } from "../yaml-schema.js";
 import { ValidationError } from "../../utils/errors.js";
-import { chromiumNotInstalledError, isLikelyMissingBrowser } from "../../utils/chromium-runtime.js";
-import { installCookieBannerDismisser } from "../runtime/cookie-banner.js";
 import { findStaleAssertions, removeStaleAssertions } from "./assertion-cleanup.js";
 import {
   buildAssertionApplyStatusCounts,
@@ -25,21 +22,15 @@ import {
 } from "./improve-types.js";
 import { DEFAULT_IMPROVE_ASSERTION_POLICY } from "./assertion-policy.js";
 import {
+  buildAssertionCoverageSummary,
+  buildAssertionFallbackApplySummary,
+} from "./improve-runner-metrics.js";
+import { launchImproveBrowser } from "./improve-browser.js";
+import {
   improveReportSchema,
-  type AssertionCandidate,
   type ImproveDiagnostic,
   type ImproveReport,
 } from "./report-schema.js";
-
-const ASSERTION_COVERAGE_ACTIONS = new Set<Step["action"]>([
-  "click",
-  "press",
-  "hover",
-  "fill",
-  "select",
-  "check",
-  "uncheck",
-]);
 
 export async function improveTestFile(options: ImproveOptions): Promise<ImproveResult> {
   const assertionSource: ImproveAssertionSource = options.assertionSource ?? "snapshot-native";
@@ -113,15 +104,19 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     const wantsNativeSnapshots =
       effectiveOptions.assertions === "candidates" && assertionSource === "snapshot-native";
 
-    const selectorPass = await runImproveSelectorPass({
+    const selectorPassInput = {
       steps: initialOutputSteps,
       outputStepOriginalIndexes,
       page,
-      testBaseUrl: test.baseUrl,
       applySelectors: effectiveOptions.applySelectors,
       wantsNativeSnapshots,
       diagnostics,
-    });
+    };
+    const selectorPass = await runImproveSelectorPass(
+      test.baseUrl === undefined
+        ? selectorPassInput
+        : { ...selectorPassInput, testBaseUrl: test.baseUrl }
+    );
 
     const failedIndexesToRemove = new Set<number>();
     const failedIndexesToRetain = new Set<number>();
@@ -195,7 +190,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         ? selectorPass.findings.filter((f) => !removedOriginalIndexes.has(f.index))
         : selectorPass.findings;
 
-    const assertionPass = await runImproveAssertionPass({
+    const assertionPassInput = {
       assertions: effectiveOptions.assertions,
       assertionSource,
       assertionPolicy,
@@ -205,9 +200,13 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       findings: postRemovalFindings,
       outputStepOriginalIndexes: postRemovalOriginalIndexes,
       nativeStepSnapshots: postRemovalSnapshots,
-      testBaseUrl: test.baseUrl,
       diagnostics,
-    });
+    };
+    const assertionPass = await runImproveAssertionPass(
+      test.baseUrl === undefined
+        ? assertionPassInput
+        : { ...assertionPassInput, testBaseUrl: test.baseUrl }
+    );
     const assertionCoverage = buildAssertionCoverageSummary(
       postRemovalOutputSteps,
       postRemovalOriginalIndexes,
@@ -275,120 +274,27 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
     let outputPath: string | undefined;
     if (wantsWrite) {
-      const yamlOut = stepsToYaml(test.name, assertionPass.outputSteps, {
-        description: test.description,
-        baseUrl: test.baseUrl,
-      });
+      const yamlOptions: { description?: string; baseUrl?: string } = {};
+      if (test.description !== undefined) {
+        yamlOptions.description = test.description;
+      }
+      if (test.baseUrl !== undefined) {
+        yamlOptions.baseUrl = test.baseUrl;
+      }
+      const yamlOut = stepsToYaml(test.name, assertionPass.outputSteps, yamlOptions);
       await fs.writeFile(absoluteTestPath, yamlOut, "utf-8");
       outputPath = absoluteTestPath;
     }
 
-    return {
+    const improveResult: ImproveResult = {
       report: validatedReport,
       reportPath,
-      outputPath,
     };
+    if (outputPath !== undefined) {
+      improveResult.outputPath = outputPath;
+    }
+    return improveResult;
   } finally {
     await browser.close();
-  }
-}
-
-function buildAssertionCoverageSummary(
-  steps: Step[],
-  originalStepIndexes: number[],
-  candidates: AssertionCandidate[]
-): {
-  total: number;
-  withCandidates: number;
-  withApplied: number;
-  candidateRate: number;
-  appliedRate: number;
-} {
-  const coverageStepIndexes = new Set<number>();
-  for (let runtimeIndex = 0; runtimeIndex < steps.length; runtimeIndex += 1) {
-    const step = steps[runtimeIndex];
-    if (!step || !ASSERTION_COVERAGE_ACTIONS.has(step.action)) continue;
-    const originalIndex = originalStepIndexes[runtimeIndex] ?? runtimeIndex;
-    coverageStepIndexes.add(originalIndex);
-  }
-
-  const candidateStepIndexes = new Set<number>();
-  const appliedStepIndexes = new Set<number>();
-  for (const candidate of candidates) {
-    if (!coverageStepIndexes.has(candidate.index)) continue;
-    candidateStepIndexes.add(candidate.index);
-    if (candidate.applyStatus === "applied") {
-      appliedStepIndexes.add(candidate.index);
-    }
-  }
-
-  const total = coverageStepIndexes.size;
-  const withCandidates = candidateStepIndexes.size;
-  const withApplied = appliedStepIndexes.size;
-  return {
-    total,
-    withCandidates,
-    withApplied,
-    candidateRate: roundCoverageRate(withCandidates, total),
-    appliedRate: roundCoverageRate(withApplied, total),
-  };
-}
-
-function roundCoverageRate(value: number, total: number): number {
-  if (total <= 0) return 0;
-  return Math.round((value / total) * 1000) / 1000;
-}
-
-function buildAssertionFallbackApplySummary(candidates: AssertionCandidate[]): {
-  applied: number;
-  appliedOnlySteps: number;
-  appliedWithNonFallbackSteps: number;
-} {
-  const fallbackAppliedSteps = new Set<number>();
-  const nonFallbackAppliedSteps = new Set<number>();
-  let applied = 0;
-
-  for (const candidate of candidates) {
-    if (candidate.applyStatus !== "applied") continue;
-    if (candidate.coverageFallback === true) {
-      applied += 1;
-      fallbackAppliedSteps.add(candidate.index);
-      continue;
-    }
-    nonFallbackAppliedSteps.add(candidate.index);
-  }
-
-  let appliedOnlySteps = 0;
-  let appliedWithNonFallbackSteps = 0;
-  for (const stepIndex of fallbackAppliedSteps) {
-    if (nonFallbackAppliedSteps.has(stepIndex)) {
-      appliedWithNonFallbackSteps += 1;
-      continue;
-    }
-    appliedOnlySteps += 1;
-  }
-
-  return {
-    applied,
-    appliedOnlySteps,
-    appliedWithNonFallbackSteps,
-  };
-}
-
-async function launchImproveBrowser(): Promise<{ browser: Browser; page: Page }> {
-  let browser: Browser | undefined;
-  try {
-    browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext();
-    await installCookieBannerDismisser(context);
-    const page = await context.newPage();
-    return { browser, page };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await browser?.close().catch(() => {});
-    if (isLikelyMissingBrowser(message)) {
-      throw chromiumNotInstalledError();
-    }
-    throw err;
   }
 }

@@ -10,10 +10,14 @@ import {
 import { ASSERTION_POLICY_CONFIG } from "./assertion-policy.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
-  executeRuntimeStepMock: vi.fn(async () => {}),
+  executeRuntimeStepMock: vi.fn<
+    typeof import("../runtime/step-executor.js").executeRuntimeStep
+  >(async () => {}),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
-  waitForPostStepNetworkIdleMock: vi.fn(async () => false),
+  waitForPostStepNetworkIdleMock: vi.fn<
+    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
+  >(async () => false),
 }));
 
 vi.mock("../runtime/step-executor.js", () => ({
@@ -24,6 +28,12 @@ vi.mock("../runtime/network-idle.js", () => ({
   DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
   waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
 }));
+
+function getExecutedStepAt(callIndex: number): Step {
+  const call = executeRuntimeStepMock.mock.calls[callIndex];
+  expect(call).toBeDefined();
+  return call![1];
+}
 
 describe("assertion apply helpers", () => {
   beforeEach(() => {
@@ -276,7 +286,7 @@ describe("assertion apply helpers", () => {
         },
       },
     ];
-    const candidate = {
+    const candidate: Step = {
       action: "assertVisible",
       target: {
         value: "#status",
@@ -284,7 +294,7 @@ describe("assertion apply helpers", () => {
         source: "codegen-jsonl",
         framePath: ["iframe#right"],
       },
-    } as const;
+    };
 
     expect(isDuplicateAdjacentAssertion(steps, 0, candidate)).toBe(false);
   });
@@ -410,7 +420,7 @@ describe("assertion apply helpers", () => {
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
-    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    const firstAppliedStep = getExecutedStepAt(1);
     expect(firstAppliedStep.action).toBe("assertValue");
   });
 
@@ -460,7 +470,7 @@ describe("assertion apply helpers", () => {
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
-    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    const firstAppliedStep = getExecutedStepAt(1);
     expect(firstAppliedStep.action).toBe("assertText");
   });
 
@@ -512,7 +522,7 @@ describe("assertion apply helpers", () => {
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
-    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    const firstAppliedStep = getExecutedStepAt(1);
     expect(firstAppliedStep.action).toBe("assertText");
   });
 
@@ -560,7 +570,7 @@ describe("assertion apply helpers", () => {
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
-    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    const firstAppliedStep = getExecutedStepAt(1);
     expect(firstAppliedStep.action).toBe("assertVisible");
     if (firstAppliedStep.action === "assertVisible") {
       expect(firstAppliedStep.target.value).toBe("#from-deterministic");
@@ -613,7 +623,7 @@ describe("assertion apply helpers", () => {
 
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_policy");
-    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    const firstAppliedStep = getExecutedStepAt(1);
     expect(firstAppliedStep.action).toBe("assertVisible");
     if (firstAppliedStep.action === "assertVisible") {
       expect(firstAppliedStep.target.value).toBe("#interacted");
@@ -664,7 +674,7 @@ describe("assertion apply helpers", () => {
 
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("applied");
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("skipped_policy");
-    const firstAppliedStep = executeRuntimeStepMock.mock.calls[1]?.[1] as Step;
+    const firstAppliedStep = getExecutedStepAt(1);
     expect(firstAppliedStep.action).toBe("assertVisible");
     if (firstAppliedStep.action === "assertVisible") {
       expect(firstAppliedStep.target.value).toBe("#first");

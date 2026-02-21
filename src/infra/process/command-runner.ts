@@ -31,10 +31,11 @@ export function runInteractiveCommand(
 
     child.on("error", (err: Error) => reject(err));
     child.on("close", (code: number | null, signal: NodeJS.Signals | null) => {
-      resolve({
-        exitCode: code ?? undefined,
-        signal,
-      });
+      if (code === null) {
+        resolve({ signal });
+        return;
+      }
+      resolve({ exitCode: code, signal });
     });
   });
 }
@@ -96,12 +97,19 @@ export function runCapturedCommand(
     });
 
     child.on("close", (exitCode) => {
-      settle({
+      const result: CapturedCommandResult = {
         ok: exitCode === 0,
         stdout,
         stderr,
-        exitCode: exitCode ?? undefined,
-        ...(exitCode === 0 ? {} : { error: `Command exited with code ${exitCode ?? "unknown"}` }),
+      };
+      if (exitCode !== null) {
+        result.exitCode = exitCode;
+      }
+      if (exitCode !== 0) {
+        result.error = `Command exited with code ${exitCode ?? "unknown"}`;
+      }
+      settle({
+        ...result,
       });
     });
   });
