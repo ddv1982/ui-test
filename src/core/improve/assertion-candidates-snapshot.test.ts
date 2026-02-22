@@ -147,6 +147,27 @@ describe("snapshot assertion candidates", () => {
     expect(out).toHaveLength(1);
   });
 
+  it("keeps snapshot content assertions for stable exact link clicks", () => {
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: {
+            value: "getByRole('link', { name: 'Settings', exact: true })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+        },
+        preSnapshot: "- generic [ref=e1]:\n",
+        postSnapshot:
+          "- generic [ref=e1]:\n  - heading \"Account settings\" [level=1] [ref=e2]\n",
+      },
+    ], "snapshot_native");
+
+    expect(out.some((candidate) => candidate.candidate.action === "assertText")).toBe(true);
+  });
+
   it("generates multiple candidates from a rich delta", () => {
     const out = buildSnapshotAssertionCandidates([richDeltaStepSnapshot], "snapshot_native");
 

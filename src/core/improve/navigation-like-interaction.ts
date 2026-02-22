@@ -16,7 +16,6 @@ export function classifyNavigationLikeInteraction(
 
   const targetValue = target.value;
   const isRoleLink = /getByRole\(\s*['"]link['"]/.test(targetValue);
-  const hasExact = /exact\s*:\s*true/.test(targetValue);
   const hasContentCardPattern =
     /headline|teaser|article|story|content[-_ ]?card|breaking[-_ ]?push|hero[-_ ]?card/i.test(
       targetValue
@@ -31,11 +30,7 @@ export function classifyNavigationLikeInteraction(
     dynamicSignals.includes("contains_pipe_separator") ||
     dynamicSignals.includes("contains_date_or_time_fragment");
 
-  if (
-    (isRoleLink && hasHeadlineLikeText) ||
-    (isRoleLink && hasExact) ||
-    hasContentCardPattern
-  ) {
+  if ((isRoleLink && hasHeadlineLikeText) || hasContentCardPattern) {
     return "navigation-like dynamic click target";
   }
 
