@@ -28,6 +28,10 @@ export async function executeRuntimeStep(
       await resolveLocator(page, step).click({ timeout });
       return;
 
+    case "dblclick":
+      await resolveLocator(page, step).dblclick({ timeout });
+      return;
+
     case "fill":
       await resolveLocator(page, step).fill(step.text, { timeout });
       return;
