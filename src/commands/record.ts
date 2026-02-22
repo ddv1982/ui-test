@@ -10,13 +10,13 @@ export function registerRecord(program: Command) {
     .option("-n, --name <name>", "Test name")
     .option("-u, --url <url>", "Starting URL")
     .option("-d, --description <desc>", "Test description")
-    .option("--selector-policy <policy>", "Selector policy: reliable or raw")
     .option("--browser <browser>", "Browser: chromium, firefox, or webkit")
     .option("--device <name>", "Playwright device name")
     .option("--test-id-attribute <attr>", "Custom test-id attribute")
     .option("-o, --output-dir <dir>", "Output directory for recorded test")
     .option("--load-storage <path>", "Path to storage state to preload")
     .option("--save-storage <path>", "Path to write resulting storage state")
+    .option("--from-file <path>", "Import a Chrome DevTools Recorder JSON export instead of recording")
     .option("--no-improve", "Skip automatic improvement after recording")
     .action(async (opts: unknown) => {
       try {
@@ -35,24 +35,24 @@ function parseRecordCliOptions(value: unknown): RecordCliOptions {
   const url = asOptionalString(value.url);
   const description = asOptionalString(value.description);
   const outputDir = asOptionalString(value.outputDir);
-  const selectorPolicy = asOptionalString(value.selectorPolicy);
   const browser = asOptionalString(value.browser);
   const device = asOptionalString(value.device);
   const testIdAttribute = asOptionalString(value.testIdAttribute);
   const loadStorage = asOptionalString(value.loadStorage);
   const saveStorage = asOptionalString(value.saveStorage);
+  const fromFile = asOptionalString(value.fromFile);
   const improve = asOptionalBoolean(value.improve);
 
   if (name !== undefined) out.name = name;
   if (url !== undefined) out.url = url;
   if (description !== undefined) out.description = description;
   if (outputDir !== undefined) out.outputDir = outputDir;
-  if (selectorPolicy !== undefined) out.selectorPolicy = selectorPolicy;
   if (browser !== undefined) out.browser = browser;
   if (device !== undefined) out.device = device;
   if (testIdAttribute !== undefined) out.testIdAttribute = testIdAttribute;
   if (loadStorage !== undefined) out.loadStorage = loadStorage;
   if (saveStorage !== undefined) out.saveStorage = saveStorage;
+  if (fromFile !== undefined) out.fromFile = fromFile;
   if (improve !== undefined) out.improve = improve;
 
   return out;
@@ -63,12 +63,12 @@ interface RawRecordCliOptions {
   url?: unknown;
   description?: unknown;
   outputDir?: unknown;
-  selectorPolicy?: unknown;
   browser?: unknown;
   device?: unknown;
   testIdAttribute?: unknown;
   loadStorage?: unknown;
   saveStorage?: unknown;
+  fromFile?: unknown;
   improve?: unknown;
 }
 

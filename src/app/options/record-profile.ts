@@ -2,10 +2,7 @@ import type { RecordBrowser } from "../../core/recorder.js";
 import { PLAY_DEFAULT_TEST_DIR } from "../../core/play/play-defaults.js";
 import { UserError } from "../../utils/errors.js";
 
-export type SelectorPolicy = "reliable" | "raw";
-
 export interface RecordProfileInput {
-  selectorPolicy?: string;
   browser?: string;
   device?: string;
   testIdAttribute?: string;
@@ -15,7 +12,6 @@ export interface RecordProfileInput {
 }
 
 export interface ResolvedRecordProfile {
-  selectorPolicy: SelectorPolicy;
   browser: RecordBrowser;
   device?: string;
   testIdAttribute?: string;
@@ -28,7 +24,6 @@ export function resolveRecordProfile(
   input: RecordProfileInput
 ): ResolvedRecordProfile {
   const profile: ResolvedRecordProfile = {
-    selectorPolicy: parseSelectorPolicy(input.selectorPolicy) ?? "reliable",
     browser: parseRecordBrowser(input.browser) ?? "chromium",
     outputDir: input.outputDir ?? PLAY_DEFAULT_TEST_DIR,
   };
@@ -50,18 +45,6 @@ function cleanOptional(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-export function parseSelectorPolicy(value: string | undefined): SelectorPolicy | undefined {
-  if (!value) return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "reliable" || normalized === "raw") {
-    return normalized;
-  }
-  throw new UserError(
-    `Invalid selector policy: ${value}`,
-    "Use --selector-policy reliable or --selector-policy raw"
-  );
 }
 
 export function parseRecordBrowser(value: string | undefined): RecordBrowser | undefined {

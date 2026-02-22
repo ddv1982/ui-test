@@ -9,7 +9,6 @@ describe("profile summary formatting", () => {
   it("formats record summary", () => {
     const out = formatRecordingProfileSummary({
       browser: "chromium",
-      selectorPolicy: "reliable",
       device: "iPhone 13",
       testIdAttribute: "data-qa",
       loadStorage: ".auth/in.json",
@@ -17,7 +16,6 @@ describe("profile summary formatting", () => {
     });
 
     expect(out).toContain("browser=chromium");
-    expect(out).toContain("selectorPolicy=reliable");
     expect(out).toContain("loadStorage=.auth/in.json");
   });
 

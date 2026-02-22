@@ -35,7 +35,7 @@ describe("CLI command registration", () => {
     // play options
     expect(help).toContain("--headed");
     // record options
-    expect(help).toContain("--selector-policy");
+    expect(help).toContain("--from-file");
     // improve options
     expect(help).toContain("--assertions");
     // setup options

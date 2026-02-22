@@ -13,7 +13,7 @@ const fallbackTargetSchema = z.object({
     "internal",
     "unknown",
   ]),
-  source: z.enum(["manual", "codegen-jsonl", "codegen-fallback"]),
+  source: z.enum(["manual", "codegen", "codegen-jsonl", "codegen-fallback", "devtools-import"]),
 });
 
 export const targetSchema = z.object({
@@ -26,7 +26,7 @@ export const targetSchema = z.object({
     "internal",
     "unknown",
   ]),
-  source: z.enum(["manual", "codegen-jsonl", "codegen-fallback"]),
+  source: z.enum(["manual", "codegen", "codegen-jsonl", "codegen-fallback", "devtools-import"]),
   framePath: z.array(z.string()).optional(),
   raw: z.string().optional(),
   confidence: z.number().min(0).max(1).optional(),
@@ -49,6 +49,7 @@ const targetStep = baseStep.extend({
 });
 
 const clickStep = targetStep.extend({ action: z.literal("click") });
+const dblclickStep = targetStep.extend({ action: z.literal("dblclick") });
 const hoverStep = targetStep.extend({ action: z.literal("hover") });
 const checkStep = targetStep.extend({ action: z.literal("check") });
 const uncheckStep = targetStep.extend({ action: z.literal("uncheck") });
@@ -116,6 +117,7 @@ const stepOptionalDeprecationGuard = z.unknown().superRefine((value, ctx) => {
 const stepSchemaByAction = z.discriminatedUnion("action", [
   navigateStep,
   clickStep,
+  dblclickStep,
   fillStep,
   pressStep,
   checkStep,
