@@ -1,15 +1,13 @@
 import type { RecordBrowser } from "../../core/recorder.js";
-import type { SelectorPolicy } from "./record-profile.js";
 
 export function formatRecordingProfileSummary(profile: {
   browser: RecordBrowser;
-  selectorPolicy: SelectorPolicy;
   device?: string;
   testIdAttribute?: string;
   loadStorage?: string;
   saveStorage?: string;
 }): string {
-  return `Recording profile: browser=${profile.browser}, selectorPolicy=${profile.selectorPolicy}, device=${profile.device ?? "(none)"}, testIdAttr=${profile.testIdAttribute ?? "(default)"}, loadStorage=${profile.loadStorage ?? "(none)"}, saveStorage=${profile.saveStorage ?? "(none)"}`;
+  return `Recording profile: browser=${profile.browser}, device=${profile.device ?? "(none)"}, testIdAttr=${profile.testIdAttribute ?? "(default)"}, loadStorage=${profile.loadStorage ?? "(none)"}, saveStorage=${profile.saveStorage ?? "(none)"}`;
 }
 
 export function formatImproveProfileSummary(profile: {

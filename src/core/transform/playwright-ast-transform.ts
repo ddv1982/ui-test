@@ -1,6 +1,7 @@
 import { parse } from "acorn";
 import type { Step, Target } from "../yaml-schema.js";
 import { classifySelector } from "../selector-classifier.js";
+import { scoreLocatorConfidence } from "./locator-confidence.js";
 import {
   isArrowFunctionExpression,
   isAstNode,
@@ -203,7 +204,8 @@ function expressionToTarget(expression: unknown, source: string): Target | null 
   return {
     value: selector,
     kind: classifySelector(selector).kind,
-    source: "codegen-fallback",
+    source: "codegen",
+    confidence: scoreLocatorConfidence(selector),
   };
 }
 

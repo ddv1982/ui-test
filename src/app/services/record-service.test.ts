@@ -1,13 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserError } from "../../utils/errors.js";
 
+vi.mock("node:fs/promises", () => ({
+  default: {
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    mkdir: vi.fn(),
+  },
+}));
+
 vi.mock("../../utils/chromium-runtime.js", () => ({
   ensureChromiumAvailable: vi.fn(),
 }));
 
-vi.mock("../../core/recorder.js", () => ({
-  record: vi.fn(),
-}));
+vi.mock("../../core/recorder.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../core/recorder.js")>();
+  return {
+    ...actual,
+    record: vi.fn(),
+  };
+});
 
 vi.mock("../../core/improve/improve.js", () => ({
   improveTestFile: vi.fn(),
@@ -25,6 +37,7 @@ vi.mock("../../utils/ui.js", () => ({
   },
 }));
 
+import fs from "node:fs/promises";
 import { ensureChromiumAvailable } from "../../utils/chromium-runtime.js";
 import { record } from "../../core/recorder.js";
 import { improveTestFile } from "../../core/improve/improve.js";
@@ -34,14 +47,8 @@ import { runRecord } from "./record-service.js";
 function mockRecordDefaults() {
   vi.mocked(record).mockResolvedValue({
     outputPath: "e2e/sample.yaml",
-    stats: {
-      selectorSteps: 1,
-      stableSelectors: 1,
-      fallbackSelectors: 0,
-      frameAwareSelectors: 0,
-    },
-    recordingMode: "jsonl",
-    degraded: false,
+    stepCount: 2,
+    recordingMode: "codegen",
   });
   vi.mocked(improveTestFile).mockResolvedValue({
     report: {
@@ -282,5 +289,107 @@ describe("runRecord auto-improve", () => {
     expect(ui.warn).toHaveBeenCalledWith(
       expect.stringContaining("You can run it manually")
     );
+  });
+});
+
+describe("runRecordFromFile", () => {
+  const validRecording = JSON.stringify({
+    title: "Login Flow",
+    steps: [
+      { type: "navigate", url: "https://example.com/login" },
+      { type: "click", selectors: [["aria/Submit[role=\"button\"]"]] },
+    ],
+  });
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(fs.readFile).mockResolvedValue(validRecording);
+    vi.mocked(fs.writeFile).mockResolvedValue();
+    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+    vi.mocked(improveTestFile).mockResolvedValue({
+      report: {
+        testFile: "e2e/login-flow.yaml",
+        generatedAt: new Date().toISOString(),
+        providerUsed: "playwright",
+        summary: {
+          unchanged: 1,
+          improved: 0,
+          fallback: 0,
+          warnings: 0,
+          assertionCandidates: 0,
+          appliedAssertions: 0,
+          skippedAssertions: 0,
+        },
+        stepFindings: [],
+        assertionCandidates: [],
+        diagnostics: [],
+      },
+      reportPath: "e2e/login-flow.improve-report.json",
+    });
+  });
+
+  it("imports a valid DevTools recording JSON file", async () => {
+    await runRecord({ fromFile: "/tmp/recording.json" });
+
+    expect(fs.readFile).toHaveBeenCalledWith("/tmp/recording.json", "utf-8");
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("login-flow.yaml"),
+      expect.stringContaining("name: Login Flow"),
+      "utf-8"
+    );
+    expect(ui.success).toHaveBeenCalledWith(
+      expect.stringContaining("Test saved to")
+    );
+  });
+
+  it("throws UserError when file does not exist", async () => {
+    vi.mocked(fs.readFile).mockRejectedValue(new Error("ENOENT"));
+
+    await expect(
+      runRecord({ fromFile: "/tmp/missing.json" })
+    ).rejects.toBeInstanceOf(UserError);
+    await expect(
+      runRecord({ fromFile: "/tmp/missing.json" })
+    ).rejects.toThrow("Could not read file");
+  });
+
+  it("throws UserError when file contains no supported steps", async () => {
+    vi.mocked(fs.readFile).mockResolvedValue(
+      JSON.stringify({ title: "Empty", steps: [{ type: "scroll" }] })
+    );
+
+    await expect(
+      runRecord({ fromFile: "/tmp/empty.json" })
+    ).rejects.toBeInstanceOf(UserError);
+    await expect(
+      runRecord({ fromFile: "/tmp/empty.json" })
+    ).rejects.toThrow("No supported interactions");
+  });
+
+  it("uses recording title as test name, falling back to filename", async () => {
+    await runRecord({ fromFile: "/tmp/recording.json" });
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("login-flow.yaml"),
+      expect.stringContaining("name: Login Flow"),
+      "utf-8"
+    );
+
+    vi.mocked(fs.readFile).mockResolvedValue(
+      JSON.stringify({
+        steps: [{ type: "navigate", url: "https://example.com" }],
+      })
+    );
+    await runRecord({ fromFile: "/tmp/my-test.json" });
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("my-test.yaml"),
+      expect.stringContaining("name: my-test"),
+      "utf-8"
+    );
+  });
+
+  it("skips auto-improve when improve is false", async () => {
+    await runRecord({ fromFile: "/tmp/recording.json", improve: false });
+
+    expect(improveTestFile).not.toHaveBeenCalled();
   });
 });

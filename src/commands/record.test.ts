@@ -10,8 +10,6 @@ describe("record command options", () => {
     expect(command).toBeDefined();
 
     command?.parseOptions([
-      "--selector-policy",
-      "raw",
       "--browser",
       "firefox",
       "--device",
@@ -25,7 +23,6 @@ describe("record command options", () => {
     ]);
 
     const opts = command?.opts() as Record<string, string>;
-    expect(opts.selectorPolicy).toBe("raw");
     expect(opts.browser).toBe("firefox");
     expect(opts.device).toBe("iPhone 13");
     expect(opts.testIdAttribute).toBe("data-qa");

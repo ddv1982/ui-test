@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { spawn, type SpawnOptions } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type {
@@ -8,12 +6,10 @@ import type {
 } from "./contracts/process-runner.js";
 
 export type CodegenBrowser = "chromium" | "firefox" | "webkit";
-export type JsonlCapability = "supported" | "unsupported" | "unknown";
 
 export interface CodegenRunOptions {
   url: string;
   outputFile: string;
-  target: "jsonl" | "playwright-test";
   browser: CodegenBrowser;
   device?: string;
   testIdAttribute?: string;
@@ -21,44 +17,15 @@ export interface CodegenRunOptions {
   saveStorage?: string;
 }
 
-export async function detectJsonlCapability(
-  playwrightBin: string
-): Promise<JsonlCapability> {
-  if (playwrightBin === "npx") return "unknown";
-
-  const resolvedCliPath = resolvePlaywrightCliPath(playwrightBin);
-  if (!resolvedCliPath.includes("node_modules")) return "unknown";
-
-  const jsonlGeneratorPath = path.resolve(
-    path.dirname(resolvedCliPath),
-    "../playwright-core/lib/server/codegen/jsonl.js"
-  );
-
-  try {
-    await fs.access(jsonlGeneratorPath);
-    return "supported";
-  } catch {
-    return "unsupported";
-  }
-}
-
-export function runCodegen(
+export async function runCodegen(
   playwrightBin: string,
   options: CodegenRunOptions,
   runInteractiveCommand: RunInteractiveCommand = defaultRunInteractiveCommand
 ): Promise<void> {
-  return runCodegenInternal(playwrightBin, options, runInteractiveCommand);
-}
-
-async function runCodegenInternal(
-  playwrightBin: string,
-  options: CodegenRunOptions,
-  runInteractiveCommand: RunInteractiveCommand
-): Promise<void> {
   const argsCore = [
     "codegen",
     "--target",
-    options.target,
+    "playwright-test",
     "--output",
     options.outputFile,
     "--browser",

@@ -13,7 +13,6 @@ vi.mock("node:child_process", () => ({
 
 import { spawn } from "node:child_process";
 import {
-  detectJsonlCapability,
   normalizeFirstNavigate,
   record,
   resolvePlaywrightCliPath,
@@ -35,8 +34,7 @@ describe("runCodegen", () => {
 
     const run = runCodegen("npx", {
       url: "http://127.0.0.1:5173",
-      outputFile: "/tmp/out.jsonl",
-      target: "jsonl",
+      outputFile: "/tmp/out.spec.ts",
       browser: "chromium",
     });
     child.emit("close", 0, null);
@@ -50,8 +48,7 @@ describe("runCodegen", () => {
 
     const run = runCodegen("npx", {
       url: "http://127.0.0.1:5173",
-      outputFile: "/tmp/out.jsonl",
-      target: "jsonl",
+      outputFile: "/tmp/out.spec.ts",
       browser: "chromium",
     });
     child.emit("close", 1, null);
@@ -74,17 +71,68 @@ describe("resolvePlaywrightCliPath", () => {
 describe("record", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    delete process.env.UI_TEST_DISABLE_JSONL;
   });
 
-  it("recovers and saves JSONL steps even when jsonl codegen exits via signal", async () => {
+  it("records and saves steps from playwright-test codegen output", async () => {
     vi.spyOn(Date, "now").mockReturnValue(424242);
 
     const child = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(child);
 
-    const tmpJsonlPath = path.join(os.tmpdir(), "ui-test-recording-424242.jsonl");
-    await fs.writeFile(tmpJsonlPath, '{"type":"click","selector":"button"}\n', "utf-8");
+    const tmpCodePath = path.join(os.tmpdir(), "ui-test-recording-424242.spec.ts");
+    await fs.writeFile(
+      tmpCodePath,
+      [
+        "import { test } from '@playwright/test';",
+        "test('x', async ({ page }) => {",
+        "  await page.goto('https://example.com');",
+        "  await page.getByRole('button', { name: 'Save' }).click();",
+        "});",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
+    const run = record({
+      name: "Codegen Recording",
+      url: "http://127.0.0.1:5173",
+      outputDir,
+    });
+
+    await vi.waitFor(() => {
+      expect(spawn).toHaveBeenCalledTimes(1);
+    });
+    child.emit("close", 0, null);
+
+    const result = await run;
+    const saved = await fs.readFile(result.outputPath, "utf-8");
+
+    expect(result.recordingMode).toBe("codegen");
+    expect(result.stepCount).toBeGreaterThan(0);
+    expect(saved).toContain("name: Codegen Recording");
+    expect(saved).toContain("action: click");
+
+    await fs.rm(outputDir, { recursive: true, force: true });
+  });
+
+  it("recovers steps even when codegen exits via signal", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(515151);
+
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+
+    const tmpCodePath = path.join(os.tmpdir(), "ui-test-recording-515151.spec.ts");
+    await fs.writeFile(
+      tmpCodePath,
+      [
+        "import { test } from '@playwright/test';",
+        "test('x', async ({ page }) => {",
+        "  await page.goto('https://example.com');",
+        "  await page.getByRole('button', { name: 'Save' }).click();",
+        "});",
+      ].join("\n"),
+      "utf-8"
+    );
 
     const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
     const run = record({
@@ -99,79 +147,21 @@ describe("record", () => {
     child.emit("close", null, "SIGTERM");
 
     const result = await run;
-    const saved = await fs.readFile(result.outputPath, "utf-8");
-
-    expect(result.recordingMode).toBe("jsonl");
-    expect(saved).toContain("name: Recovered Recording");
-    expect(saved).toContain("target:");
+    expect(result.recordingMode).toBe("codegen");
+    expect(result.stepCount).toBeGreaterThan(0);
 
     await fs.rm(outputDir, { recursive: true, force: true });
   });
 
-  it("falls back to playwright-test parsing when JSONL is unavailable", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(515151);
-
-    const jsonlChild = createMockChildProcess();
-    const fallbackChild = createMockChildProcess();
-    vi.mocked(spawn)
-      .mockReturnValueOnce(jsonlChild)
-      .mockReturnValueOnce(fallbackChild);
-
-    const fallbackCodePath = path.join(
-      os.tmpdir(),
-      "ui-test-recording-fallback-515151.spec.ts"
-    );
-    await fs.writeFile(
-      fallbackCodePath,
-      [
-        "import { test } from '@playwright/test';",
-        "test('x', async ({ page }) => {",
-        "  await page.goto('https://example.com');",
-        "  await page.getByRole('button', { name: 'Save' }).click();",
-        "});",
-      ].join("\n"),
-      "utf-8"
-    );
-
-    const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
-    const run = record({
-      name: "Fallback Recording",
-      url: "http://127.0.0.1:5173",
-      outputDir,
-    });
-
-    await vi.waitFor(() => {
-      expect(spawn).toHaveBeenCalledTimes(1);
-    });
-    jsonlChild.emit("close", 1, null);
-
-    await vi.waitFor(() => {
-      expect(spawn).toHaveBeenCalledTimes(2);
-    });
-    fallbackChild.emit("close", 0, null);
-
-    const result = await run;
-    const saved = await fs.readFile(result.outputPath, "utf-8");
-
-    expect(result.recordingMode).toBe("fallback");
-    expect(result.degraded).toBe(true);
-    expect(saved).toContain("action: click");
-
-    await fs.rm(outputDir, { recursive: true, force: true });
-  });
-
-  it("fails immediately when JSONL succeeds but yields no actionable steps", async () => {
+  it("throws UserError when codegen produces no steps", async () => {
     vi.spyOn(Date, "now").mockReturnValue(535353);
 
-    const jsonlChild = createMockChildProcess();
-    vi.mocked(spawn).mockReturnValueOnce(jsonlChild);
-
-    const tmpJsonlPath = path.join(os.tmpdir(), "ui-test-recording-535353.jsonl");
-    await fs.writeFile(tmpJsonlPath, '{"type":"openPage","url":"about:blank"}\n', "utf-8");
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValueOnce(child);
 
     const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
     const run = record({
-      name: "No Interaction Recording",
+      name: "Empty Recording",
       url: "http://127.0.0.1:5173",
       outputDir,
     });
@@ -179,7 +169,7 @@ describe("record", () => {
     await vi.waitFor(() => {
       expect(spawn).toHaveBeenCalledTimes(1);
     });
-    jsonlChild.emit("close", 0, null);
+    child.emit("close", 0, null);
 
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("No interactions were recorded");
@@ -188,18 +178,15 @@ describe("record", () => {
     await fs.rm(outputDir, { recursive: true, force: true });
   });
 
-  it("throws clear error when both JSONL and fallback produce no steps", async () => {
+  it("throws UserError with codegen failure reason when codegen fails and no steps", async () => {
     vi.spyOn(Date, "now").mockReturnValue(616161);
 
-    const jsonlChild = createMockChildProcess();
-    const fallbackChild = createMockChildProcess();
-    vi.mocked(spawn)
-      .mockReturnValueOnce(jsonlChild)
-      .mockReturnValueOnce(fallbackChild);
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValueOnce(child);
 
     const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
     const run = record({
-      name: "Broken Recording",
+      name: "Failed Recording",
       url: "http://127.0.0.1:5173",
       outputDir,
     });
@@ -207,56 +194,10 @@ describe("record", () => {
     await vi.waitFor(() => {
       expect(spawn).toHaveBeenCalledTimes(1);
     });
-    jsonlChild.emit("close", 1, null);
-
-    await vi.waitFor(() => {
-      expect(spawn).toHaveBeenCalledTimes(2);
-    });
-    fallbackChild.emit("close", 1, null);
+    child.emit("close", 1, null);
 
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("No interactions were recorded");
-
-    await fs.rm(outputDir, { recursive: true, force: true });
-  });
-
-  it("uses fallback directly when JSONL is disabled by environment", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(717171);
-    process.env.UI_TEST_DISABLE_JSONL = "1";
-
-    const fallbackChild = createMockChildProcess();
-    vi.mocked(spawn).mockReturnValueOnce(fallbackChild);
-
-    const fallbackCodePath = path.join(
-      os.tmpdir(),
-      "ui-test-recording-fallback-717171.spec.ts"
-    );
-    await fs.writeFile(
-      fallbackCodePath,
-      [
-        "import { test } from '@playwright/test';",
-        "test('x', async ({ page }) => {",
-        "  await page.getByRole('button', { name: 'Save' }).click();",
-        "});",
-      ].join("\n"),
-      "utf-8"
-    );
-
-    const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
-    const run = record({
-      name: "JSONL Disabled Recording",
-      url: "http://127.0.0.1:5173",
-      outputDir,
-    });
-
-    await vi.waitFor(() => {
-      expect(spawn).toHaveBeenCalledTimes(1);
-    });
-    fallbackChild.emit("close", 0, null);
-
-    const result = await run;
-    expect(result.recordingMode).toBe("fallback");
-    expect(spawn).toHaveBeenCalledTimes(1);
 
     await fs.rm(outputDir, { recursive: true, force: true });
   });
@@ -267,7 +208,7 @@ describe("normalizeFirstNavigate", () => {
     const steps = normalizeFirstNavigate(
       [
         { action: "navigate", url: "https://consent.example.com/auth?key=abc" },
-        { action: "click", target: { value: "getByRole('button', { name: 'OK' })", kind: "locatorExpression" as const, source: "codegen-jsonl" as const } },
+        { action: "click", target: { value: "getByRole('button', { name: 'OK' })", kind: "locatorExpression" as const, source: "codegen" as const } },
       ],
       "https://example.com"
     );
@@ -296,7 +237,7 @@ describe("normalizeFirstNavigate", () => {
 
   it("injects navigate when first step is not a navigate", () => {
     const steps = normalizeFirstNavigate(
-      [{ action: "click", target: { value: "#btn", kind: "css" as const, source: "codegen-jsonl" as const } }],
+      [{ action: "click", target: { value: "#btn", kind: "css" as const, source: "codegen" as const } }],
       "https://example.com/page"
     );
 
@@ -323,44 +264,5 @@ describe("normalizeFirstNavigate", () => {
     );
 
     expect(steps[0]).toEqual({ action: "navigate", url: "/page#section" });
-  });
-});
-
-describe("detectJsonlCapability", () => {
-  it("returns unknown for npx entrypoint", async () => {
-    await expect(detectJsonlCapability("npx")).resolves.toBe("unknown");
-  });
-
-  it("detects supported when playwright-core jsonl generator exists", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-capability-"));
-    const cliPath = path.join(root, "node_modules", "playwright", "cli.js");
-    const jsonlPath = path.join(
-      root,
-      "node_modules",
-      "playwright-core",
-      "lib",
-      "server",
-      "codegen",
-      "jsonl.js"
-    );
-    await fs.mkdir(path.dirname(cliPath), { recursive: true });
-    await fs.mkdir(path.dirname(jsonlPath), { recursive: true });
-    await fs.writeFile(cliPath, "", "utf-8");
-    await fs.writeFile(jsonlPath, "", "utf-8");
-
-    await expect(detectJsonlCapability(cliPath)).resolves.toBe("supported");
-
-    await fs.rm(root, { recursive: true, force: true });
-  });
-
-  it("detects unsupported when jsonl generator is missing", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-capability-"));
-    const cliPath = path.join(root, "node_modules", "playwright", "cli.js");
-    await fs.mkdir(path.dirname(cliPath), { recursive: true });
-    await fs.writeFile(cliPath, "", "utf-8");
-
-    await expect(detectJsonlCapability(cliPath)).resolves.toBe("unsupported");
-
-    await fs.rm(root, { recursive: true, force: true });
   });
 });
