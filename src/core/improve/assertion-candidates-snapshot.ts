@@ -56,7 +56,7 @@ export function buildSnapshotAssertionCandidates(
       snapshot.step.target
         ? snapshot.step.target
         : undefined;
-    const suppressTextCandidates = stepTarget
+    const suppressContentCandidates = stepTarget
       ? Boolean(classifyNavigationLikeInteraction(snapshot.step, stepTarget))
       : false;
     const framePath =
@@ -95,7 +95,7 @@ export function buildSnapshotAssertionCandidates(
       )
     );
 
-    if (!suppressTextCandidates) {
+    if (!suppressContentCandidates) {
       candidates.push(
         ...buildTextChangedCandidates(
           snapshot.index,
@@ -110,21 +110,23 @@ export function buildSnapshotAssertionCandidates(
       );
     }
 
-    candidates.push(
-      ...buildStateChangeCandidates(
-        snapshot.index,
-        snapshot.step.action,
-        preNodes,
-        postNodes,
-        actedTargetHint,
-        framePath,
-        candidateSource
-      )
-    );
+    if (!suppressContentCandidates) {
+      candidates.push(
+        ...buildStateChangeCandidates(
+          snapshot.index,
+          snapshot.step.action,
+          preNodes,
+          postNodes,
+          actedTargetHint,
+          framePath,
+          candidateSource
+        )
+      );
+    }
 
     if (delta.length === 0) continue;
 
-    const textCandidates = suppressTextCandidates
+    const textCandidates = suppressContentCandidates
       ? []
       : buildTextCandidates(
           snapshot.index,
@@ -147,15 +149,17 @@ export function buildSnapshotAssertionCandidates(
       )
     );
 
-    const visibleCandidates = buildVisibleCandidates(
-      snapshot.index,
-      snapshot.step.action,
-      delta,
-      actedTargetHint,
-      framePath,
-      candidateSource,
-      MAX_VISIBLE_CANDIDATES_PER_STEP
-    );
+    const visibleCandidates = suppressContentCandidates
+      ? []
+      : buildVisibleCandidates(
+          snapshot.index,
+          snapshot.step.action,
+          delta,
+          actedTargetHint,
+          framePath,
+          candidateSource,
+          MAX_VISIBLE_CANDIDATES_PER_STEP
+        );
 
     for (const visibleCandidate of visibleCandidates) {
       const visibleTarget =

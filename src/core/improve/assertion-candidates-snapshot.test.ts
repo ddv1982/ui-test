@@ -138,7 +138,10 @@ describe("snapshot assertion candidates", () => {
     ], "snapshot_native");
 
     expect(out.some((candidate) => candidate.candidate.action === "assertText")).toBe(false);
+    expect(out.some((candidate) => candidate.candidate.action === "assertVisible")).toBe(false);
+    expect(out.some((candidate) => candidate.candidate.action === "assertEnabled")).toBe(false);
     expect(out.some((candidate) => candidate.candidate.action === "assertUrl")).toBe(true);
+    expect(out).toHaveLength(1);
   });
 
   it("generates multiple candidates from a rich delta", () => {
