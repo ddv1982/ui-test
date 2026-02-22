@@ -118,22 +118,25 @@ describe("snapshot assertion candidates", () => {
   });
 
   it("suppresses snapshot text assertions for navigation-like dynamic clicks", () => {
+    const dynamicLinkText =
+      "Live update 12:30: Market story shifts quickly after morning session";
+    const preUrl = "https://example.test/home";
+    const postUrl = "https://example.test/category";
     const out = buildSnapshotAssertionCandidates([
       {
         index: 1,
         step: {
           action: "click",
           target: {
-            value:
-              "getByRole('link', { name: 'Nederlaag voor Trump: hooggerechtshof VS oordeelt dat heffingen onwettig zijn', exact: true })",
+            value: `getByRole('link', { name: '${dynamicLinkText}', exact: true })`,
             kind: "locatorExpression",
             source: "manual",
           },
         },
-        preSnapshot: `- generic [ref=e1]:\n  - link "Nieuws" [ref=e2]\n`,
-        postSnapshot: `- generic [ref=e1]:\n  - heading "Ajax komt goed weg" [level=1] [ref=e3]\n`,
-        preUrl: "https://www.nu.nl/",
-        postUrl: "https://www.nu.nl/algemeen",
+        preSnapshot: `- generic [ref=e1]:\n  - link "Top story" [ref=e2]\n`,
+        postSnapshot: `- generic [ref=e1]:\n  - heading "Category page" [level=1] [ref=e3]\n`,
+        preUrl,
+        postUrl,
       },
     ], "snapshot_native");
 
