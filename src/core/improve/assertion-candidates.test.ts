@@ -201,4 +201,44 @@ describe("buildAssertionCandidates", () => {
       "navigation-like dynamic click target"
     );
   });
+
+  it("keeps deterministic fallback for stable exact link clicks", () => {
+    const out = buildAssertionCandidates(
+      [
+        {
+          action: "click",
+          target: {
+            value: "getByRole('link', { name: 'Settings', exact: true })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+        },
+      ],
+      []
+    );
+
+    expect(out.skippedNavigationLikeClicks).toHaveLength(0);
+    expect(out.candidates).toHaveLength(1);
+    expect(out.candidates[0]?.candidate.action).toBe("assertVisible");
+  });
+
+  it("does not skip stable selectors with story/article in id-like values", () => {
+    const out = buildAssertionCandidates(
+      [
+        {
+          action: "click",
+          target: {
+            value: "locator('#user-story-tab')",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+        },
+      ],
+      []
+    );
+
+    expect(out.skippedNavigationLikeClicks).toHaveLength(0);
+    expect(out.candidates).toHaveLength(1);
+    expect(out.candidates[0]?.candidate.action).toBe("assertVisible");
+  });
 });

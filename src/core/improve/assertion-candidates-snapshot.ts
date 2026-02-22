@@ -23,6 +23,7 @@ import {
   normalizeForCompare,
 } from "./assertion-candidates-snapshot-shared.js";
 import { parseSnapshotNodes } from "./assertion-candidates-snapshot-parser.js";
+import { classifyNavigationLikeInteraction } from "./navigation-like-interaction.js";
 
 export interface StepSnapshot {
   index: number;
@@ -47,14 +48,19 @@ export function buildSnapshotAssertionCandidates(
     const delta = buildDeltaNodes(preNodes, postNodes);
 
     const actedTargetHint = extractActedTargetHint(snapshot.step);
-    const framePath =
+    const stepTarget =
       snapshot.step.action !== "navigate" &&
       snapshot.step.action !== "assertUrl" &&
       snapshot.step.action !== "assertTitle" &&
       "target" in snapshot.step &&
       snapshot.step.target
-        ? snapshot.step.target.framePath
+        ? snapshot.step.target
         : undefined;
+    const suppressContentCandidates = stepTarget
+      ? Boolean(classifyNavigationLikeInteraction(snapshot.step, stepTarget))
+      : false;
+    const framePath =
+      stepTarget ? stepTarget.framePath : undefined;
 
     if (snapshot.step.action === "click") {
       const stableNodes = buildStableNodes(preNodes, postNodes);
@@ -89,42 +95,48 @@ export function buildSnapshotAssertionCandidates(
       )
     );
 
-    candidates.push(
-      ...buildTextChangedCandidates(
-        snapshot.index,
-        snapshot.step.action,
-        preNodes,
-        postNodes,
-        actedTargetHint,
-        framePath,
-        candidateSource,
-        MAX_TEXT_CANDIDATES_PER_STEP
-      )
-    );
+    if (!suppressContentCandidates) {
+      candidates.push(
+        ...buildTextChangedCandidates(
+          snapshot.index,
+          snapshot.step.action,
+          preNodes,
+          postNodes,
+          actedTargetHint,
+          framePath,
+          candidateSource,
+          MAX_TEXT_CANDIDATES_PER_STEP
+        )
+      );
+    }
 
-    candidates.push(
-      ...buildStateChangeCandidates(
-        snapshot.index,
-        snapshot.step.action,
-        preNodes,
-        postNodes,
-        actedTargetHint,
-        framePath,
-        candidateSource
-      )
-    );
+    if (!suppressContentCandidates) {
+      candidates.push(
+        ...buildStateChangeCandidates(
+          snapshot.index,
+          snapshot.step.action,
+          preNodes,
+          postNodes,
+          actedTargetHint,
+          framePath,
+          candidateSource
+        )
+      );
+    }
 
     if (delta.length === 0) continue;
 
-    const textCandidates = buildTextCandidates(
-      snapshot.index,
-      snapshot.step.action,
-      delta,
-      actedTargetHint,
-      framePath,
-      candidateSource,
-      MAX_TEXT_CANDIDATES_PER_STEP
-    );
+    const textCandidates = suppressContentCandidates
+      ? []
+      : buildTextCandidates(
+          snapshot.index,
+          snapshot.step.action,
+          delta,
+          actedTargetHint,
+          framePath,
+          candidateSource,
+          MAX_TEXT_CANDIDATES_PER_STEP
+        );
     candidates.push(...textCandidates);
 
     const textTargetValues = new Set(
@@ -137,15 +149,17 @@ export function buildSnapshotAssertionCandidates(
       )
     );
 
-    const visibleCandidates = buildVisibleCandidates(
-      snapshot.index,
-      snapshot.step.action,
-      delta,
-      actedTargetHint,
-      framePath,
-      candidateSource,
-      MAX_VISIBLE_CANDIDATES_PER_STEP
-    );
+    const visibleCandidates = suppressContentCandidates
+      ? []
+      : buildVisibleCandidates(
+          snapshot.index,
+          snapshot.step.action,
+          delta,
+          actedTargetHint,
+          framePath,
+          candidateSource,
+          MAX_VISIBLE_CANDIDATES_PER_STEP
+        );
 
     for (const visibleCandidate of visibleCandidates) {
       const visibleTarget =

@@ -1,9 +1,6 @@
 import type { AssertionCandidate, StepFinding } from "./report-schema.js";
 import type { Step, Target } from "../yaml-schema.js";
-import {
-  assessTargetDynamics,
-  extractTargetTextFragments,
-} from "./dynamic-target.js";
+import { classifyNavigationLikeInteraction } from "./navigation-like-interaction.js";
 
 const COVERAGE_FALLBACK_CONFIDENCE = 0.76;
 
@@ -122,33 +119,4 @@ function clamp01(value: number): number {
   if (value < 0) return 0;
   if (value > 1) return 1;
   return value;
-}
-
-function classifyNavigationLikeInteraction(step: Step, target: Target): string | undefined {
-  if (step.action !== "click" && step.action !== "press" && step.action !== "hover") {
-    return undefined;
-  }
-
-  const targetValue = target.value;
-  const isRoleLink = /getByRole\(\s*['"]link['"]/.test(targetValue);
-  const hasExact = /exact\s*:\s*true/.test(targetValue);
-  const hasContentCardPattern =
-    /headline|teaser|article|story|content[-_ ]?card|breaking[-_ ]?push|hero[-_ ]?card/i.test(
-      targetValue
-    );
-
-  const { dynamicSignals } = assessTargetDynamics(target);
-  const queryTexts = extractTargetTextFragments(target);
-  const hasHeadlineLikeText =
-    queryTexts.some((text) => text.length >= 48) ||
-    dynamicSignals.includes("contains_headline_like_text") ||
-    dynamicSignals.includes("contains_weather_or_news_fragment") ||
-    dynamicSignals.includes("contains_pipe_separator") ||
-    dynamicSignals.includes("contains_date_or_time_fragment");
-
-  if ((isRoleLink && hasHeadlineLikeText) || (isRoleLink && hasExact) || hasContentCardPattern) {
-    return "navigation-like dynamic click target";
-  }
-
-  return undefined;
 }

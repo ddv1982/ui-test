@@ -136,6 +136,7 @@ describe("runRecord auto-improve", () => {
       applySelectors: true,
       applyAssertions: true,
       assertions: "candidates",
+      assertionPolicy: "reliable",
     });
     expect(ui.info).toHaveBeenCalledWith("Auto-improve: no changes needed");
   });
