@@ -168,6 +168,27 @@ describe("snapshot assertion candidates", () => {
     expect(out.some((candidate) => candidate.candidate.action === "assertText")).toBe(true);
   });
 
+  it("keeps snapshot content assertions for stable selectors with story/article ids", () => {
+    const out = buildSnapshotAssertionCandidates([
+      {
+        index: 0,
+        step: {
+          action: "click",
+          target: {
+            value: "locator('#user-story-tab')",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+        },
+        preSnapshot: "- generic [ref=e1]:\n",
+        postSnapshot:
+          "- generic [ref=e1]:\n  - heading \"Profile details\" [level=1] [ref=e2]\n",
+      },
+    ], "snapshot_native");
+
+    expect(out.some((candidate) => candidate.candidate.action === "assertText")).toBe(true);
+  });
+
   it("generates multiple candidates from a rich delta", () => {
     const out = buildSnapshotAssertionCandidates([richDeltaStepSnapshot], "snapshot_native");
 
