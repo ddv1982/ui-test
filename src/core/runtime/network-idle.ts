@@ -15,7 +15,7 @@ export async function waitForPostStepReadiness(input: {
   step: Step;
   waitForNetworkIdle: boolean;
   timeoutMs?: number;
-  beforeUrl?: string;
+  beforeUrl: string | undefined;
 }): Promise<PostStepReadinessResult> {
   const afterUrl = readPageUrl(input.page);
   const usedNavigationWait = shouldWaitForNavigation(input.step, input.beforeUrl, afterUrl);
