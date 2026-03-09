@@ -26,7 +26,7 @@ import {
   collectAssertionSkipDetails,
   formatAssertionApplyStatusCounts,
   formatAssertionSourceCounts,
-} from "./improve-output.js";
+} from "../../app/services/improve-output.js";
 
 export interface ImproveCliOptions {
   apply?: boolean;
