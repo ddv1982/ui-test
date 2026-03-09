@@ -1,0 +1,21 @@
+{
+  "featureId": "recording-provenance-persistence",
+  "reviewedAt": "2026-03-09T07:01:14Z",
+  "commitId": "bb3a3684a540c4d5099c4d43321193246389eb21",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Pass. The commit adds focused regression coverage that directly exercises the feature requirements: persisted normalized first-navigation/baseUrl context and persisted selector provenance fields (target.value/kind/source) across recorder, DevTools import, and canonical event round-trips. No implementation defects were identified in the reviewed scope.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Worker flow indicates direct `vitest` invocation may be unreliable in this environment; using npm-backed test commands is more robust and this nuance is not explicit in shared skill guidance.",
+      "evidence": "Transcript skeleton for session 11814fa4-4b87-497d-a922-2f2fd2ad82de includes a failed initial validator attempt with `vitest` not on PATH, followed by successful `npm run test -- ...`; compare with `.factory/skills/record-improve-worker/SKILL.md` examples that use direct `vitest run ...` and `.factory/services.yaml` test command (`npm test -- --maxWorkers=5`)."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature recording-provenance-persistence for milestone recording-provenance-auto-apply at commit bb3a3684a540c4d5099c4d43321193246389eb21. Status: pass, with no blocking/non-blocking code issues found in scope."
+}

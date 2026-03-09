@@ -1,0 +1,28 @@
+{
+  "featureId": "record-default-auto-apply-integration",
+  "reviewedAt": "2026-03-09T07:04:53Z",
+  "commitId": "9ed2475",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature correctly defaults record flows to auto-apply with a separate `.improved.yaml`, honors `--no-improve`, and keeps recordings on auto-improve failure. However, a blocking profile mismatch remains: auto-apply hard-codes `assertionPolicy: \"reliable\"` while the manual `--plan`/`--apply-plan` path defaults to `balanced`, so the advertised convergence between default auto-apply and manual plan/apply is not guaranteed.",
+    "issues": [
+      {
+        "file": "src/app/services/record-service.ts",
+        "line": 254,
+        "severity": "blocking",
+        "description": "`runAutoImprove` forces `assertionPolicy: \"reliable\"`, but the manual fallback command it prints (`ui-test improve <file> --plan && ui-test improve <file> --apply-plan <plan>`, line 333) does not pass `--assertion-policy reliable`. Manual plan generation therefore uses improve defaults (`DEFAULT_IMPROVE_ASSERTION_POLICY = \"balanced\"` in `src/core/improve/assertion-policy.ts:44` via `resolveImproveProfile` in `src/app/services/improve-service.ts`), which can produce different improved YAML from default record auto-apply and violates the convergence requirement for this feature."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The `record-improve-worker` skill requires a manual/CLI sanity check for user-facing command changes, but this worker transcript skeleton only shows tests/typecheck/git commands and no explicit `ui-test` CLI sanity run. The handoff still reports `skillFeedback.followedProcedure: true`.",
+      "evidence": "Skill requirement: `.factory/skills/record-improve-worker/SKILL.md:30`. Transcript skeleton for `c11e70c7-eee3-40b2-aae3-ae7b8f58f099` lists Execute commands such as vitest and typecheck but no `ui-test record`/`ui-test improve` command; handoff JSON sets `skillFeedback.followedProcedure` to true."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Fail: core auto-apply integration is mostly in place, but default auto-apply and manual plan/apply are configured with different assertion policies (`reliable` vs default `balanced`), so deterministic convergence is not reliably satisfied."
+}
