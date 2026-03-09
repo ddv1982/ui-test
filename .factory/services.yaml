@@ -1,0 +1,12 @@
+commands:
+  install: npm install
+  lint: npm run lint
+  lint_typed: npm run lint:typed
+  typecheck: npm run typecheck:prod
+  typecheck_test: npm run typecheck:test
+  test: npm test
+  test_coverage: npm run test:coverage
+  quality: npm run quality:ci
+  build: npm run build
+
+services: {}

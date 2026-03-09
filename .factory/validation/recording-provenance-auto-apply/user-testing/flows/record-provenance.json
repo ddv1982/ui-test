@@ -1,0 +1,52 @@
+{
+  "milestone": "recording-provenance-auto-apply",
+  "flowId": "record-provenance",
+  "groupId": "record-provenance",
+  "testedAt": "2026-03-09T07:22:20.447787+00:00",
+  "credentials": {
+    "account": "cli-flow-b@example.test",
+    "namespace": "flow-b"
+  },
+  "assertionsTested": [
+    "VAL-RECORD-003",
+    "VAL-RECORD-004"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-RECORD-003",
+      "status": "pass",
+      "reason": "Targeted recorder and record-service tests passed, confirming first navigation normalization and baseUrl derivation persistence.",
+      "evidence": [
+        "vitest pass: src/core/recorder.test.ts > normalizeFirstNavigate > preserves first-navigation query and hash for persisted baseUrl context",
+        "vitest pass: src/app/services/record-service.test.ts > runRecordFromFile > imports first navigation as normalized path while preserving derived baseUrl",
+        "src/core/recorder.test.ts:283 expects normalized url '/start?next=%2Fcheckout#summary'",
+        "src/app/services/record-service.test.ts:506 and :511 assert persisted YAML includes 'baseUrl: https://example.com' and 'url: /login?next=%2Fhome#cta'"
+      ]
+    },
+    {
+      "id": "VAL-RECORD-004",
+      "status": "pass",
+      "reason": "Targeted canonical-events provenance round-trip test passed, and canonical cloning logic explicitly persists selector provenance fields.",
+      "evidence": [
+        "vitest pass: src/core/recording/canonical-events.test.ts > canonical events > preserves selector provenance through canonical round-trips",
+        "src/core/recording/canonical-events.test.ts:71-72 uses selector target kind='locatorExpression' and source='codegen' with fallbacks",
+        "src/core/recording/canonical-events.ts:219-221 clones target.value, target.kind, and target.source"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "vitest",
+    "grep",
+    "read"
+  ],
+  "frictions": [],
+  "blockers": [],
+  "commandsRun": [
+    {
+      "command": "TMPDIR=\"$(mktemp -d /tmp/flow-b-recprov-XXXXXX)\" /Users/vriesd/projects/ui-test/node_modules/.bin/vitest run /Users/vriesd/projects/ui-test/src/core/recorder.test.ts /Users/vriesd/projects/ui-test/src/app/services/record-service.test.ts /Users/vriesd/projects/ui-test/src/core/recording/canonical-events.test.ts -t \"preserves first-navigation query and hash for persisted baseUrl context|imports first navigation as normalized path while preserving derived baseUrl|preserves selector provenance through canonical round-trips\" --reporter=verbose",
+      "exitCode": 0,
+      "observation": "3 targeted tests passed; 39 non-target tests skipped by name filter."
+    }
+  ],
+  "summary": "Tested 2 assertions (VAL-RECORD-003, VAL-RECORD-004): both passed."
+}

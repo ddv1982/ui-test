@@ -1,42 +1,39 @@
 # User Testing
 
-Testing surface, tools, setup steps, and known quirks.
+Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 
-**What belongs here:** how validators/workers should exercise the user-facing surface.
+**What belongs here:** How to manually verify the application, testing tools available, known testing limitations.
 
 ---
 
-## Primary Surface
+## Testing Surface
 
-- CLI commands:
-  - `ui-test record`
-  - `ui-test improve --plan`
-  - `ui-test improve --apply-plan`
-  - `ui-test play`
+This is a CLI library — no running web application. Validation is through automated quality gates:
 
-## Preferred Validation Path
+- `npm run quality:ci` — full gate: lint + lint:typed + typecheck:prod + test
+- `npm run test:coverage` — tests with V8 coverage reporting
+- `npm run build` — production TypeScript compilation
 
-1. Use focused Vitest coverage for record/improve behavior.
-2. Use `src/core/improve/improve.dynamic.integration.test.ts` for brittle-fixture repair proof.
-3. Use `src/core/player.integration.test.ts` plus `scripts/run-headed-parity.test.mjs` for parity coverage.
-4. Final gate: `npm run test:parity:headed`.
+## Verification Commands
 
-## Constraints
+| Command | Purpose |
+|---------|---------|
+| `npm run lint` | ESLint base config (zero warnings required) |
+| `npm run lint:typed` | ESLint typed config with type-aware rules |
+| `npm run typecheck:prod` | TypeScript production build check |
+| `npm run typecheck:test` | TypeScript full check including tests |
+| `npm test` | Vitest run (617+ tests) |
+| `npm run test:coverage` | Vitest with coverage thresholds |
+| `npm run build` | Full production build |
 
-- Do not use live external websites as proof of determinism.
-- Prefer controlled local fixtures and ephemeral localhost servers created by tests.
-- Optional manual slice may use the example app on `127.0.0.1:5173` only if needed.
+## Coverage Thresholds
 
-## Flow Validator Guidance: CLI
+Configured in `vitest.config.ts`:
+- Lines >= 82%, Functions >= 90%, Branches >= 65%, Statements >= 80%
+- Scope: `src/core/**` and `src/utils/**` only
 
-- Run CLI validations in isolated temp directories (`mktemp -d`) to avoid file collisions between parallel validators.
-- Use unique filename prefixes per validator (for example `flow-a-*`, `flow-b-*`) for plan/report/output artifacts.
-- Do not reuse another validator's generated plan, report, or YAML output paths.
-- Keep execution local and deterministic: use repository fixtures/tests only; never use external websites.
-- Prefer `vitest run <target files>` coverage that directly maps to assigned assertions.
+## Known Quirks
 
-## Known Validation Quirks
-
-- `improve` runtime treats `data:` navigation URLs as relative and reports `Cannot resolve relative navigation URL`; this can be used as deterministic runtime-failure evidence in candidate-skip assertions.
-- If transient local TypeScript worktree errors block `npm run build`, validators may use the existing `dist/bin/ui-test.js` binary for CLI-flow checks.
-- Vitest in this repo only runs tests under configured include globs; ad-hoc validator test files created under `/tmp` will be ignored. Place any temporary flow tests under `scripts/` (with unique prefixes) if dynamic test generation is needed.
+- Architecture tests run as part of the normal test suite
+- `tsconfig.build.json` is stricter than `tsconfig.json` (adds `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, etc.)
+- Test files are excluded from build compilation but included in `tsconfig.json` check

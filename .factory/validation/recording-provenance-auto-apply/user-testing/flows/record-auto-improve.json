@@ -1,0 +1,106 @@
+{
+  "milestone": "recording-provenance-auto-apply",
+  "flowId": "record-auto-improve",
+  "testedAt": "2026-03-09T07:29:08Z",
+  "credentials": {
+    "account": "cli-flow-a@example.test",
+    "namespace": "flow-a"
+  },
+  "assertionsTested": [
+    "VAL-RECORD-001",
+    "VAL-RECORD-002",
+    "VAL-RECORD-005",
+    "VAL-CROSS-001"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-RECORD-001",
+      "status": "pass",
+      "reason": "Default record import saved raw YAML and produced a separate auto-improved YAML artifact without overwriting the original.",
+      "evidence": [
+        "vitest target passed: scripts/flow-a-record-auto-improve.validation.test.mjs",
+        "recorded file exists: /var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7/flow-a-record-default.yaml",
+        "improved file exists: /var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7/flow-a-record-default.improved.yaml",
+        "diff evidence captured between raw and improved outputs (ordering mutation shown in diff -u output)."
+      ]
+    },
+    {
+      "id": "VAL-RECORD-002",
+      "status": "pass",
+      "reason": "Record flow with improve disabled preserved recording output and produced no improved YAML side-effect artifact.",
+      "evidence": [
+        "recorded file exists: /var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7/flow-a-record-no-improve.yaml",
+        "improved file absent: /var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7/flow-a-record-no-improve.improved.yaml",
+        "terminal check output: missing ...flow-a-record-no-improve.improved.yaml"
+      ]
+    },
+    {
+      "id": "VAL-RECORD-005",
+      "status": "pass",
+      "reason": "When auto-improve write failed (intentional improved-path directory collision), the recording remained on disk and CLI surfaced manual next-step guidance.",
+      "evidence": [
+        "auto-improve failure message observed: EISDIR illegal operation on improved output path",
+        "manual fallback guidance observed: 'You can run it manually: ui-test improve ... --plan && ... --apply-plan ...'",
+        "recorded file exists after failure: /var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7/flow-a-record-failure.yaml"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-001",
+      "status": "pass",
+      "reason": "Default record auto-apply output matched manual improve --plan + --apply-plan output for the same recorded YAML input.",
+      "evidence": [
+        "auto-improved file: /var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7/flow-a-record-default.improved.yaml",
+        "manual plan-applied file: /var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7/flow-a-record-default.manual-applied.yaml",
+        "cmp result: identical"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "vitest",
+    "runRecord (CLI service)",
+    "runImprove (CLI service)",
+    "diff",
+    "cmp"
+  ],
+  "frictions": [
+    {
+      "description": "Vitest include rules rejected /tmp test path, so validation test had to be placed under scripts/ to execute.",
+      "resolved": true,
+      "resolution": "Ran the same flow-a test from scripts/flow-a-record-auto-improve.validation.test.mjs, then removed the temporary test file after execution.",
+      "affectedAssertions": [
+        "VAL-RECORD-001",
+        "VAL-RECORD-002",
+        "VAL-RECORD-005",
+        "VAL-CROSS-001"
+      ]
+    }
+  ],
+  "blockers": [],
+  "commandsRun": [
+    {
+      "command": "npx vitest run --config /Users/vriesd/projects/ui-test/vitest.config.ts /Users/vriesd/projects/ui-test/scripts/flow-a-record-auto-improve.validation.test.mjs",
+      "exitCode": 0,
+      "observation": "Targeted flow test passed; showed default auto-improve apply, no-improve bypass behavior, forced auto-improve failure fallback warning, and successful manual plan/apply convergence."
+    },
+    {
+      "command": "diff -u <flow-a-record-default.yaml> <flow-a-record-default.improved.yaml>",
+      "exitCode": 0,
+      "observation": "Confirmed non-overwrite behavior with visible raw-vs-improved diff output."
+    },
+    {
+      "command": "cmp -s <flow-a-record-default.improved.yaml> <flow-a-record-default.manual-applied.yaml>",
+      "exitCode": 0,
+      "observation": "Files were identical (auto-apply output converged with plan/apply output)."
+    },
+    {
+      "command": "file existence check for no-improve improved output and failure-case raw output",
+      "exitCode": 0,
+      "observation": "No-improve improved artifact was absent; failure-case raw recording artifact was present."
+    }
+  ],
+  "artifacts": {
+    "evidenceFile": "/tmp/flow-a-record-auto-improve-evidence.json",
+    "tempDir": "/var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/flow-a-record-auto-improve-TQvcx7"
+  },
+  "summary": "Validated 4 assigned assertions: 4 passed, 0 failed, 0 blocked."
+}

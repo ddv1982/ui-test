@@ -1,0 +1,29 @@
+{
+  "milestone": "recording-provenance-auto-apply",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-RECORD-001",
+    "VAL-RECORD-002",
+    "VAL-RECORD-003",
+    "VAL-RECORD-004",
+    "VAL-RECORD-005",
+    "VAL-CROSS-001"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Documented that Vitest include globs ignore ad-hoc tests under /tmp and temporary flow tests should be placed under scripts/ with unique prefixes.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}
