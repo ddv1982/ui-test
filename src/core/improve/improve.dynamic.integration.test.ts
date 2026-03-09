@@ -1,7 +1,6 @@
 import { createServer, type Server } from "node:http";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
@@ -9,8 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { improveTestFile } from "./improve.js";
 import { play } from "../play/player-runner.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const HTML_FIXTURE_DIR = join(__dirname, "../../../tests/fixtures/html");
+const HTML_FIXTURE_DIR = join(import.meta.dirname, "../../../tests/fixtures/html");
 const REQUIRE_HEADED_PARITY = process.env["UI_TEST_REQUIRE_HEADED_PARITY"] === "1";
 
 let server: Server;

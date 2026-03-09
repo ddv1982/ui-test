@@ -1,11 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const srcRoot = path.resolve(__dirname, "..");
+const srcRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(srcRoot, "..");
 const compilerOptions = loadCompilerOptions();
 const moduleResolutionHost: ts.ModuleResolutionHost = {
