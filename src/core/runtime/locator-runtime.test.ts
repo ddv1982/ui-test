@@ -137,4 +137,40 @@ describe("resolveLocator", () => {
     expect(primary.or).toHaveBeenCalledOnce();
     expect(result).not.toBe(primary);
   });
+
+  it("resolves locator expressions", () => {
+    const { page } = createMockPage();
+
+    resolveLocator(page, {
+      value: "getByRole('button')",
+      kind: "locatorExpression",
+      source: "manual",
+    });
+
+    expect(page.getByRole).toHaveBeenCalledWith("button");
+  });
+
+  it("routes non-expression selectors via page.locator", () => {
+    const { page } = createMockPage();
+
+    resolveLocator(page, {
+      value: "text=Click here",
+      kind: "playwrightSelector",
+      source: "manual",
+    });
+
+    expect(page.locator).toHaveBeenCalledWith("text=Click here");
+  });
+
+  it("throws for unsupported chain methods", () => {
+    const { page } = createMockPage();
+
+    expect(() => {
+      resolveLocator(page, {
+        value: "getByRole('button').unknownMethod('x')",
+        kind: "locatorExpression",
+        source: "manual",
+      });
+    }).toThrow(/Unsupported locator chain method/);
+  });
 });

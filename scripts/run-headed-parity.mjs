@@ -11,7 +11,7 @@ const repoRoot = path.resolve(scriptDir, "..");
 export const PARITY_SUITE_PATTERNS = [
   {
     id: "player-core",
-    patterns: ["src/core/player.integration.test.ts"],
+    patterns: ["src/core/play/player-runner.integration.test.ts"],
   },
   {
     id: "improve-runtime",

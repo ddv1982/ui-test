@@ -1,6 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { playwrightCodeToSteps } from "./transform/playwright-ast-transform.js";
-import { stepsToYaml, yamlToTest } from "./transform/yaml-io.js";
+import { describe, expect, it } from "vitest";
+import { playwrightCodeToSteps } from "./playwright-ast-transform.js";
 
 describe("playwrightCodeToSteps", () => {
   it("parses playwright-test code into V2 target steps", () => {
@@ -91,75 +90,5 @@ describe("playwrightCodeToSteps", () => {
     expect(steps.map((s) => s.action)).toEqual([
       "assertVisible", "assertText", "assertValue", "assertChecked",
     ]);
-  });
-});
-
-describe("yaml conversion", () => {
-  it("serializes V2 target fields", () => {
-    const yaml = stepsToYaml("Test", [
-      { action: "navigate", url: "/" },
-      {
-        action: "click",
-        target: {
-          value: "#submit",
-          kind: "css",
-          source: "manual",
-        },
-      },
-    ]);
-
-    expect(yaml).toContain("name: Test");
-    expect(yaml).toContain("target:");
-    expect(yaml).toContain('value: "#submit"');
-    expect(yaml).toContain("kind: css");
-  });
-
-  it("parses YAML into object", () => {
-    const parsed = yamlToTest(`
-name: T
-steps:
-  - action: navigate
-    url: /
-`);
-    expect(parsed).toHaveProperty("name", "T");
-  });
-
-  it("parses YAML with legacy codegen-jsonl source", () => {
-    const parsed = yamlToTest(`
-name: Legacy Test
-steps:
-  - action: click
-    target:
-      value: "getByRole('button')"
-      kind: locatorExpression
-      source: codegen-jsonl
-`);
-    expect(parsed).toHaveProperty("name", "Legacy Test");
-  });
-
-  it("parses YAML with legacy codegen-fallback source", () => {
-    const parsed = yamlToTest(`
-name: Legacy Test
-steps:
-  - action: click
-    target:
-      value: "getByRole('button')"
-      kind: locatorExpression
-      source: codegen-fallback
-`);
-    expect(parsed).toHaveProperty("name", "Legacy Test");
-  });
-
-  it("parses YAML with new codegen source", () => {
-    const parsed = yamlToTest(`
-name: New Test
-steps:
-  - action: click
-    target:
-      value: "getByRole('button')"
-      kind: locatorExpression
-      source: codegen
-`);
-    expect(parsed).toHaveProperty("name", "New Test");
   });
 });

@@ -1,18 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer, type Server } from "node:http";
 import { access, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 import yaml from "js-yaml";
 import { chromium } from "playwright";
-import { play } from "./play/player-runner.js";
-import { createTestSlug } from "./play-failure-report.js";
-import { ui } from "../utils/ui.js";
+import { play } from "./player-runner.js";
+import { createTestSlug } from "../play-failure-report.js";
+import { ui } from "../../utils/ui.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const HTML_FIXTURE_DIR = join(__dirname, "../../tests/fixtures/html");
-const YAML_FIXTURE_DIR = join(__dirname, "../../tests/fixtures/yaml");
+const HTML_FIXTURE_DIR = join(import.meta.dirname, "../../../tests/fixtures/html");
+const YAML_FIXTURE_DIR = join(import.meta.dirname, "../../../tests/fixtures/yaml");
 const REQUIRE_HEADED_PARITY = process.env["UI_TEST_REQUIRE_HEADED_PARITY"] === "1";
 
 let server: Server;
@@ -286,7 +284,7 @@ describe("player integration - step execution", () => {
     const duration = Date.now() - start;
 
     expect(result.passed).toBe(false);
-    expect(duration).toBeLessThan(3000); // Should timeout quickly
+    expect(duration).toBeLessThan(3000);
   }, 30000);
 
   it("should stop on first failure", async () => {
@@ -294,7 +292,6 @@ describe("player integration - step execution", () => {
     const result = await play(testFile, { headed: false, timeout: 2000 });
 
     expect(result.passed).toBe(false);
-    // Should have stopped after the failed step
     const failedIndex = result.steps.findIndex((s) => !s.passed);
     expect(result.steps).toHaveLength(failedIndex + 1);
   }, 30000);
@@ -617,5 +614,4 @@ describe("player integration - step execution", () => {
     expect(headlessResult.passed).toBe(true);
     expect(headedResult.passed).toBe(true);
   }, 45000);
-
 });

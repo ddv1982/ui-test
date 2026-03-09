@@ -11,7 +11,7 @@ describe("run-headed-parity resolver", () => {
   it("resolves all configured parity suites", async () => {
     const files = await resolveParityTestFiles(PARITY_SUITE_PATTERNS, process.cwd());
 
-    expect(files).toContain("src/core/player.integration.test.ts");
+    expect(files).toContain("src/core/play/player-runner.integration.test.ts");
     expect(files).toContain("src/core/improve/improve.dynamic.integration.test.ts");
     expect(files.length).toBeGreaterThanOrEqual(2);
   });

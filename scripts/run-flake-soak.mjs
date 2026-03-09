@@ -9,7 +9,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 
 export const DEFAULT_FLAKE_TEST_FILES = [
-  "src/core/player.integration.test.ts",
+  "src/core/play/player-runner.integration.test.ts",
   "src/core/improve/improve.dynamic.integration.test.ts",
 ];
 
