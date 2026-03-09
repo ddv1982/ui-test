@@ -23,8 +23,13 @@ const {
     typeof import("../runtime/cookie-banner.js").dismissCookieBannerWithDetails
   >(async () => ({ dismissed: false })),
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
-  >(async () => false),
+    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+  >(async () => ({
+    navigationTimedOut: false,
+    networkIdleTimedOut: false,
+    usedNavigationWait: false,
+    usedNetworkIdleWait: false,
+  })),
   generateRuntimeRepairCandidatesMock: vi.fn<
     typeof import("./selector-runtime-repair.js").generateRuntimeRepairCandidates
   >(async () => ({
@@ -54,8 +59,8 @@ vi.mock("../runtime/cookie-banner.js", () => ({
 }));
 
 vi.mock("../runtime/network-idle.js", () => ({
-  DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
-  waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
+  DEFAULT_WAIT_FOR_NETWORK_IDLE: false,
+  waitForPostStepReadiness: waitForPostStepNetworkIdleMock,
 }));
 
 vi.mock("./selector-runtime-repair.js", () => ({
@@ -79,7 +84,12 @@ describe("runImproveSelectorPass", () => {
 
     executeRuntimeStepMock.mockImplementation(async () => {});
     dismissCookieBannerWithDetailsMock.mockResolvedValue({ dismissed: false });
-    waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+    waitForPostStepNetworkIdleMock.mockResolvedValue({
+      navigationTimedOut: false,
+      networkIdleTimedOut: false,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: false,
+    });
     shouldAdoptCandidateMock.mockReturnValue(false);
     generateRuntimeRepairCandidatesMock.mockResolvedValue({
       candidates: [],

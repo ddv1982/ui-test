@@ -432,6 +432,7 @@ describe("player integration - step execution", () => {
       const result = await play(testFile, {
         headed: false,
         timeout: 2_000,
+        waitForNetworkIdle: true,
       });
 
       expect(result.passed).toBe(false);
@@ -469,6 +470,35 @@ describe("player integration - step execution", () => {
 
       expect(result.passed).toBe(true);
       expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  }, 30000);
+
+  it("does not warn on post-step network idle timeout when readiness wait is not enabled", async () => {
+    const warnSpy = vi.spyOn(ui, "warn").mockImplementation(() => {});
+    try {
+      const testFile = await writeInlineFixture("network-idle-opt-in.yaml", {
+        name: "Network Idle Opt-In",
+        baseUrl,
+        steps: [
+          { action: "navigate", url: "/network-polling.html" },
+          {
+            action: "assertVisible",
+            target: { value: "#status", kind: "css", source: "manual" },
+          },
+        ],
+      });
+
+      const result = await play(testFile, {
+        headed: false,
+        timeout: 2_000,
+      });
+
+      expect(result.passed).toBe(true);
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("network idle wait timed out; continuing")
+      );
     } finally {
       warnSpy.mockRestore();
     }

@@ -16,8 +16,13 @@ const { executeRuntimeStepMock } = vi.hoisted(() => ({
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
-  >(async () => false),
+    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+  >(async () => ({
+    navigationTimedOut: false,
+    networkIdleTimedOut: false,
+    usedNavigationWait: false,
+    usedNetworkIdleWait: true,
+  })),
 }));
 
 vi.mock("../runtime/step-executor.js", () => ({
@@ -25,8 +30,8 @@ vi.mock("../runtime/step-executor.js", () => ({
 }));
 
 vi.mock("../runtime/network-idle.js", () => ({
-  DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
-  waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
+  DEFAULT_WAIT_FOR_NETWORK_IDLE: false,
+  waitForPostStepReadiness: waitForPostStepNetworkIdleMock,
 }));
 
 function getExecutedStepAt(callIndex: number): Step {
@@ -39,7 +44,12 @@ describe("assertion apply helpers", () => {
   beforeEach(() => {
     executeRuntimeStepMock.mockClear();
     waitForPostStepNetworkIdleMock.mockClear();
-    waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+    waitForPostStepNetworkIdleMock.mockResolvedValue({
+      navigationTimedOut: false,
+      networkIdleTimedOut: false,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: true,
+    });
   });
 
   it("selects high-confidence candidates and skips low-confidence entries", () => {
@@ -372,7 +382,14 @@ describe("assertion apply helpers", () => {
     expect(outcomes).toHaveLength(2);
     expect(outcomes.find((item) => item.candidateIndex === 0)?.applyStatus).toBe("skipped_runtime_failure");
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
-    expect(waitForPostStepNetworkIdleMock).toHaveBeenCalledWith(expect.anything(), true);
+    expect(waitForPostStepNetworkIdleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: expect.anything(),
+        step: expect.objectContaining({ action: "click" }),
+        waitForNetworkIdle: false,
+        timeoutMs: 1000,
+      })
+    );
   });
 
   it("prefers higher-priority assertion action when confidence is tied", async () => {
@@ -898,9 +915,14 @@ describe("assertion apply helpers", () => {
     expect(outcomes.find((item) => item.candidateIndex === 1)?.applyStatus).toBe("applied");
   });
 
-  it("skips validation for a step when post-step network idle times out", async () => {
+  it("continues validation for a step when post-step network idle times out", async () => {
     executeRuntimeStepMock.mockResolvedValue(undefined);
-    waitForPostStepNetworkIdleMock.mockResolvedValueOnce(true);
+    waitForPostStepNetworkIdleMock.mockResolvedValueOnce({
+      navigationTimedOut: false,
+      networkIdleTimedOut: true,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: true,
+    });
 
     const outcomes = await validateCandidatesAgainstRuntime(
       {} as Page,
@@ -924,9 +946,8 @@ describe("assertion apply helpers", () => {
     );
 
     expect(outcomes).toHaveLength(1);
-    expect(outcomes[0]?.applyStatus).toBe("skipped_runtime_failure");
-    expect(outcomes[0]?.applyMessage).toContain("Post-step network idle wait timed out");
-    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
+    expect(outcomes[0]?.applyStatus).toBe("applied");
+    expect(executeRuntimeStepMock).toHaveBeenCalledTimes(2);
   });
 
   it("keeps runtime-failing assertions as skipped_runtime_failure", async () => {

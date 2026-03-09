@@ -1,24 +1,10 @@
-import type { Locator, Page } from "playwright";
-import { looksLikeLocatorExpression } from "../locator-expression.js";
 import type { Target } from "../yaml-schema.js";
 
-interface SelectorResolutionPayload {
-  resolvedSelector: string;
-}
-
-interface LocatorWithPrivateResolveSelector extends Locator {
-  _resolveSelector?: () => Promise<SelectorResolutionPayload>;
-}
-
 export interface RuntimeSelectorAdapterDependencies {
-  toLocatorExpressionFromSelectorFn?: (
-    page: Page,
-    selector: string
-  ) => string | undefined;
+  convertSelectorFn?: (selector: string) => string | undefined;
 }
 
 export function convertRuntimeTargetToLocatorExpression(
-  page: Page,
   target: Target,
   dependencies: RuntimeSelectorAdapterDependencies = {}
 ): string | undefined {
@@ -26,37 +12,36 @@ export function convertRuntimeTargetToLocatorExpression(
     return undefined;
   }
 
-  const converter = dependencies.toLocatorExpressionFromSelectorFn ?? toLocatorExpressionFromSelector;
-  return converter(page, target.value);
-}
-
-export function getPrivateResolveSelector(
-  locator: Locator
-): (() => Promise<SelectorResolutionPayload>) | undefined {
-  const candidate = locator as LocatorWithPrivateResolveSelector;
-  const maybeFn = candidate._resolveSelector;
-  if (typeof maybeFn !== "function") return undefined;
-  return maybeFn;
-}
-
-export function readResolvedSelectorValue(value: unknown): string | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const maybeSelector = (value as Record<string, unknown>)["resolvedSelector"];
-  if (typeof maybeSelector !== "string") return undefined;
-  const trimmed = maybeSelector.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  const converter = dependencies.convertSelectorFn ?? toLocatorExpressionFromSelector;
+  return converter(target.value);
 }
 
 export function toLocatorExpressionFromSelector(
-  page: Page,
   selector: string
 ): string | undefined {
-  try {
-    const locator = page.locator(selector);
-    const expression = locator.toString();
-    return normalizeLocatorExpression(expression);
-  } catch {
-    return undefined;
+  const terminalSelector = extractTerminalSelectorSegment(selector);
+  if (!terminalSelector) return undefined;
+
+  const internalRole = parseInternalRoleSelector(terminalSelector);
+  if (internalRole?.name) {
+    return `getByRole(${quote(internalRole.role)}, { name: ${quote(internalRole.name)} })`;
+  }
+
+  const engineSelector = parseEngineSelector(terminalSelector);
+  if (!engineSelector) return undefined;
+
+  switch (engineSelector.engine) {
+    case "data-testid":
+    case "data-test-id":
+      return `getByTestId(${quote(engineSelector.body)})`;
+    case "text":
+      return `getByText(${quote(engineSelector.body)})`;
+    case "css":
+      return `locator(${quote(engineSelector.body)})`;
+    case "xpath":
+      return `locator(${quote(engineSelector.body.startsWith("xpath=") ? engineSelector.body : `xpath=${engineSelector.body}`)})`;
+    default:
+      return undefined;
   }
 }
 
@@ -72,18 +57,66 @@ export function shouldRetainFramePath(
   return true;
 }
 
-function normalizeLocatorExpression(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
+function extractTerminalSelectorSegment(selector: string): string | undefined {
+  const parts = selector
+    .split(/\s*>>\s*/u)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const candidate = parts[index];
+    if (!candidate || candidate.startsWith("internal:control=enter-frame")) {
+      continue;
+    }
+    return candidate;
+  }
+  return undefined;
+}
 
-  const withoutAwait = trimmed.replace(/^await\s+/u, "");
-  const withoutSemicolon = withoutAwait.endsWith(";")
-    ? withoutAwait.slice(0, -1).trim()
-    : withoutAwait;
-  const withoutPagePrefix = withoutSemicolon.startsWith("page.")
-    ? withoutSemicolon.slice("page.".length)
-    : withoutSemicolon;
-  const normalized = withoutPagePrefix.trim();
-  if (!looksLikeLocatorExpression(normalized)) return undefined;
-  return normalized;
+function parseEngineSelector(
+  selector: string
+): { engine: string; body: string } | undefined {
+  const index = selector.indexOf("=");
+  if (index <= 0) return undefined;
+  const engine = selector.slice(0, index).trim();
+  const rawBody = selector.slice(index + 1).trim();
+  if (!engine || !rawBody) return undefined;
+  const body = unquote(rawBody) ?? rawBody;
+  return body ? { engine, body } : undefined;
+}
+
+function parseInternalRoleSelector(
+  selector: string
+): { role: string; name?: string } | undefined {
+  const match = /^internal:role=([^[\s]+)(?:\[(.+)\])?$/u.exec(selector);
+  if (!match?.[1]) return undefined;
+  const role = match[1].trim();
+  const attrs = match[2]?.trim();
+  if (!role) return undefined;
+  if (!attrs) return { role };
+
+  const nameMatch = /name=(?:"([^"]*)"|'([^']*)'|([^\]\s]+))(?:[is])?/u.exec(attrs);
+  const rawName = nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3];
+  const name = rawName ? unescapeSelectorValue(rawName) : undefined;
+  return name ? { role, name } : { role };
+}
+
+function quote(value: string): string {
+  return `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n")}'`;
+}
+
+function unquote(value: string): string | undefined {
+  if (value.length < 2) return undefined;
+  const quoteChar = value[0];
+  if ((quoteChar !== "'" && quoteChar !== '"') || value[value.length - 1] !== quoteChar) {
+    return undefined;
+  }
+  return unescapeSelectorValue(value.slice(1, -1));
+}
+
+function unescapeSelectorValue(value: string): string {
+  return value
+    .replace(/\\'/g, "'")
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, "\n")
+    .replace(/\\\\/g, "\\");
 }

@@ -19,7 +19,7 @@ ui-test setup
 | `--headed` | off (headless) |
 | `--timeout <ms>` | 10000 |
 | `--delay <ms>` | 0 |
-| `--wait-network-idle` | on |
+| `--wait-network-idle` | off |
 | `--save-failure-artifacts` | on |
 | `--artifacts-dir <path>` | `.ui-test-artifacts` |
 | `--browser <name>` | chromium |
@@ -32,7 +32,6 @@ Auto-start only applies to `e2e/example.yaml`.
 | Setting | Default |
 |---------|---------|
 | `--output-dir <dir>` | `e2e` |
-| `--selector-policy <policy>` | `reliable` |
 | `--browser <browser>` | chromium |
 | `--no-improve` | off (auto-improve enabled) |
 
@@ -44,3 +43,5 @@ Auto-start only applies to `e2e/example.yaml`.
 | `--assertion-source <source>` | `snapshot-native` |
 | `--assertion-policy <policy>` | `balanced` |
 | `--apply` / `--no-apply` | prompt (interactive) |
+| `--in-place` | off (write improved copy) |
+| `--output <path>` | `<input>.improved.yaml` |

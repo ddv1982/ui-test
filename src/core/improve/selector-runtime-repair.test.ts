@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Locator, Page } from "playwright";
 import { generateRuntimeRepairCandidates } from "./selector-runtime-repair.js";
 
@@ -6,21 +6,13 @@ function pageStub(): Page {
   return {} as Page;
 }
 
-function locatorStub(input: {
-  count: number;
-  resolveSelector?: () => Promise<{ resolvedSelector: string }>;
-}): Locator {
+function locatorStub(input: { count: number }): Locator {
   return {
     count: async () => input.count,
-    _resolveSelector: input.resolveSelector,
   } as unknown as Locator;
 }
 
 describe("generateRuntimeRepairCandidates", () => {
-  afterEach(() => {
-    delete process.env["UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK"];
-  });
-
   it("generates runtime repair via public conversion for dynamic internal selectors", async () => {
     const result = await generateRuntimeRepairCandidates(
       {
@@ -35,21 +27,15 @@ describe("generateRuntimeRepairCandidates", () => {
       },
       {
         resolveLocatorFn: () => locatorStub({ count: 1 }),
-        toLocatorExpressionFromSelectorFn: (_page, selector) => {
-          if (selector.includes("internal:role")) {
-            return "getByRole('link', { name: /winterweer\\s+update/i })";
-          }
-          return undefined;
-        },
       }
     );
 
     expect(result.runtimeUnique).toBe(true);
     expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.target.value).toBe(
+      "getByRole('link', { name: 'Winterweer update Schiphol 12:30' })"
+    );
     expect(result.candidates[0]?.reasonCodes).toContain("locator_repair_playwright_runtime");
-    expect(result.candidates[0]?.dynamicSignals).toEqual([
-      "contains_weather_or_news_fragment",
-    ]);
     expect(result.sourceMarkers).toEqual([
       {
         candidateId: "repair-playwright-runtime-1",
@@ -84,79 +70,27 @@ describe("generateRuntimeRepairCandidates", () => {
     ).toBe(true);
   });
 
-  it("falls back to private resolved selector path when public conversion is unavailable", async () => {
+  it("reports conversion_failed when selector shape cannot be converted", async () => {
     const result = await generateRuntimeRepairCandidates(
       {
         page: pageStub(),
         target: {
-          value: "getByRole('link', { name: 'Winterweer update', exact: true })",
-          kind: "locatorExpression",
+          value: "internal:has-text=/dynamic/",
+          kind: "internal",
           source: "manual",
-          framePath: ["iframe[name='news']"],
         },
-        stepNumber: 5,
-        dynamicSignals: ["exact_true", "contains_weather_or_news_fragment"],
+        stepNumber: 7,
       },
       {
-        resolveLocatorFn: () =>
-          locatorStub({
-            count: 1,
-            resolveSelector: async () => ({ resolvedSelector: "css=a.news-link" }),
-          }),
-        toLocatorExpressionFromSelectorFn: (_page, selector) => {
-          if (selector === "css=a.news-link") {
-            return "getByRole('link', { name: /winterweer/i })";
-          }
-          return undefined;
-        },
+        resolveLocatorFn: () => locatorStub({ count: 1 }),
       }
     );
 
-    expect(result.candidates).toHaveLength(1);
-    expect(result.sourceMarkers).toEqual([
-      {
-        candidateId: "repair-playwright-runtime-1",
-        source: "resolved_selector_fallback",
-      },
-    ]);
+    expect(result.candidates).toHaveLength(0);
     expect(
       result.diagnostics.some(
         (diagnostic) =>
-          diagnostic.code === "selector_repair_playwright_runtime_private_fallback_used"
-      )
-    ).toBe(true);
-    expect(result.candidates[0]?.target.framePath).toEqual(["iframe[name='news']"]);
-  });
-
-  it("skips private fallback when it is explicitly disabled", async () => {
-    process.env["UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK"] = "1";
-
-    const result = await generateRuntimeRepairCandidates(
-      {
-        page: pageStub(),
-        target: {
-          value: "getByRole('link', { name: 'Winterweer update', exact: true })",
-          kind: "locatorExpression",
-          source: "manual",
-        },
-        stepNumber: 5,
-      },
-      {
-        resolveLocatorFn: () =>
-          locatorStub({
-            count: 1,
-            resolveSelector: async () => ({ resolvedSelector: "css=a.news-link" }),
-          }),
-        toLocatorExpressionFromSelectorFn: () => undefined,
-      }
-    );
-
-    expect(result.candidates).toEqual([]);
-    expect(
-      result.diagnostics.some(
-        (diagnostic) =>
-          diagnostic.code ===
-          "selector_repair_playwright_runtime_private_fallback_disabled"
+          diagnostic.code === "selector_repair_playwright_runtime_conversion_failed"
       )
     ).toBe(true);
   });
@@ -183,36 +117,6 @@ describe("generateRuntimeRepairCandidates", () => {
     expect(
       result.diagnostics.some(
         (diagnostic) => diagnostic.code === "selector_repair_playwright_runtime_unavailable"
-      )
-    ).toBe(true);
-  });
-
-  it("reports conversion_failed when private resolved selector cannot be converted", async () => {
-    const result = await generateRuntimeRepairCandidates(
-      {
-        page: pageStub(),
-        target: {
-          value: "getByRole('link', { name: 'Winterweer update', exact: true })",
-          kind: "locatorExpression",
-          source: "manual",
-        },
-        stepNumber: 7,
-      },
-      {
-        resolveLocatorFn: () =>
-          locatorStub({
-            count: 1,
-            resolveSelector: async () => ({ resolvedSelector: "css=a.news-link" }),
-          }),
-        toLocatorExpressionFromSelectorFn: () => undefined,
-      }
-    );
-
-    expect(result.candidates).toHaveLength(0);
-    expect(
-      result.diagnostics.some(
-        (diagnostic) =>
-          diagnostic.code === "selector_repair_playwright_runtime_conversion_failed"
       )
     ).toBe(true);
   });

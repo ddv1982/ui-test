@@ -1,0 +1,51 @@
+name: Flake Soak
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Number of soak iterations"
+        required: false
+        default: "8"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flake-soak-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  flake-soak:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run flake soak
+        env:
+          UI_TEST_FLAKE_ITERATIONS: ${{ github.event.inputs.iterations || '8' }}
+          UI_TEST_FLAKE_REPORT_PATH: .ui-test-artifacts/flake-soak/latest.json
+        run: xvfb-run -a npm run test:flake:soak
+
+      - name: Upload flake soak report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flake-soak-report
+          path: .ui-test-artifacts/flake-soak/latest.json
+          if-no-files-found: warn

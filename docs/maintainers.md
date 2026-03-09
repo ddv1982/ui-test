@@ -12,6 +12,7 @@ npm run typecheck:prod
 npm test
 npm run quality:ci
 npm run test:parity:headed
+npm run test:flake:soak
 npm run test:coverage
 npm run build
 npm run test:smoke
@@ -49,9 +50,13 @@ Workflows run on GitHub-hosted `ubuntu-latest` runners.
 Primary CI workflow (`.github/workflows/ci.yml`) has these jobs:
 
 - `quality-ci`: runs as a Node `20`/`22` matrix, installs Chromium, runs `npm run quality:ci`, then `npm run test:coverage`.
-- `headed-parity`: installs Chromium, runs `xvfb-run -a npm run test:parity:headed`.
+- `headed-parity`: installs Chromium, runs `xvfb-run -a npm run test:parity:headed`; suite resolution fails fast if configured parity suites resolve to zero files.
 - `build`: runs as a Node `20`/`22` matrix and executes `npm run build`, `npm run typecheck:prod`, and packaging/install dry-run checks.
 - `consumer-smoke`: runs `npm run test:smoke` after `quality-ci`, `headed-parity`, and `build` succeed.
+
+Optional soak workflow:
+
+- `.github/workflows/flake-soak.yml`: scheduled/manual multi-iteration integration soak; uploads JSON failure-rate report artifact.
 
 ## Recorder Stability Override
 

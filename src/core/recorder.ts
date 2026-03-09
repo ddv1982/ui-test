@@ -16,6 +16,10 @@ import {
   type CodegenBrowser,
   type CodegenRunOptions,
 } from "./recorder-codegen.js";
+import {
+  canonicalEventsToSteps,
+  stepsToCanonicalEvents,
+} from "./recording/canonical-events.js";
 
 export type RecordBrowser = CodegenBrowser;
 
@@ -104,11 +108,14 @@ export async function record(
   }
 
   const normalizedSteps = normalizeFirstNavigate(steps, options.url);
-  const outputPath = await saveRecordingYaml(options, normalizedSteps);
+  const canonicalizedSteps = canonicalEventsToSteps(
+    stepsToCanonicalEvents(normalizedSteps)
+  );
+  const outputPath = await saveRecordingYaml(options, canonicalizedSteps);
 
   return {
     outputPath,
-    stepCount: normalizedSteps.length,
+    stepCount: canonicalizedSteps.length,
     recordingMode: "codegen",
   };
 }

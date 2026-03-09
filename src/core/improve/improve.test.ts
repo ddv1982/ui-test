@@ -130,6 +130,27 @@ describe("improveTestFile runner", () => {
     return yamlPath;
   }
 
+  async function writeYamlWithOnlyTransientStep(): Promise<string> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "transient-only.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: transient-only",
+        "steps:",
+        "  - action: click",
+        "    target:",
+        '      value: "#cookie-accept"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n") + "\n",
+      "utf-8"
+    );
+    return yamlPath;
+  }
+
   it("fails in review mode when chromium is unavailable", async () => {
     chromiumLaunchMock.mockRejectedValueOnce(new Error("Executable doesn't exist"));
     const yamlPath = await writeSampleYaml();
@@ -228,6 +249,71 @@ describe("improveTestFile runner", () => {
     const written = await fs.readFile(yamlPath, "utf-8");
     expect(written).not.toContain("cookie-accept");
     expect(written).toContain("submit");
+  });
+
+  it("writes apply output to outputPath when provided and preserves the original", async () => {
+    const yamlPath = await writeYamlWithTransientStep();
+    const improvedPath = path.join(path.dirname(yamlPath), "transient.improved.yaml");
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [1],
+    }));
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      outputPath: improvedPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(result.outputPath).toBe(path.resolve(improvedPath));
+
+    const original = await fs.readFile(yamlPath, "utf-8");
+    expect(original).toContain("cookie-accept");
+
+    const improved = await fs.readFile(improvedPath, "utf-8");
+    expect(improved).not.toContain("cookie-accept");
+    expect(improved).toContain("submit");
+  });
+
+  it("blocks YAML write when apply output would fail schema validation", async () => {
+    const yamlPath = await writeYamlWithOnlyTransientStep();
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [0],
+    }));
+
+    const run = improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    await expect(run).rejects.toBeInstanceOf(ValidationError);
+    await expect(run).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.stringContaining("steps: Test must have at least one step"),
+      ]),
+    });
+
+    const unchangedYaml = await fs.readFile(yamlPath, "utf-8");
+    expect(unchangedYaml).toContain("cookie-accept");
+
+    const reportPath = path.join(path.dirname(yamlPath), "transient-only.improve-report.json");
+    const report = JSON.parse(await fs.readFile(reportPath, "utf-8")) as {
+      diagnostics: Array<{ code: string }>;
+    };
+    expect(
+      report.diagnostics.some((diagnostic) => diagnostic.code === "apply_write_blocked_invalid_output")
+    ).toBe(true);
   });
 
   it("does not remove navigate steps even if they fail", async () => {
@@ -408,5 +494,55 @@ describe("improveTestFile runner", () => {
     expect(written).not.toContain("optional:");
     expect(written).toContain("navigate");
     expect(result.report.summary.runtimeFailingStepsRetained).toBe(1);
+  });
+
+  it("retains low-confidence transient removals behind safety guard", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "transient-soft.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: transient-soft",
+        "baseUrl: https://example.com",
+        "steps:",
+        "  - action: navigate",
+        '    url: "/"',
+        "  - action: click",
+        "    target:",
+        '      value: "getByRole(\'button\', { name: \'Close privacy notice\' })"',
+        "      kind: locatorExpression",
+        "      source: manual",
+      ].join("\n") + "\n",
+      "utf-8"
+    );
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [1],
+      selectorRepairCandidates: 0,
+      selectorRepairsApplied: 0,
+    }));
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    const written = await fs.readFile(yamlPath, "utf-8");
+    expect(written).toContain("Close privacy notice");
+    expect(result.report.summary.runtimeFailingStepsRetained).toBe(1);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) =>
+          diagnostic.code === "runtime_failing_step_retained" &&
+          diagnostic.mutationSafety === "unsafe_to_auto_apply"
+      )
+    ).toBe(true);
   });
 });

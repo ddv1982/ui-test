@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Step } from "../yaml-schema.js";
+import type { AssertionCandidate } from "./report-schema.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn<
@@ -12,12 +13,20 @@ const { executeRuntimeStepMock } = vi.hoisted(() => ({
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn<
     typeof import("./assertion-candidates.js").buildAssertionCandidates
-  >(() => []),
+  >(() => ({
+    candidates: [],
+    skippedNavigationLikeClicks: [],
+  })),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
-  >(async () => false),
+    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+  >(async () => ({
+    navigationTimedOut: false,
+    networkIdleTimedOut: false,
+    usedNavigationWait: false,
+    usedNetworkIdleWait: false,
+  })),
 }));
 const { generateRuntimeRepairCandidatesMock } = vi.hoisted(() => ({
   generateRuntimeRepairCandidatesMock: vi.fn<
@@ -56,8 +65,8 @@ vi.mock("../runtime/step-executor.js", () => ({
 }));
 
 vi.mock("../runtime/network-idle.js", () => ({
-  waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
-  DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
+  waitForPostStepReadiness: waitForPostStepNetworkIdleMock,
+  DEFAULT_WAIT_FOR_NETWORK_IDLE: false,
 }));
 
 vi.mock("./candidate-generator.js", () => ({
@@ -136,6 +145,16 @@ function getExecutedStepAt(callIndex: number): Step {
   return call![1];
 }
 
+function deterministicCandidateResult(
+  candidates: AssertionCandidate[],
+  skippedNavigationLikeClicks: Array<{ index: number; reason: string }> = []
+) {
+  return {
+    candidates,
+    skippedNavigationLikeClicks,
+  };
+}
+
 describe("improve apply runtime replay", () => {
   const tempDirs: string[] = [];
 
@@ -143,9 +162,16 @@ describe("improve apply runtime replay", () => {
     executeRuntimeStepMock.mockClear();
     executeRuntimeStepMock.mockImplementation(async () => {});
     buildAssertionCandidatesMock.mockClear();
-    buildAssertionCandidatesMock.mockReturnValue([]);
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([])
+    );
     waitForPostStepNetworkIdleMock.mockClear();
-    waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+    waitForPostStepNetworkIdleMock.mockResolvedValue({
+      navigationTimedOut: false,
+      networkIdleTimedOut: false,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: false,
+    });
     generateRuntimeRepairCandidatesMock.mockClear();
     generateRuntimeRepairCandidatesMock.mockResolvedValue({
       candidates: [],
@@ -316,7 +342,7 @@ describe("improve apply runtime replay", () => {
       sourceMarkers: [
         {
           candidateId: "repair-playwright-runtime-1",
-          source: "resolved_selector_fallback",
+          source: "public_conversion",
         },
       ],
     });
@@ -422,7 +448,7 @@ describe("improve apply runtime replay", () => {
       sourceMarkers: [
         {
           candidateId: "repair-playwright-runtime",
-          source: "resolved_selector_fallback",
+          source: "public_conversion",
         },
       ],
     });
@@ -494,7 +520,8 @@ describe("improve apply runtime replay", () => {
       ].join("\n"),
       "utf-8"
     );
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "fill",
@@ -506,7 +533,8 @@ describe("improve apply runtime replay", () => {
         confidence: 0.9,
         rationale: "stable input value",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -546,7 +574,8 @@ describe("improve apply runtime replay", () => {
       ].join("\n"),
       "utf-8"
     );
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -558,7 +587,8 @@ describe("improve apply runtime replay", () => {
         confidence: 0.9,
         rationale: "stable state check",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -598,7 +628,8 @@ describe("improve apply runtime replay", () => {
       ].join("\n"),
       "utf-8"
     );
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -609,7 +640,8 @@ describe("improve apply runtime replay", () => {
         confidence: 0.6,
         rationale: "insufficient confidence",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -781,7 +813,8 @@ describe("improve apply runtime replay", () => {
       "utf-8"
     );
 
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -807,7 +840,8 @@ describe("improve apply runtime replay", () => {
         rationale: "stronger text candidate",
         candidateSource: "deterministic",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -859,7 +893,8 @@ describe("improve apply runtime replay", () => {
       }
     });
 
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -885,7 +920,8 @@ describe("improve apply runtime replay", () => {
         rationale: "stronger text candidate",
         candidateSource: "deterministic",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -927,7 +963,8 @@ describe("improve apply runtime replay", () => {
       ].join("\n"),
       "utf-8"
     );
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -940,7 +977,8 @@ describe("improve apply runtime replay", () => {
         confidence: 0.98,
         rationale: "snapshot text",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -981,7 +1019,8 @@ describe("improve apply runtime replay", () => {
       ].join("\n"),
       "utf-8"
     );
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1018,7 +1057,8 @@ describe("improve apply runtime replay", () => {
         confidence: 0.93,
         rationale: "snapshot text",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -1058,7 +1098,8 @@ describe("improve apply runtime replay", () => {
       ].join("\n"),
       "utf-8"
     );
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1095,7 +1136,8 @@ describe("improve apply runtime replay", () => {
         confidence: 0.94,
         rationale: "snapshot text",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -1141,7 +1183,8 @@ describe("improve apply runtime replay", () => {
         throw new Error("Expected element to be visible");
       }
     });
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1152,7 +1195,8 @@ describe("improve apply runtime replay", () => {
         confidence: 0.85,
         rationale: "runtime validation candidate",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -1193,7 +1237,8 @@ describe("improve apply runtime replay", () => {
       ].join("\n"),
       "utf-8"
     );
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1217,7 +1262,8 @@ describe("improve apply runtime replay", () => {
         rationale: "secondary assertion",
         candidateSource: "snapshot_native",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,
@@ -1328,13 +1374,18 @@ describe("improve apply runtime replay", () => {
 
     expect(
       result.report.diagnostics.some(
-        (diagnostic) => diagnostic.code === "runtime_network_idle_wait_failed"
+        (diagnostic) => diagnostic.code === "runtime_post_step_readiness_failed"
       )
     ).toBe(true);
   });
 
   it("reports timeout warning when native snapshot network-idle wait times out", async () => {
-    waitForPostStepNetworkIdleMock.mockResolvedValueOnce(true);
+    waitForPostStepNetworkIdleMock.mockResolvedValueOnce({
+      navigationTimedOut: false,
+      networkIdleTimedOut: true,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: true,
+    });
 
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-snapshot-native-timeout-"));
     tempDirs.push(dir);
@@ -1570,7 +1621,8 @@ describe("improve apply runtime replay", () => {
       "      source: manual",
     ].join("\n");
 
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1598,7 +1650,8 @@ describe("improve apply runtime replay", () => {
         rationale: "snapshot visible candidate",
         candidateSource: "snapshot_native",
       },
-    ]);
+      ])
+    );
 
     const reliableDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-policy-reliable-"));
     const balancedDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-policy-balanced-"));
@@ -1650,7 +1703,8 @@ describe("improve apply runtime replay", () => {
     await fs.writeFile(reliableYaml, yamlBase, "utf-8");
     await fs.writeFile(balancedYaml, yamlBase, "utf-8");
 
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1675,7 +1729,8 @@ describe("improve apply runtime replay", () => {
         rationale: "deterministic text",
         candidateSource: "deterministic",
       },
-    ]);
+      ])
+    );
 
     const reliableResult = await improveTestFile({
       testFile: reliableYaml,
@@ -1715,7 +1770,8 @@ describe("improve apply runtime replay", () => {
       "      source: manual",
     ].join("\n");
 
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1727,7 +1783,8 @@ describe("improve apply runtime replay", () => {
         rationale: "snapshot visible candidate",
         candidateSource: "snapshot_native",
       },
-    ]);
+      ])
+    );
 
     const reliableDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-visible-reliable-"));
     const balancedDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-visible-balanced-"));
@@ -1769,7 +1826,8 @@ describe("improve apply runtime replay", () => {
       "      source: manual",
     ].join("\n");
 
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1805,7 +1863,8 @@ describe("improve apply runtime replay", () => {
         rationale: "visible",
         candidateSource: "deterministic",
       },
-    ]);
+      ])
+    );
 
     const reliableDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cap-reliable-"));
     const balancedDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cap-balanced-"));
@@ -1866,7 +1925,8 @@ describe("improve apply runtime replay", () => {
       "utf-8"
     );
 
-    buildAssertionCandidatesMock.mockReturnValue([
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
       {
         index: 1,
         afterAction: "click",
@@ -1878,7 +1938,8 @@ describe("improve apply runtime replay", () => {
         rationale: "snapshot visible candidate",
         candidateSource: "snapshot_native",
       },
-    ]);
+      ])
+    );
 
     const result = await improveTestFile({
       testFile: yamlPath,

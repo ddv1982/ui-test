@@ -15,10 +15,7 @@ const INVENTORY_TEXT_ROLES = new Set([
 ]);
 
 const INVENTORY_VISIBLE_ROLES = new Set([
-  "navigation",
-  "banner",
   "main",
-  "contentinfo",
   "dialog",
   "status",
   "alert",
@@ -37,6 +34,7 @@ export function buildSnapshotInventoryAssertionCandidates(
   const candidates: AssertionCandidate[] = [];
 
   for (const snapshot of snapshots) {
+    if (snapshot.scope === "body") continue;
     const postNodes = parseSnapshotNodes(snapshot.postSnapshot);
     if (postNodes.length === 0) continue;
 
@@ -132,7 +130,7 @@ function buildInventoryTextCandidates(
       },
       confidence: INVENTORY_TEXT_CONFIDENCE,
       rationale:
-        "Coverage fallback (inventory): full post-step aria inventory yielded high-signal text.",
+        "Coverage fallback (inventory): scoped post-step aria snapshot yielded high-signal text.",
       candidateSource: "snapshot_native",
       coverageFallback: true,
     });
@@ -176,7 +174,7 @@ function buildInventoryVisibleCandidates(
       },
       confidence: INVENTORY_VISIBLE_CONFIDENCE,
       rationale:
-        "Coverage fallback (inventory): full post-step aria inventory found stable landmark visibility.",
+        "Coverage fallback (inventory): scoped post-step aria snapshot found stable landmark visibility.",
       candidateSource: "snapshot_native",
       coverageFallback: true,
     });

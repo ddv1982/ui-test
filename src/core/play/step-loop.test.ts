@@ -10,8 +10,13 @@ const { executeRuntimeStepMock } = vi.hoisted(() => ({
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
-  >(async () => false),
+    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+  >(async () => ({
+    navigationTimedOut: false,
+    networkIdleTimedOut: false,
+    usedNavigationWait: false,
+    usedNetworkIdleWait: true,
+  })),
 }));
 const {
   dismissCookieBannerWithDetailsMock,
@@ -35,7 +40,7 @@ vi.mock("../runtime/step-executor.js", () => ({
 }));
 
 vi.mock("../runtime/network-idle.js", () => ({
-  waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
+  waitForPostStepReadiness: waitForPostStepNetworkIdleMock,
 }));
 
 vi.mock("../runtime/cookie-banner.js", () => ({
@@ -124,7 +129,12 @@ describe("runPlayStepLoop warning behavior", () => {
   });
 
   it("suppresses repeated network idle wait warnings after the limit", async () => {
-    waitForPostStepNetworkIdleMock.mockResolvedValue(true);
+    waitForPostStepNetworkIdleMock.mockResolvedValue({
+      navigationTimedOut: false,
+      networkIdleTimedOut: true,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: true,
+    });
     const steps = Array.from({ length: 6 }, (_, index) => makeClickStep(index + 1));
 
     const result = await runPlayStepLoop({
@@ -146,12 +156,17 @@ describe("runPlayStepLoop warning behavior", () => {
     expect(warnMock).toHaveBeenCalledTimes(4);
     expect(warnMock.mock.calls[0]?.[0]).toContain("network idle wait timed out; continuing.");
     expect(warnMock.mock.calls[3]?.[0]).toBe(
-      "Additional network idle wait warnings will be suppressed for this test file."
+      "Additional post-step readiness warnings will be suppressed for this test file."
     );
   });
 
   it("does not warn when post-step network idle waits do not time out", async () => {
-    waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+    waitForPostStepNetworkIdleMock.mockResolvedValue({
+      navigationTimedOut: false,
+      networkIdleTimedOut: false,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: true,
+    });
     const steps = [makeClickStep(1), makeClickStep(2)];
 
     const result = await runPlayStepLoop({

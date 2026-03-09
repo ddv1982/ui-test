@@ -17,8 +17,10 @@ import { classifyRuntimeFailingStep } from "./runtime-failure-classifier.js";
 import {
   type ImproveAssertionPolicy,
   type ImproveAssertionSource,
+  type ImproveAppliedBy,
   type ImproveOptions,
   type ImproveResult,
+  RUNTIME_STEP_REMOVE_MIN_CONFIDENCE,
 } from "./improve-types.js";
 import { DEFAULT_IMPROVE_ASSERTION_POLICY } from "./assertion-policy.js";
 import {
@@ -51,6 +53,14 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
   const test = parsedTest.data;
   const diagnostics: ImproveDiagnostic[] = [];
   let effectiveOptions = options;
+  const dryRunWrite = options.dryRunWrite === true;
+  const appliedBy: ImproveAppliedBy =
+    options.appliedBy ??
+    (dryRunWrite
+      ? "plan_preview"
+      : options.applySelectors || options.applyAssertions
+        ? "manual_apply"
+        : "report_only");
 
   if (effectiveOptions.applyAssertions && effectiveOptions.assertions === "none") {
     diagnostics.push({
@@ -58,6 +68,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       level: "warn",
       message:
         "applyAssertions was requested but assertions mode is 'none'; downgrading to applyAssertions=false.",
+      mutationType: "none",
+      mutationSafety: "safe",
+      appliedBy,
     });
     effectiveOptions = { ...effectiveOptions, applyAssertions: false };
   }
@@ -70,6 +83,10 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       code: "stale_assertion_detected",
       level: "warn",
       message: `Step ${staleAssertion.index + 1}: detected stale assertion (${staleAssertion.reason}).`,
+      mutationType: "none",
+      mutationSafety: "review_required",
+      evidenceRefs: ["stale_assertion_detected"],
+      appliedBy,
     });
   }
 
@@ -82,6 +99,11 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         code: "stale_assertion_removed",
         level: "info",
         message: `Step ${staleAssertion.index + 1}: removed stale assertion (${staleAssertion.reason}).`,
+        decisionConfidence: 0.95,
+        mutationType: "stale_assertion_removal",
+        mutationSafety: "safe",
+        evidenceRefs: ["stale_assertion_detected"],
+        appliedBy,
       });
     }
   }
@@ -127,23 +149,42 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
 
         const classification = classifyRuntimeFailingStep(step);
         const originalIndex = outputStepOriginalIndexes[index] ?? index;
-        if (classification.disposition === "remove") {
+        const safeToAutoRemove =
+          classification.disposition === "remove" &&
+          classification.mutationSafety === "safe" &&
+          classification.decisionConfidence >= RUNTIME_STEP_REMOVE_MIN_CONFIDENCE;
+
+        if (safeToAutoRemove) {
           failedIndexesToRemove.add(index);
           diagnostics.push({
             code: "runtime_failing_step_removed",
             level: "info",
             message:
               `Step ${originalIndex + 1}: removed because it failed at runtime (${classification.reason}).`,
+            decisionConfidence: classification.decisionConfidence,
+            mutationType: "runtime_step_removal",
+            mutationSafety: classification.mutationSafety,
+            evidenceRefs: classification.evidenceRefs,
+            appliedBy,
           });
           continue;
         }
 
         failedIndexesToRetain.add(index);
+        const safetySuffix =
+          classification.disposition === "remove"
+            ? " Auto-removal blocked by safety guard."
+            : "";
         diagnostics.push({
           code: "runtime_failing_step_retained",
           level: "info",
           message:
-            `Step ${originalIndex + 1}: retained as required step after runtime failure (${classification.reason}).`,
+            `Step ${originalIndex + 1}: retained as required step after runtime failure (${classification.reason}).${safetySuffix}`,
+          decisionConfidence: classification.decisionConfidence,
+          mutationType: "runtime_step_retention",
+          mutationSafety: classification.mutationSafety,
+          evidenceRefs: classification.evidenceRefs,
+          appliedBy,
         });
       }
     }
@@ -209,11 +250,63 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     const assertionFallback = buildAssertionFallbackApplySummary(
       assertionPass.assertionCandidates
     );
+    const outputValidationIssues: string[] = [];
+    if (wantsWrite) {
+      const candidateOutput = {
+        name: test.name,
+        ...(test.description !== undefined ? { description: test.description } : {}),
+        ...(test.baseUrl !== undefined ? { baseUrl: test.baseUrl } : {}),
+        steps: assertionPass.outputSteps,
+      };
+      const validatedOutput = testSchema.safeParse(candidateOutput);
+      if (!validatedOutput.success) {
+        outputValidationIssues.push(
+          ...validatedOutput.error.issues.map((issue) => {
+            const issuePath = issue.path.length > 0 ? issue.path.join(".") : "(root)";
+            return `${issuePath}: ${issue.message}`;
+          })
+        );
+        diagnostics.push({
+          code: "apply_write_blocked_invalid_output",
+          level: "error",
+          message:
+            "Apply-mode output failed schema validation; YAML write was blocked to prevent an invalid test file.",
+          mutationType: "none",
+          mutationSafety: "safe",
+          evidenceRefs: ["output_validation_failed"],
+          appliedBy,
+        });
+      }
+    }
+    const reportPath = effectiveOptions.reportPath
+      ? path.resolve(effectiveOptions.reportPath)
+      : defaultReportPath(absoluteTestPath);
+
+    diagnostics.push({
+      code: "reproducibility_hint",
+      level: "info",
+      message: `Reproduce runtime behavior with: ui-test play ${absoluteTestPath}`,
+      mutationType: "none",
+      mutationSafety: "safe",
+      evidenceRefs: ["repro:play"],
+      appliedBy,
+    });
+    diagnostics.push({
+      code: "reproducibility_hint",
+      level: "info",
+      message:
+        `Re-run improve report with: ui-test improve ${absoluteTestPath} --no-apply --report ${reportPath}`,
+      mutationType: "none",
+      mutationSafety: "safe",
+      evidenceRefs: ["repro:improve_report"],
+      appliedBy,
+    });
 
     const report: ImproveReport = {
       testFile: absoluteTestPath,
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
+      appliedBy,
       summary: {
         unchanged: postRemovalFindings.filter((item) => !item.changed).length,
         improved: postRemovalFindings.filter((item) => item.changed).length,
@@ -231,10 +324,6 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           selectorPass.selectorRepairsGeneratedByPlaywrightRuntime ?? 0,
         selectorRepairsAppliedFromPlaywrightRuntime:
           selectorPass.selectorRepairsAppliedFromPlaywrightRuntime ?? 0,
-        selectorRepairsGeneratedByPrivateFallback:
-          selectorPass.selectorRepairsGeneratedByPrivateFallback ?? 0,
-        selectorRepairsAppliedFromPrivateFallback:
-          selectorPass.selectorRepairsAppliedFromPrivateFallback ?? 0,
         deterministicAssertionsSkippedNavigationLikeClick:
           assertionPass.deterministicAssertionsSkippedNavigationLikeClick ?? 0,
         runtimeFailingStepsRetained: failedIndexesToRetain.size,
@@ -270,15 +359,22 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     };
 
     const validatedReport = improveReportSchema.parse(report);
-    const reportPath = effectiveOptions.reportPath
-      ? path.resolve(effectiveOptions.reportPath)
-      : defaultReportPath(absoluteTestPath);
 
     await fs.mkdir(path.dirname(reportPath), { recursive: true });
     await fs.writeFile(reportPath, JSON.stringify(validatedReport, null, 2), "utf-8");
 
+    if (outputValidationIssues.length > 0) {
+      throw new ValidationError(
+        `Improve apply aborted: generated output is invalid and was not written (${absoluteTestPath}).`,
+        outputValidationIssues
+      );
+    }
+
     let outputPath: string | undefined;
-    if (wantsWrite) {
+    if (wantsWrite && !dryRunWrite) {
+      const absoluteOutputPath = effectiveOptions.outputPath
+        ? path.resolve(effectiveOptions.outputPath)
+        : absoluteTestPath;
       const yamlOptions: { description?: string; baseUrl?: string } = {};
       if (test.description !== undefined) {
         yamlOptions.description = test.description;
@@ -287,8 +383,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         yamlOptions.baseUrl = test.baseUrl;
       }
       const yamlOut = stepsToYaml(test.name, assertionPass.outputSteps, yamlOptions);
-      await fs.writeFile(absoluteTestPath, yamlOut, "utf-8");
-      outputPath = absoluteTestPath;
+      await fs.mkdir(path.dirname(absoluteOutputPath), { recursive: true });
+      await fs.writeFile(absoluteOutputPath, yamlOut, "utf-8");
+      outputPath = absoluteOutputPath;
     }
 
     const improveResult: ImproveResult = {
@@ -297,6 +394,14 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     };
     if (outputPath !== undefined) {
       improveResult.outputPath = outputPath;
+    }
+    if (options.includeProposedTest) {
+      improveResult.proposedTest = {
+        name: test.name,
+        ...(test.description !== undefined ? { description: test.description } : {}),
+        ...(test.baseUrl !== undefined ? { baseUrl: test.baseUrl } : {}),
+        steps: assertionPass.outputSteps,
+      };
     }
     return improveResult;
   } finally {

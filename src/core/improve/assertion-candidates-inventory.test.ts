@@ -16,14 +16,17 @@ describe("buildSnapshotInventoryAssertionCandidates", () => {
           action: "click",
           target: { value: "#submit", kind: "css", source: "manual" },
         },
-        preSnapshot: snapshot,
+        preSnapshot: "- generic [ref=e1]:\n",
         postSnapshot: snapshot,
+        scope: "landmark",
       },
     ]);
 
-    expect(out).toHaveLength(2);
-    expect(out[0]?.candidate.action).toBe("assertText");
-    expect(out[1]?.candidate.action).toBe("assertVisible");
+    expect(out).toHaveLength(1);
+    expect(out[0]?.candidate).toMatchObject({
+      action: "assertText",
+      text: "Welcome",
+    });
   });
 
   it("excludes noisy and acted-target-like nodes", () => {
@@ -45,6 +48,7 @@ describe("buildSnapshotInventoryAssertionCandidates", () => {
           '  - heading "12345" [level=2] [ref=e3]',
           '  - navigation "Main menu" [ref=e4]',
         ].join("\n") + "\n",
+        scope: "landmark",
       },
     ]);
 
@@ -64,7 +68,7 @@ describe("buildSnapshotInventoryAssertionCandidates", () => {
     ).toBe(false);
     expect(
       out.some((candidate) => candidate.candidate.action === "assertVisible")
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("caps inventory output to two candidates per step", () => {
@@ -83,6 +87,7 @@ describe("buildSnapshotInventoryAssertionCandidates", () => {
           '  - navigation "Main menu" [ref=e4]',
           '  - dialog "Confirmation" [ref=e5]',
         ].join("\n") + "\n",
+        scope: "landmark",
       },
     ]);
 
@@ -104,6 +109,7 @@ describe("buildSnapshotInventoryAssertionCandidates", () => {
           "- generic [ref=e1]:",
           '  - heading "Results" [level=1] [ref=e2]',
         ].join("\n") + "\n",
+        scope: "landmark",
       },
     ]);
 

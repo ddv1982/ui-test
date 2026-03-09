@@ -59,8 +59,8 @@ describe("installOverlayHandlers", () => {
       {
         dismissOverlayFn: vi.fn(async () => ({
           dismissed: true,
-          category: "non_cookie_overlay",
-          strategy: "modal_close_control",
+          category: "non_cookie_overlay" as const,
+          strategy: "modal_close_control" as const,
           frameUrl: "https://example.test",
         })),
       }

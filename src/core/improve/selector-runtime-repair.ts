@@ -9,13 +9,11 @@ import {
 import type { ImproveDiagnostic } from "./report-schema.js";
 import {
   convertRuntimeTargetToLocatorExpression,
-  getPrivateResolveSelector,
-  readResolvedSelectorValue,
   shouldRetainFramePath,
   toLocatorExpressionFromSelector,
 } from "./playwright-runtime-selector-adapter.js";
 
-export type RuntimeRepairSource = "public_conversion" | "resolved_selector_fallback";
+export type RuntimeRepairSource = "public_conversion";
 
 export interface RuntimeRepairSourceMarker {
   candidateId: string;
@@ -24,10 +22,7 @@ export interface RuntimeRepairSourceMarker {
 
 export interface RuntimeRepairDependencies {
   resolveLocatorFn?: typeof resolveLocator;
-  toLocatorExpressionFromSelectorFn?: (
-    page: Page,
-    selector: string
-  ) => string | undefined;
+  toLocatorExpressionFromSelectorFn?: (selector: string) => string | undefined;
 }
 
 export interface RuntimeRepairInput {
@@ -147,110 +142,11 @@ export async function generateRuntimeRepairCandidates(
   };
 
   const publicCandidate = tryPublicConversion(
-    input.page,
     input.target,
     toLocatorExpressionFromSelectorFn
   );
   if (publicCandidate) {
     pushCandidate(publicCandidate, "public_conversion");
-  }
-
-  if (candidateByKey.size === 0) {
-    if (isPlaywrightRuntimePrivateFallbackDisabled()) {
-      diagnostics.push({
-        code: "selector_repair_playwright_runtime_private_fallback_disabled",
-        level: "info",
-        message:
-          `Step ${input.stepNumber}: skipped Playwright private selector fallback because UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK=1.`,
-      });
-      return {
-        candidates: [],
-        diagnostics,
-        dynamicSignals,
-        runtimeUnique: true,
-        sourceMarkers,
-      };
-    }
-
-    const privateResolveSelector = readPrivateResolveSelector(locator);
-    if (!privateResolveSelector) {
-      diagnostics.push({
-        code: "selector_repair_playwright_runtime_unavailable",
-        level: "warn",
-        message:
-          `Step ${input.stepNumber}: Playwright private selector resolver (_resolveSelector) was unavailable.`,
-      });
-      return {
-        candidates: [],
-        diagnostics,
-        dynamicSignals,
-        runtimeUnique: true,
-        sourceMarkers,
-      };
-    }
-
-    let resolvedSelector: string | undefined;
-    try {
-      resolvedSelector = readResolvedSelectorValue(await privateResolveSelector());
-    } catch {
-      diagnostics.push({
-        code: "selector_repair_playwright_runtime_unavailable",
-        level: "warn",
-        message:
-          `Step ${input.stepNumber}: Playwright private selector resolution failed during regeneration.`,
-      });
-      return {
-        candidates: [],
-        diagnostics,
-        dynamicSignals,
-        runtimeUnique: true,
-        sourceMarkers,
-      };
-    }
-
-    if (!resolvedSelector) {
-      diagnostics.push({
-        code: "selector_repair_playwright_runtime_conversion_failed",
-        level: "warn",
-        message:
-          `Step ${input.stepNumber}: Playwright runtime selector did not return a valid resolved selector.`,
-      });
-      return {
-        candidates: [],
-        diagnostics,
-        dynamicSignals,
-        runtimeUnique: true,
-        sourceMarkers,
-      };
-    }
-
-    const fallbackExpression = toLocatorExpressionFromSelectorFn(
-      input.page,
-      resolvedSelector
-    );
-    if (!fallbackExpression) {
-      diagnostics.push({
-        code: "selector_repair_playwright_runtime_conversion_failed",
-        level: "warn",
-        message:
-          `Step ${input.stepNumber}: could not convert resolved selector to a locator expression.`,
-      });
-      return {
-        candidates: [],
-        diagnostics,
-        dynamicSignals,
-        runtimeUnique: true,
-        sourceMarkers,
-      };
-    }
-
-    pushCandidate(fallbackExpression, "resolved_selector_fallback");
-    diagnostics.push({
-      code: "selector_repair_playwright_runtime_private_fallback_used",
-      level: "info",
-      message:
-        `Step ${input.stepNumber}: selector repair used Playwright private resolver fallback.`,
-    });
   }
 
   if (candidateByKey.size === 0) {
@@ -272,21 +168,14 @@ export async function generateRuntimeRepairCandidates(
 }
 
 function tryPublicConversion(
-  page: Page,
   target: Target,
   toLocatorExpressionFromSelectorFn: RuntimeRepairDependencies["toLocatorExpressionFromSelectorFn"]
 ): string | undefined {
   const adapterDependencies =
     toLocatorExpressionFromSelectorFn === undefined
       ? {}
-      : { toLocatorExpressionFromSelectorFn };
-  return convertRuntimeTargetToLocatorExpression(page, target, adapterDependencies);
-}
-
-function readPrivateResolveSelector(
-  locator: Locator
-): (() => Promise<{ resolvedSelector: string }>) | undefined {
-  return getPrivateResolveSelector(locator);
+      : { convertSelectorFn: toLocatorExpressionFromSelectorFn };
+  return convertRuntimeTargetToLocatorExpression(target, adapterDependencies);
 }
 
 function targetKey(target: Target): string {
@@ -295,8 +184,4 @@ function targetKey(target: Target): string {
     kind: target.kind,
     framePath: target.framePath ?? [],
   });
-}
-
-function isPlaywrightRuntimePrivateFallbackDisabled(): boolean {
-  return process.env["UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK"] === "1";
 }

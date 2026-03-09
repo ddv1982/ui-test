@@ -15,17 +15,14 @@ export function applySelectionAndRecordFinding(input: {
   scored: TargetCandidateScore[];
   diagnostics: ImproveDiagnostic[];
   runtimeRepairCandidateKeys: Set<string>;
-  privateFallbackRuntimeRepairCandidateKeys: Set<string>;
 }): {
   selectorRepairsApplied: number;
   selectorRepairsAdoptedOnTie: number;
   selectorRepairsAppliedFromPlaywrightRuntime: number;
-  selectorRepairsAppliedFromPrivateFallback: number;
 } {
   let selectorRepairsApplied = 0;
   let selectorRepairsAdoptedOnTie = 0;
   let selectorRepairsAppliedFromPlaywrightRuntime = 0;
-  let selectorRepairsAppliedFromPrivateFallback = 0;
 
   if (!input.selection.adopt && input.selection.improveOpportunity) {
     input.diagnostics.push({
@@ -37,7 +34,6 @@ export function applySelectionAndRecordFinding(input: {
       selectorRepairsApplied,
       selectorRepairsAdoptedOnTie,
       selectorRepairsAppliedFromPlaywrightRuntime,
-      selectorRepairsAppliedFromPrivateFallback,
     };
   }
 
@@ -46,7 +42,6 @@ export function applySelectionAndRecordFinding(input: {
       selectorRepairsApplied,
       selectorRepairsAdoptedOnTie,
       selectorRepairsAppliedFromPlaywrightRuntime,
-      selectorRepairsAppliedFromPrivateFallback,
     };
   }
 
@@ -75,9 +70,6 @@ export function applySelectionAndRecordFinding(input: {
 
     if (selectedByRuntime) {
       selectorRepairsAppliedFromPlaywrightRuntime += 1;
-      if (input.privateFallbackRuntimeRepairCandidateKeys.has(selectedKey)) {
-        selectorRepairsAppliedFromPrivateFallback += 1;
-      }
     }
 
     input.diagnostics.push({
@@ -114,6 +106,5 @@ export function applySelectionAndRecordFinding(input: {
     selectorRepairsApplied,
     selectorRepairsAdoptedOnTie,
     selectorRepairsAppliedFromPlaywrightRuntime,
-    selectorRepairsAppliedFromPrivateFallback,
   };
 }

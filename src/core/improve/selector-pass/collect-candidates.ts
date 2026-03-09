@@ -15,9 +15,7 @@ export interface CollectedCandidatesResult {
   candidates: TargetCandidate[];
   selectorRepairCandidatesAdded: number;
   selectorRepairsGeneratedByPlaywrightRuntime: number;
-  selectorRepairsGeneratedByPrivateFallback: number;
   runtimeRepairCandidateKeys: Set<string>;
-  privateFallbackRuntimeRepairCandidateKeys: Set<string>;
 }
 
 export async function collectCandidatesForStep(input: {
@@ -32,7 +30,6 @@ export async function collectCandidatesForStep(input: {
     candidates.map((candidate) => selectorTargetKey(candidate.target))
   );
   const runtimeRepairCandidateKeys = new Set<string>();
-  const privateFallbackRuntimeRepairCandidateKeys = new Set<string>();
 
   const dynamicAssessment = assessTargetDynamics(input.step.target);
   let dynamicSignals = [...dynamicAssessment.dynamicSignals];
@@ -61,7 +58,6 @@ export async function collectCandidatesForStep(input: {
   }
 
   let selectorRepairsGeneratedByPlaywrightRuntime = 0;
-  let selectorRepairsGeneratedByPrivateFallback = 0;
   if (input.page && dynamicSignals.length > 0) {
     if (input.runtimeRegenerationDisabled) {
       input.diagnostics.push({
@@ -87,13 +83,11 @@ export async function collectCandidatesForStep(input: {
         if (existingCandidateKeys.has(key)) continue;
         existingCandidateKeys.add(key);
         runtimeRepairCandidateKeys.add(key);
-        if (markerByCandidateId.get(candidate.id) === "resolved_selector_fallback") {
-          privateFallbackRuntimeRepairCandidateKeys.add(key);
-          selectorRepairsGeneratedByPrivateFallback += 1;
-        }
         candidates.push(candidate);
         selectorRepairCandidatesAdded += 1;
-        selectorRepairsGeneratedByPlaywrightRuntime += 1;
+        if (markerByCandidateId.get(candidate.id) === "public_conversion") {
+          selectorRepairsGeneratedByPlaywrightRuntime += 1;
+        }
       }
     }
   }
@@ -119,8 +113,6 @@ export async function collectCandidatesForStep(input: {
     candidates,
     selectorRepairCandidatesAdded,
     selectorRepairsGeneratedByPlaywrightRuntime,
-    selectorRepairsGeneratedByPrivateFallback,
     runtimeRepairCandidateKeys,
-    privateFallbackRuntimeRepairCandidateKeys,
   };
 }

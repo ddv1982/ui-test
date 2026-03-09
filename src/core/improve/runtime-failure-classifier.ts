@@ -75,28 +75,41 @@ function matchesCmpSelector(targetValue: string, targetKind: string): boolean {
 }
 
 export type RuntimeFailureDisposition = "remove" | "retain";
+export type RuntimeFailureMutationSafety =
+  | "safe"
+  | "review_required"
+  | "unsafe_to_auto_apply";
 
 export interface RuntimeFailureClassification {
   disposition: RuntimeFailureDisposition;
   reason: string;
+  decisionConfidence: number;
+  mutationSafety: RuntimeFailureMutationSafety;
+  evidenceRefs: string[];
 }
 
 export function classifyRuntimeFailingStep(
   step: Step
 ): RuntimeFailureClassification {
   if (step.action === "navigate") {
-    return {
-      disposition: "retain",
-      reason: "navigation steps are never auto-removed",
-    };
+    return makeClassification("retain", "navigation steps are never auto-removed", {
+      decisionConfidence: 1,
+      mutationSafety: "safe",
+      evidenceRefs: ["action:navigate"],
+    });
   }
 
   const isInteraction = step.action === "click" || step.action === "press";
   if (!isInteraction) {
-    return {
-      disposition: "retain",
-      reason: "non-interaction steps are never auto-removed by transient policy",
-    };
+    return makeClassification(
+      "retain",
+      "non-interaction steps are never auto-removed by transient policy",
+      {
+        decisionConfidence: 1,
+        mutationSafety: "safe",
+        evidenceRefs: [`action:${step.action}`],
+      }
+    );
   }
 
   // --- Early cookie-consent detection via shared patterns ---
@@ -104,18 +117,24 @@ export function classifyRuntimeFailingStep(
 
   const accessibleName = extractAccessibleName(targetValue);
   if (accessibleName && isCookieConsentDismissText(accessibleName)) {
-    return {
-      disposition: "remove",
-      reason: "classified as cookie-consent dismiss interaction (multilingual pattern match)",
-    };
+    return makeClassification(
+      "remove",
+      "classified as cookie-consent dismiss interaction (multilingual pattern match)",
+      {
+        decisionConfidence: 0.98,
+        mutationSafety: "safe",
+        evidenceRefs: ["pattern:cookie_consent_text", `accessible_name:${accessibleName}`],
+      }
+    );
   }
 
   const targetKind = "target" in step ? step.target.kind : "unknown";
   if (matchesCmpSelector(targetValue, targetKind)) {
-    return {
-      disposition: "remove",
-      reason: "classified as cookie-consent CMP selector interaction",
-    };
+    return makeClassification("remove", "classified as cookie-consent CMP selector interaction", {
+      decisionConfidence: 0.97,
+      mutationSafety: "safe",
+      evidenceRefs: ["pattern:cmp_selector", `target_kind:${targetKind}`],
+    });
   }
 
   // --- Existing transient-context classification ---
@@ -130,10 +149,11 @@ export function classifyRuntimeFailingStep(
   const hasAnyTransientContext = hasStrongTransientContext || hasSoftTransientContext;
 
   if (!hasAnyTransientContext) {
-    return {
-      disposition: "retain",
-      reason: "classified as non-transient interaction",
-    };
+    return makeClassification("retain", "classified as non-transient interaction", {
+      decisionConfidence: 0.93,
+      mutationSafety: "safe",
+      evidenceRefs: ["context:non_transient"],
+    });
   }
 
   const hasDismissIntent = DISMISS_INTENT_PATTERN.test(stepText);
@@ -153,42 +173,82 @@ export function classifyRuntimeFailingStep(
     );
 
   if (looksLikeContentLink) {
-    return {
-      disposition: "retain",
-      reason: "transient-context safeguard: likely content link interaction",
-    };
+    return makeClassification(
+      "retain",
+      "transient-context safeguard: likely content link interaction",
+      {
+        decisionConfidence: 0.9,
+        mutationSafety: "review_required",
+        evidenceRefs: ["safeguard:content_link", "role:link"],
+      }
+    );
   }
 
   if (hasBusinessIntent && !hasStrongTransientContext) {
-    return {
-      disposition: "retain",
-      reason: "transient-context safeguard: likely business-intent interaction",
-    };
+    return makeClassification(
+      "retain",
+      "transient-context safeguard: likely business-intent interaction",
+      {
+        decisionConfidence: 0.88,
+        mutationSafety: "review_required",
+        evidenceRefs: ["safeguard:business_intent"],
+      }
+    );
   }
 
   if (hasStrongTransientContext && (hasDismissIntent || hasControlCue)) {
-    return {
-      disposition: "remove",
-      reason: "classified as transient dismissal/control interaction",
-    };
+    return makeClassification("remove", "classified as transient dismissal/control interaction", {
+      decisionConfidence: 0.92,
+      mutationSafety: "safe",
+      evidenceRefs: [
+        "context:strong_transient",
+        hasDismissIntent ? "signal:dismiss_intent" : "signal:no_dismiss_intent",
+        hasControlCue ? "signal:control_cue" : "signal:no_control_cue",
+      ],
+    });
   }
 
   if (hasStrongTransientContext) {
-    return {
-      disposition: "remove",
-      reason: "classified as strong transient-context interaction",
-    };
+    return makeClassification("remove", "classified as strong transient-context interaction", {
+      decisionConfidence: 0.78,
+      mutationSafety: "review_required",
+      evidenceRefs: ["context:strong_transient"],
+    });
   }
 
   if (hasDismissIntent && hasControlCue) {
-    return {
-      disposition: "remove",
-      reason: "classified as soft transient dismissal/control interaction",
-    };
+    return makeClassification(
+      "remove",
+      "classified as soft transient dismissal/control interaction",
+      {
+        decisionConfidence: 0.72,
+        mutationSafety: "unsafe_to_auto_apply",
+        evidenceRefs: ["context:soft_transient", "signal:dismiss_intent", "signal:control_cue"],
+      }
+    );
   }
 
+  return makeClassification("retain", "transient context without dismissal/control confidence", {
+    decisionConfidence: 0.74,
+    mutationSafety: "review_required",
+    evidenceRefs: ["context:soft_transient", "signal:insufficient_confidence"],
+  });
+}
+
+function makeClassification(
+  disposition: RuntimeFailureDisposition,
+  reason: string,
+  extras: {
+    decisionConfidence: number;
+    mutationSafety: RuntimeFailureMutationSafety;
+    evidenceRefs: string[];
+  }
+): RuntimeFailureClassification {
   return {
-    disposition: "retain",
-    reason: "transient context without dismissal/control confidence",
+    disposition,
+    reason,
+    decisionConfidence: extras.decisionConfidence,
+    mutationSafety: extras.mutationSafety,
+    evidenceRefs: extras.evidenceRefs,
   };
 }

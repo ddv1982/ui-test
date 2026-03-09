@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
 import {
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
-  waitForPostStepNetworkIdle,
+  waitForPostStepReadiness,
 } from "../runtime/network-idle.js";
 import type { Step } from "../yaml-schema.js";
 import type { AssertionApplyOutcome } from "./assertion-apply-types.js";
@@ -67,6 +67,12 @@ export async function validateCandidatesAgainstRuntime(
     if (!step) continue;
 
     try {
+      let beforeUrl: string | undefined;
+      try {
+        beforeUrl = page.url();
+      } catch {
+        beforeUrl = undefined;
+      }
       await executeRuntimeStep(
         page,
         step,
@@ -74,20 +80,13 @@ export async function validateCandidatesAgainstRuntime(
           ? { timeout: options.timeout, mode: "analysis" }
           : { timeout: options.timeout, baseUrl: options.baseUrl, mode: "analysis" }
       );
-      const networkIdleTimedOut = await waitForPostStepNetworkIdle(
+      await waitForPostStepReadiness({
         page,
-        waitForNetworkIdle
-      );
-      if (networkIdleTimedOut) {
-        for (const candidateRef of candidatesByStepIndex.get(index) ?? []) {
-          outcomes.push({
-            candidateIndex: candidateRef.candidateIndex,
-            applyStatus: "skipped_runtime_failure",
-            applyMessage: "Post-step network idle wait timed out; assertion skipped.",
-          });
-        }
-        continue;
-      }
+        step,
+        waitForNetworkIdle,
+        timeoutMs: options.timeout,
+        beforeUrl,
+      });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Unknown runtime replay failure.";

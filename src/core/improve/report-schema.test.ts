@@ -7,6 +7,7 @@ describe("improveReportSchema", () => {
       testFile: "/tmp/sample.yaml",
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
+      appliedBy: "report_only",
       summary: {
         unchanged: 1,
         improved: 1,
@@ -20,8 +21,6 @@ describe("improveReportSchema", () => {
         selectorRepairsAdoptedOnTie: 1,
         selectorRepairsGeneratedByPlaywrightRuntime: 1,
         selectorRepairsAppliedFromPlaywrightRuntime: 1,
-        selectorRepairsGeneratedByPrivateFallback: 1,
-        selectorRepairsAppliedFromPrivateFallback: 1,
         deterministicAssertionsSkippedNavigationLikeClick: 2,
         runtimeFailingStepsRetained: 2,
         runtimeFailingStepsRemoved: 1,
@@ -80,7 +79,18 @@ describe("improveReportSchema", () => {
           applyMessage: "Skipped by policy",
         },
       ],
-      diagnostics: [],
+      diagnostics: [
+        {
+          code: "runtime_failing_step_retained",
+          level: "info",
+          message: "Step 2 retained after runtime failure.",
+          decisionConfidence: 0.74,
+          mutationType: "runtime_step_retention",
+          mutationSafety: "unsafe_to_auto_apply",
+          evidenceRefs: ["context:soft_transient"],
+          appliedBy: "report_only",
+        },
+      ],
     });
 
     expect(parsed.summary.appliedAssertions).toBe(1);
@@ -89,8 +99,6 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.selectorRepairsAdoptedOnTie).toBe(1);
     expect(parsed.summary.selectorRepairsGeneratedByPlaywrightRuntime).toBe(1);
     expect(parsed.summary.selectorRepairsAppliedFromPlaywrightRuntime).toBe(1);
-    expect(parsed.summary.selectorRepairsGeneratedByPrivateFallback).toBe(1);
-    expect(parsed.summary.selectorRepairsAppliedFromPrivateFallback).toBe(1);
     expect(parsed.summary.deterministicAssertionsSkippedNavigationLikeClick).toBe(2);
     expect(parsed.summary.runtimeFailingStepsRetained).toBe(2);
     expect(parsed.summary.assertionCandidatesFilteredDynamic).toBe(1);
@@ -107,6 +115,8 @@ describe("improveReportSchema", () => {
     expect(parsed.summary.assertionInventoryGapStepsFilled).toBe(2);
     expect(parsed.summary.assertionApplyStatusCounts?.applied).toBe(1);
     expect(parsed.summary.assertionCandidateSourceCounts?.snapshot_native).toBe(1);
+    expect(parsed.appliedBy).toBe("report_only");
+    expect(parsed.diagnostics[0]?.decisionConfidence).toBe(0.74);
     expect(parsed.assertionCandidates[0]?.candidateSource).toBe("deterministic");
     expect(parsed.assertionCandidates[0]?.coverageFallback).toBe(true);
     expect(parsed.assertionCandidates[0]?.applyStatus).toBe("applied");

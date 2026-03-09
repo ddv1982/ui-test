@@ -14,6 +14,11 @@ export function registerImprove(program: Command) {
     .argument("<test-file>", "Path to the YAML test file to analyze")
     .option("--apply", "Apply all improvements (selectors and assertions)")
     .option("--no-apply", "Report only — do not modify the test file")
+    .option(
+      "--output <path>",
+      "Write improved YAML to a custom path (default: <input>.improved.yaml)"
+    )
+    .option("--in-place", "Overwrite the input YAML test file when applying")
     .option("--assertions <mode>", "Assertion mode: none or candidates")
     .option(
       "--assertion-source <source>",
@@ -23,6 +28,8 @@ export function registerImprove(program: Command) {
       "--assertion-policy <policy>",
       "Assertion policy: reliable, balanced, or aggressive"
     )
+    .option("--plan", "Generate a reviewable improve plan without writing YAML")
+    .option("--apply-plan <path>", "Apply a previously generated improve plan JSON")
     .option("--report <path>", "Write JSON report to a custom path")
     .action(async (testFile: unknown, opts: unknown) => {
       try {
@@ -40,15 +47,23 @@ function parseImproveCliOptions(value: unknown): ImproveCliOptions {
   if (!isRawImproveCliOptions(value)) return {};
   const out: ImproveCliOptions = {};
   const apply = asOptionalBoolean(value.apply);
+  const output = asOptionalString(value.output);
+  const inPlace = asOptionalBoolean(value.inPlace);
   const assertions = asOptionalString(value.assertions);
   const assertionSource = asOptionalString(value.assertionSource);
   const assertionPolicy = asOptionalString(value.assertionPolicy);
+  const plan = asOptionalBoolean(value.plan);
+  const applyPlan = asOptionalString(value.applyPlan);
   const report = asOptionalString(value.report);
 
   if (apply !== undefined) out.apply = apply;
+  if (output !== undefined) out.output = output;
+  if (inPlace !== undefined) out.inPlace = inPlace;
   if (assertions !== undefined) out.assertions = assertions;
   if (assertionSource !== undefined) out.assertionSource = assertionSource;
   if (assertionPolicy !== undefined) out.assertionPolicy = assertionPolicy;
+  if (plan !== undefined) out.plan = plan;
+  if (applyPlan !== undefined) out.applyPlan = applyPlan;
   if (report !== undefined) out.report = report;
 
   return out;
@@ -56,9 +71,13 @@ function parseImproveCliOptions(value: unknown): ImproveCliOptions {
 
 interface RawImproveCliOptions {
   apply?: unknown;
+  output?: unknown;
+  inPlace?: unknown;
   assertions?: unknown;
   assertionSource?: unknown;
   assertionPolicy?: unknown;
+  plan?: unknown;
+  applyPlan?: unknown;
   report?: unknown;
 }
 

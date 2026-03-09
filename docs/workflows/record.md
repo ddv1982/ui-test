@@ -22,12 +22,12 @@ You will be prompted for:
 | `-u, --url <url>` | Starting URL (skips prompt) | prompted |
 | `-d, --description <desc>` | Test description (skips prompt) | prompted |
 | `-o, --output-dir <dir>` | Output directory | `e2e` |
-| `--selector-policy <policy>` | `reliable` or `raw` | `reliable` |
 | `--browser <browser>` | `chromium`, `firefox`, or `webkit` | `chromium` |
 | `--device <name>` | Playwright device name | none |
 | `--test-id-attribute <attr>` | Custom test-id attribute | none |
 | `--load-storage <path>` | Preload browser storage state | none |
 | `--save-storage <path>` | Save browser storage state | none |
+| `--improve-mode <mode>` | Auto-improve mode: `report` or `apply` | `report` |
 | `--no-improve` | Skip automatic improvement after recording | enabled |
 
 Skip all prompts by providing name and URL:
@@ -38,22 +38,22 @@ ui-test record --name "Login flow" --url http://localhost:3000/login
 
 ## After Recording
 
-After the browser is closed, `ui-test` automatically runs `improve` on the new test file. This:
+After the browser is closed, `ui-test` automatically runs `improve` on the new test file.
+
+Default mode is review-first (`--improve-mode report`), which writes only the improve report and leaves the recorded YAML unchanged.
+Use `--improve-mode apply` to write an improved copy (`<recorded>.improved.yaml`) while preserving the original recording.
+
+Auto-improve can:
 
 - Upgrades selectors to more reliable alternatives
 - Generates assertion candidates (e.g. `assertVisible`, `assertText`)
 - Classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, retains non-transient and safeguarded content/business interactions as required steps)
 
-The CLI prints a summary of changes. If auto-improve fails, the recording is still saved and you can run `ui-test improve <file> --apply` manually.
+The CLI prints a summary of recommendations/changes. If auto-improve fails, the recording is still saved and you can run `ui-test improve <file> --apply` manually (writes `<file>.improved.yaml` by default).
 
-Auto-improve runs in apply mode. Policy-capped or policy-filtered assertion candidates are reported as `skipped_policy`; report-only improve runs (`--no-apply`) keep candidates as `not_requested`.
+Policy-capped or policy-filtered assertion candidates are reported as `skipped_policy`; report-only improve runs keep candidates as `not_requested`.
 
 Use `--no-improve` to skip auto-improvement entirely.
-
-## Selector Policy
-
-- `reliable` (default): prefers normalized locator expressions.
-- `raw`: preserves raw selectors when available.
 
 ## Output Quality Summary
 

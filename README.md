@@ -30,7 +30,7 @@ All command examples below use global `ui-test`.
 | `ui-test setup` | Onboarding and provisioning helper |
 | `ui-test play [test]` | Run one YAML test or all tests |
 | `ui-test record` | Record browser interactions into YAML |
-| `ui-test improve <file>` | Improve selectors, add assertions, remove transient runtime failures, retain non-transient failures as required steps |
+| `ui-test improve <file>` | Improve selectors/assertions (`--plan` for review-only plan, `--apply-plan` to apply reviewed plan) |
 | `ui-test list` | List discovered tests |
 | `ui-test doctor` | Show invocation/version diagnostics |
 
@@ -41,7 +41,7 @@ All command examples below use global `ui-test`.
 | `--headed` | off (headless) |
 | `--timeout <ms>` | 10000 |
 | `--delay <ms>` | 0 |
-| `--wait-network-idle` | on |
+| `--wait-network-idle` | off |
 | `--save-failure-artifacts` | on |
 | `--artifacts-dir <path>` | `.ui-test-artifacts` |
 | `--browser <name>` | chromium |

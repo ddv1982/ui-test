@@ -5,7 +5,10 @@ import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn<
     typeof import("./assertion-candidates.js").buildAssertionCandidates
-  >(() => []),
+  >(() => ({
+    candidates: [],
+    skippedNavigationLikeClicks: [],
+  })),
 }));
 const { buildSnapshotInventoryAssertionCandidatesMock } = vi.hoisted(() => ({
   buildSnapshotInventoryAssertionCandidatesMock: vi.fn<
@@ -19,8 +22,13 @@ const { executeRuntimeStepMock } = vi.hoisted(() => ({
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepNetworkIdle
-  >(async () => false),
+    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+  >(async () => ({
+    navigationTimedOut: false,
+    networkIdleTimedOut: false,
+    usedNavigationWait: false,
+    usedNetworkIdleWait: false,
+  })),
 }));
 
 vi.mock("./assertion-candidates.js", () => ({
@@ -37,8 +45,8 @@ vi.mock("../runtime/step-executor.js", () => ({
 }));
 
 vi.mock("../runtime/network-idle.js", () => ({
-  DEFAULT_WAIT_FOR_NETWORK_IDLE: true,
-  waitForPostStepNetworkIdle: waitForPostStepNetworkIdleMock,
+  DEFAULT_WAIT_FOR_NETWORK_IDLE: false,
+  waitForPostStepReadiness: waitForPostStepNetworkIdleMock,
 }));
 
 function baseCandidates(): AssertionCandidate[] {
@@ -71,16 +79,33 @@ function baseCandidates(): AssertionCandidate[] {
   ];
 }
 
+function deterministicCandidateResult(
+  candidates: AssertionCandidate[],
+  skippedNavigationLikeClicks: Array<{ index: number; reason: string }> = []
+) {
+  return {
+    candidates,
+    skippedNavigationLikeClicks,
+  };
+}
+
 describe("runImproveAssertionPass coverage fallback behavior", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     executeRuntimeStepMock.mockResolvedValue(undefined);
-    waitForPostStepNetworkIdleMock.mockResolvedValue(false);
+    waitForPostStepNetworkIdleMock.mockResolvedValue({
+      navigationTimedOut: false,
+      networkIdleTimedOut: false,
+      usedNavigationWait: false,
+      usedNetworkIdleWait: false,
+    });
     buildSnapshotInventoryAssertionCandidatesMock.mockReturnValue([]);
   });
 
   it("keeps fallback as backup-only when a stronger candidate exists for the same step", async () => {
-    buildAssertionCandidatesMock.mockReturnValue(baseCandidates());
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult(baseCandidates())
+    );
 
     const diagnostics: import("./report-schema.js").ImproveDiagnostic[] = [];
     const result = await runImproveAssertionPass({
@@ -118,21 +143,23 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
   });
 
   it("keeps fallback eligible when it is the only candidate on a step", async () => {
-    buildAssertionCandidatesMock.mockReturnValue([
-      {
-        index: 1,
-        afterAction: "click",
-        candidate: {
-          action: "assertVisible",
-          target: { value: "#submit", kind: "css", source: "manual" },
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
+        {
+          index: 1,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "#submit", kind: "css", source: "manual" },
+          },
+          confidence: 0.76,
+          rationale:
+            "Coverage fallback: verify interacted element remains visible after action.",
+          candidateSource: "deterministic",
+          coverageFallback: true,
         },
-        confidence: 0.76,
-        rationale:
-          "Coverage fallback: verify interacted element remains visible after action.",
-        candidateSource: "deterministic",
-        coverageFallback: true,
-      },
-    ]);
+      ])
+    );
 
     const result = await runImproveAssertionPass({
       assertions: "candidates",
@@ -164,21 +191,23 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
   });
 
   it("adds inventory candidates for uncovered snapshot-native steps", async () => {
-    buildAssertionCandidatesMock.mockReturnValue([
-      {
-        index: 1,
-        afterAction: "click",
-        candidate: {
-          action: "assertVisible",
-          target: { value: "#submit", kind: "css", source: "manual" },
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
+        {
+          index: 1,
+          afterAction: "click",
+          candidate: {
+            action: "assertVisible",
+            target: { value: "#submit", kind: "css", source: "manual" },
+          },
+          confidence: 0.76,
+          rationale:
+            "Coverage fallback: verify interacted element remains visible after action.",
+          candidateSource: "deterministic",
+          coverageFallback: true,
         },
-        confidence: 0.76,
-        rationale:
-          "Coverage fallback: verify interacted element remains visible after action.",
-        candidateSource: "deterministic",
-        coverageFallback: true,
-      },
-    ]);
+      ])
+    );
     buildSnapshotInventoryAssertionCandidatesMock.mockReturnValue([
       {
         index: 1,
@@ -190,7 +219,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
         },
         confidence: 0.79,
         rationale:
-          "Coverage fallback (inventory): full post-step aria inventory yielded high-signal text.",
+          "Coverage fallback (inventory): scoped post-step aria snapshot yielded high-signal text.",
         candidateSource: "snapshot_native",
         coverageFallback: true,
       },
@@ -233,20 +262,22 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
   });
 
   it("does not run inventory harvesting when non-fallback candidates already cover a step", async () => {
-    buildAssertionCandidatesMock.mockReturnValue([
-      {
-        index: 1,
-        afterAction: "click",
-        candidate: {
-          action: "assertText",
-          target: { value: "#status", kind: "css", source: "manual" },
-          text: "Saved",
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult([
+        {
+          index: 1,
+          afterAction: "click",
+          candidate: {
+            action: "assertText",
+            target: { value: "#status", kind: "css", source: "manual" },
+            text: "Saved",
+          },
+          confidence: 0.9,
+          rationale: "high-signal text",
+          candidateSource: "deterministic",
         },
-        confidence: 0.9,
-        rationale: "high-signal text",
-        candidateSource: "deterministic",
-      },
-    ]);
+      ])
+    );
 
     const result = await runImproveAssertionPass({
       assertions: "candidates",
@@ -278,7 +309,9 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
   });
 
   it("does not run inventory harvesting for deterministic assertion source", async () => {
-    buildAssertionCandidatesMock.mockReturnValue(baseCandidates());
+    buildAssertionCandidatesMock.mockReturnValue(
+      deterministicCandidateResult(baseCandidates())
+    );
 
     const result = await runImproveAssertionPass({
       assertions: "candidates",
@@ -326,7 +359,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
         },
       ],
       skippedNavigationLikeClicks: [],
-    } as any);
+    });
 
     const result = await runImproveAssertionPass({
       assertions: "candidates",
@@ -383,7 +416,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
           reason: "navigation-like dynamic click target",
         },
       ],
-    } as any);
+    });
     const diagnostics: import("./report-schema.js").ImproveDiagnostic[] = [];
 
     const result = await runImproveAssertionPass({

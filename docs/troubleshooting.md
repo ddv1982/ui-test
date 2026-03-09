@@ -82,6 +82,8 @@ Fix the underlying issue, then run the improve step manually:
 ui-test improve <file> --apply
 ```
 
+This writes `<file>.improved.yaml` by default; use `--in-place` to overwrite the input file.
+
 ## Headed vs Headless Differences on Dynamic Sites
 
 Dynamic news pages can behave differently between headed and headless runs when overlays or fast-changing headlines are present.
@@ -114,15 +116,11 @@ If your test still flakes:
 3. Prefer stable semantic targets (roles/test ids/nav labels) over long, exact headline text.
 4. If needed, disable runtime regeneration temporarily to isolate behavior:
    - `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_REGEN=1 ui-test improve <file> --apply`
-5. If needed, keep public runtime conversion but disable private resolver fallback:
-   - `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK=1 ui-test improve <file> --apply`
 
 Runtime regeneration diagnostic meanings:
 1. `selector_repair_playwright_runtime_unavailable`: runtime resolver or uniqueness check could not run in this environment.
 2. `selector_repair_playwright_runtime_non_unique`: runtime match count was not unique, so no repair was generated.
 3. `selector_repair_playwright_runtime_disabled`: runtime regeneration was explicitly disabled by env var.
-4. `selector_repair_playwright_runtime_private_fallback_disabled`: private resolver fallback was explicitly disabled by env var.
-5. `selector_repair_playwright_runtime_private_fallback_used`: fallback path was used after public conversion was unavailable.
 
 ## Improve Apply Mode Fails
 

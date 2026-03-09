@@ -13,10 +13,10 @@ ui-test improve e2e/login.yaml
 This prompts you to confirm before applying improvements:
 
 ```
-? Apply improvements to login.yaml? (Y/n)
+? Write improved copy to login.improved.yaml? (Y/n)
 ```
 
-Accept (default) to apply improved selectors and assertion candidates to the YAML file, or decline for a report-only run.
+Accept (default) to write improvements to `e2e/login.improved.yaml` and keep `e2e/login.yaml` unchanged. Decline for a report-only run.
 
 ### Apply Without Prompting (CI)
 
@@ -24,7 +24,19 @@ Accept (default) to apply improved selectors and assertion candidates to the YAM
 ui-test improve e2e/login.yaml --apply
 ```
 
-`--apply` writes both improved selectors and high-confidence assertion candidates to the YAML file without prompting.
+`--apply` writes both improved selectors and high-confidence assertion candidates to `e2e/login.improved.yaml` without prompting.
+
+To overwrite the input file instead:
+
+```bash
+ui-test improve e2e/login.yaml --apply --in-place
+```
+
+To write to a custom destination:
+
+```bash
+ui-test improve e2e/login.yaml --apply --output e2e/login.latest.yaml
+```
 
 ### Report Only (CI)
 
@@ -33,6 +45,27 @@ ui-test improve e2e/login.yaml --no-apply
 ```
 
 `--no-apply` writes a JSON report and does not modify YAML. Useful in CI pipelines where interactive prompts are not available.
+
+### Generate A Review Plan
+
+```bash
+ui-test improve e2e/login.yaml --plan
+```
+
+`--plan` computes full apply-mode recommendations (selectors + assertions + runtime failure handling) but does not write YAML.
+It writes:
+
+- improve report (`*.improve-report.json`)
+- improve plan (`*.improve-plan.json`)
+
+Apply a reviewed plan explicitly:
+
+```bash
+ui-test improve e2e/login.yaml --apply-plan e2e/login.improve-plan.json
+```
+
+By default, `--apply-plan` writes `e2e/login.improved.yaml` and preserves `e2e/login.yaml`.
+Use `--in-place` to overwrite the input file or `--output <path>` to choose a custom destination.
 
 In report-only runs (`--no-apply`), assertion candidates keep `applyStatus: not_requested`, including candidates that would be policy-capped or dynamic-filtered in apply mode.
 
@@ -116,7 +149,7 @@ These rules govern how assertions are inserted:
 7. In `snapshot-native` mode, improve performs gap-only runtime locator inventory harvesting from post-step aria snapshots and adds inventory fallback candidates only for uncovered interaction steps.
 8. Existing adjacent assertions are preserved (no automatic cleanup).
 9. Applied assertions are inserted as required steps (no `optional` field).
-10. In apply mode, runtime-failing interaction steps are classified: transient dismissal/control interactions are removed aggressively, while likely content/business-intent interactions are retained as required steps.
+10. In apply mode, runtime-failing interaction steps are classified with confidence/safety metadata: only high-confidence safe transient dismissal/control interactions are auto-removed; low-confidence or unsafe removals are retained as required steps.
 
 ### Auto-Improve After Recording
 
@@ -175,10 +208,9 @@ For dynamic-flagged/brittle targets (for example long exact headline link names)
 
 - Requires a unique runtime match (`matchCount === 1`) before generating a repair candidate.
 - Runs as a dedicated runtime-repair stage after baseline and heuristic locator-repair candidate generation.
-- Uses public Playwright locator conversion first (`page.locator(...).toString()`), with a guarded private `_resolveSelector()` fallback when needed.
-- Falls back safely to existing repair heuristics when internals are unavailable or conversion fails.
+- Converts supported `internal` / selector-engine targets into locator expressions using deterministic public selector parsing.
+- Falls back safely to existing repair heuristics when conversion is unavailable or the selector shape is unsupported.
 - Set `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_REGEN=1` to disable runtime regeneration/conversion and use heuristic repairs only.
-- Set `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_PRIVATE_FALLBACK=1` to disable only the private `_resolveSelector()` fallback while keeping public runtime conversion enabled.
 
 Runtime regeneration diagnostics:
 
@@ -187,12 +219,18 @@ Runtime regeneration diagnostics:
 - `selector_repair_playwright_runtime_non_unique`
 - `selector_repair_playwright_runtime_conversion_failed`
 - `selector_repair_playwright_runtime_disabled`
-- `selector_repair_playwright_runtime_private_fallback_disabled`
-- `selector_repair_playwright_runtime_private_fallback_used`
 
 ### Report Contents
 
 The report includes step-level old/recommended targets, confidence scores, assertion candidates, and diagnostics.
+
+Diagnostics may include decision metadata:
+
+- `decisionConfidence`
+- `mutationType`
+- `mutationSafety`
+- `evidenceRefs`
+- `appliedBy`
 
 The summary includes:
 
@@ -200,8 +238,6 @@ The summary includes:
 - `selectorRepairsApplied`
 - `selectorRepairsGeneratedByPlaywrightRuntime`
 - `selectorRepairsAppliedFromPlaywrightRuntime`
-- `selectorRepairsGeneratedByPrivateFallback`
-- `selectorRepairsAppliedFromPrivateFallback`
 - `runtimeFailingStepsRetained`
 - `runtimeFailingStepsRemoved`
 - `assertionCandidatesFilteredDynamic`
@@ -243,4 +279,4 @@ ui-test improve e2e/login.yaml --report ./reports/login.improve.json
 - Runtime analysis may replay actions; use a safe test environment.
 - `improve` requires Chromium availability in CLI runs.
 - If Chromium is missing, provision it with `ui-test setup` or `npx playwright install chromium`.
-- Validation timing mirrors `play` post-step waiting (network idle with Playwright default timeout behavior).
+- Validation timing mirrors `play` post-step readiness checks: navigation waits happen automatically, and `networkidle` is opt-in.

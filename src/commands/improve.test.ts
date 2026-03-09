@@ -11,12 +11,18 @@ describe("improve command options", () => {
 
     command?.parseOptions([
       "--apply",
+      "--output",
+      "out.yaml",
+      "--in-place",
       "--assertions",
       "none",
       "--assertion-source",
       "snapshot-native",
       "--assertion-policy",
       "balanced",
+      "--plan",
+      "--apply-plan",
+      "sample.improve-plan.json",
       "--report",
       "report.json",
       "e2e/sample.yaml",
@@ -24,9 +30,13 @@ describe("improve command options", () => {
 
     const opts = command?.opts() as Record<string, string | boolean>;
     expect(opts.apply).toBe(true);
+    expect(opts.output).toBe("out.yaml");
+    expect(opts.inPlace).toBe(true);
     expect(opts.assertions).toBe("none");
     expect(opts.assertionSource).toBe("snapshot-native");
     expect(opts.assertionPolicy).toBe("balanced");
+    expect(opts.plan).toBe(true);
+    expect(opts.applyPlan).toBe("sample.improve-plan.json");
     expect(opts.report).toBe("report.json");
   });
 

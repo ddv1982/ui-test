@@ -6,14 +6,14 @@ import {
   dismissCookieBannerWithDetails,
   isLikelyOverlayInterceptionError,
 } from "../runtime/cookie-banner.js";
-import { waitForPostStepNetworkIdle } from "../runtime/network-idle.js";
+import { waitForPostStepReadiness } from "../runtime/network-idle.js";
 import type { Step } from "../yaml-schema.js";
 import type { PlayFailureArtifactPaths } from "../play-failure-report.js";
 import { captureFailureArtifacts, type TraceCaptureState } from "./artifact-writer.js";
 import { stepDescription } from "./step-description.js";
 import type { PlayFailureArtifacts, StepResult } from "./play-types.js";
 
-const NETWORK_IDLE_WARNING_LIMIT = 3;
+const READINESS_WARNING_LIMIT = 3;
 
 export interface StepLoopResult {
   stepResults: StepResult[];
@@ -36,7 +36,7 @@ export async function runPlayStepLoop(input: {
   artifactPaths?: PlayFailureArtifactPaths;
 }): Promise<StepLoopResult> {
   const stepResults: StepResult[] = [];
-  let networkIdleWarnings = 0;
+  let readinessWarnings = 0;
   let failureArtifacts: PlayFailureArtifacts | undefined;
 
   for (const [i, step] of input.steps.entries()) {
@@ -47,6 +47,13 @@ export async function runPlayStepLoop(input: {
     let overlayRetryUsed = false;
 
     while (true) {
+      let beforeUrl: string | undefined;
+      try {
+        beforeUrl = input.page.url();
+      } catch {
+        beforeUrl = undefined;
+      }
+
       const dismissResult = await dismissCookieBannerWithDetails(
         input.page,
         dismissTimeout
@@ -74,20 +81,36 @@ export async function runPlayStepLoop(input: {
           ...stepExecutionOptions,
         });
 
-        const networkIdleTimedOut = await waitForPostStepNetworkIdle(
-          input.page,
-          input.waitForNetworkIdle
-        );
+        const readiness = await waitForPostStepReadiness({
+          page: input.page,
+          step,
+          waitForNetworkIdle: input.waitForNetworkIdle,
+          timeoutMs: input.timeout,
+          beforeUrl,
+        });
 
-        if (networkIdleTimedOut) {
-          networkIdleWarnings += 1;
-          if (networkIdleWarnings <= NETWORK_IDLE_WARNING_LIMIT) {
+        if (readiness.navigationTimedOut) {
+          readinessWarnings += 1;
+          if (readinessWarnings <= READINESS_WARNING_LIMIT) {
+            ui.warn(
+              `Step ${i + 1} (${step.action}): navigation readiness wait timed out; continuing.`
+            );
+          } else if (readinessWarnings === READINESS_WARNING_LIMIT + 1) {
+            ui.warn(
+              "Additional post-step readiness warnings will be suppressed for this test file."
+            );
+          }
+        }
+
+        if (readiness.networkIdleTimedOut) {
+          readinessWarnings += 1;
+          if (readinessWarnings <= READINESS_WARNING_LIMIT) {
             ui.warn(
               `Step ${i + 1} (${step.action}): network idle wait timed out; continuing.`
             );
-          } else if (networkIdleWarnings === NETWORK_IDLE_WARNING_LIMIT + 1) {
+          } else if (readinessWarnings === READINESS_WARNING_LIMIT + 1) {
             ui.warn(
-              "Additional network idle wait warnings will be suppressed for this test file."
+              "Additional post-step readiness warnings will be suppressed for this test file."
             );
           }
         }

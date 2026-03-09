@@ -24,12 +24,14 @@ import {
 } from "./assertion-candidates-snapshot-shared.js";
 import { parseSnapshotNodes } from "./assertion-candidates-snapshot-parser.js";
 import { classifyNavigationLikeInteraction } from "./navigation-like-interaction.js";
+import type { StepSnapshotScope } from "./step-snapshot-scope.js";
 
 export interface StepSnapshot {
   index: number;
   step: Step;
   preSnapshot: string;
   postSnapshot: string;
+  scope?: StepSnapshotScope;
   preUrl?: string;
   postUrl?: string;
   preTitle?: string;

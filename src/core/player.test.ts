@@ -420,6 +420,15 @@ describe("waitForPostStepNetworkIdle", () => {
     expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle");
   });
 
+  it("passes timeout to waitForLoadState when provided", async () => {
+    const page = {
+      waitForLoadState: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Page;
+
+    await expect(waitForPostStepNetworkIdle(page, true, 1234)).resolves.toBe(false);
+    expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle", { timeout: 1234 });
+  });
+
   it("returns timed out marker on network idle timeout", async () => {
     const page = {
       waitForLoadState: vi.fn().mockRejectedValue(new playwrightErrors.TimeoutError("timed out")),

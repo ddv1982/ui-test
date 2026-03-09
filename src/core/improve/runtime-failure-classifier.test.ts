@@ -15,6 +15,8 @@ describe("classifyRuntimeFailingStep", () => {
     );
 
     expect(out.disposition).toBe("remove");
+    expect(out.mutationSafety).toBe("safe");
+    expect(out.decisionConfidence).toBeGreaterThan(0.9);
   });
 
   it("classifies content interactions as retained non-transient failures", () => {
@@ -216,6 +218,21 @@ describe("classifyRuntimeFailingStep", () => {
 
     expect(out.disposition).toBe("remove");
     expect(out.reason).toContain("multilingual pattern match");
+  });
+
+  it("marks low-confidence soft transient dismissals as unsafe to auto-apply", () => {
+    const out = classifyRuntimeFailingStep({
+      action: "click",
+      target: {
+        value: "getByRole('button', { name: 'Close privacy notice' })",
+        kind: "locatorExpression",
+        source: "manual",
+      },
+    });
+
+    expect(out.disposition).toBe("remove");
+    expect(out.mutationSafety).toBe("unsafe_to_auto_apply");
+    expect(out.decisionConfidence).toBeLessThan(0.85);
   });
 
   it("does not match CMP selectors against locator expression names", () => {

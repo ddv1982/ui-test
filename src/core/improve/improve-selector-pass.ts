@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
 import {
   DEFAULT_WAIT_FOR_NETWORK_IDLE,
-  waitForPostStepNetworkIdle,
+  waitForPostStepReadiness,
 } from "../runtime/network-idle.js";
 import { dismissCookieBannerWithDetails } from "../runtime/cookie-banner.js";
 import type { Step, Target } from "../yaml-schema.js";
@@ -16,6 +16,7 @@ import type { ImproveDiagnostic, StepFinding } from "./report-schema.js";
 import { applySelectionAndRecordFinding } from "./selector-pass/apply-selection.js";
 import { collectCandidatesForStep } from "./selector-pass/collect-candidates.js";
 import { selectBestCandidateForStep } from "./selector-pass/select-candidate.js";
+import { prepareScopedStepSnapshot } from "./step-snapshot-scope.js";
 
 export interface SelectorPassResult {
   outputSteps: Step[];
@@ -27,8 +28,6 @@ export interface SelectorPassResult {
   selectorRepairsAdoptedOnTie: number;
   selectorRepairsGeneratedByPlaywrightRuntime: number;
   selectorRepairsAppliedFromPlaywrightRuntime: number;
-  selectorRepairsGeneratedByPrivateFallback: number;
-  selectorRepairsAppliedFromPrivateFallback: number;
 }
 
 type StepWithTarget = Step & { target: Target };
@@ -52,8 +51,6 @@ export async function runImproveSelectorPass(input: {
   let selectorRepairsAdoptedOnTie = 0;
   let selectorRepairsGeneratedByPlaywrightRuntime = 0;
   let selectorRepairsAppliedFromPlaywrightRuntime = 0;
-  let selectorRepairsGeneratedByPrivateFallback = 0;
-  let selectorRepairsAppliedFromPrivateFallback = 0;
 
   for (let index = 0; index < outputSteps.length; index += 1) {
     const step = outputSteps[index];
@@ -73,8 +70,6 @@ export async function runImproveSelectorPass(input: {
       selectorRepairCandidates += candidateCollection.selectorRepairCandidatesAdded;
       selectorRepairsGeneratedByPlaywrightRuntime +=
         candidateCollection.selectorRepairsGeneratedByPlaywrightRuntime;
-      selectorRepairsGeneratedByPrivateFallback +=
-        candidateCollection.selectorRepairsGeneratedByPrivateFallback;
 
       const scored = await scoreTargetCandidates(
         input.page,
@@ -117,15 +112,11 @@ export async function runImproveSelectorPass(input: {
           scored,
           diagnostics: input.diagnostics,
           runtimeRepairCandidateKeys: candidateCollection.runtimeRepairCandidateKeys,
-          privateFallbackRuntimeRepairCandidateKeys:
-            candidateCollection.privateFallbackRuntimeRepairCandidateKeys,
         });
         selectorRepairsApplied += applyMetrics.selectorRepairsApplied;
         selectorRepairsAdoptedOnTie += applyMetrics.selectorRepairsAdoptedOnTie;
         selectorRepairsAppliedFromPlaywrightRuntime +=
           applyMetrics.selectorRepairsAppliedFromPlaywrightRuntime;
-        selectorRepairsAppliedFromPrivateFallback +=
-          applyMetrics.selectorRepairsAppliedFromPrivateFallback;
       }
     }
 
@@ -133,14 +124,21 @@ export async function runImproveSelectorPass(input: {
       continue;
     }
 
-    let preSnapshot: string | undefined;
+    let scopedSnapshot:
+      | {
+          preSnapshot: string;
+          capturePostSnapshot: () => Promise<string | undefined>;
+          scope: NonNullable<StepSnapshot["scope"]>;
+        }
+      | undefined;
     let preUrl: string | undefined;
     let preTitle: string | undefined;
     if (input.wantsNativeSnapshots) {
-      preSnapshot = await input.page
-        .locator("body")
-        .ariaSnapshot({ timeout: DEFAULT_SCORING_TIMEOUT_MS })
-        .catch(() => undefined);
+      scopedSnapshot = await prepareScopedStepSnapshot(
+        input.page,
+        step,
+        DEFAULT_SCORING_TIMEOUT_MS
+      );
       try {
         preUrl = input.page.url();
         preTitle = await input.page.title();
@@ -151,6 +149,14 @@ export async function runImproveSelectorPass(input: {
     }
 
     try {
+      let beforeUrl = preUrl;
+      if (beforeUrl === undefined) {
+        try {
+          beforeUrl = input.page.url();
+        } catch {
+          beforeUrl = undefined;
+        }
+      }
       const dismissResult = await dismissCookieBannerWithDetails(
         input.page,
         Math.min(DEFAULT_RUNTIME_TIMEOUT_MS, 1200)
@@ -174,8 +180,41 @@ export async function runImproveSelectorPass(input: {
               timeout: DEFAULT_RUNTIME_TIMEOUT_MS,
               baseUrl: input.testBaseUrl,
               mode: "analysis",
-            }
+          }
       );
+
+      try {
+        const readiness = await waitForPostStepReadiness({
+          page: input.page,
+          step: runtimeStep,
+          waitForNetworkIdle: DEFAULT_WAIT_FOR_NETWORK_IDLE,
+          timeoutMs: DEFAULT_RUNTIME_TIMEOUT_MS,
+          beforeUrl,
+        });
+        if (readiness.navigationTimedOut) {
+          input.diagnostics.push({
+            code: "runtime_navigation_readiness_wait_timed_out",
+            level: "warn",
+            message: `Runtime navigation readiness wait timed out at step ${originalIndex + 1}; capturing best-effort snapshot state.`,
+          });
+        }
+        if (readiness.networkIdleTimedOut) {
+          input.diagnostics.push({
+            code: "runtime_network_idle_wait_timed_out",
+            level: "warn",
+            message: `Runtime network idle wait timed out at step ${originalIndex + 1}; capturing best-effort snapshot state.`,
+          });
+        }
+      } catch (err) {
+        input.diagnostics.push({
+          code: "runtime_post_step_readiness_failed",
+          level: "warn",
+          message:
+            err instanceof Error
+              ? `Runtime readiness wait failed at step ${originalIndex + 1}; continuing with best-effort analysis. ${err.message}`
+              : `Runtime readiness wait failed at step ${originalIndex + 1}; continuing with best-effort analysis.`,
+        });
+      }
     } catch (err) {
       failedStepIndexes.push(index);
       input.diagnostics.push({
@@ -188,36 +227,8 @@ export async function runImproveSelectorPass(input: {
       });
     }
 
-    if (input.wantsNativeSnapshots) {
-      try {
-        const networkIdleTimedOut = await waitForPostStepNetworkIdle(
-          input.page,
-          DEFAULT_WAIT_FOR_NETWORK_IDLE
-        );
-        if (networkIdleTimedOut) {
-          input.diagnostics.push({
-            code: "runtime_network_idle_wait_timed_out",
-            level: "warn",
-            message: `Runtime network idle wait timed out at step ${originalIndex + 1}; capturing best-effort snapshot state.`,
-          });
-        }
-      } catch (err) {
-        input.diagnostics.push({
-          code: "runtime_network_idle_wait_failed",
-          level: "warn",
-          message:
-            err instanceof Error
-              ? `Runtime network idle wait failed at step ${originalIndex + 1}; continuing with best-effort analysis. ${err.message}`
-              : `Runtime network idle wait failed at step ${originalIndex + 1}; continuing with best-effort analysis.`,
-        });
-      }
-    }
-
-    if (input.wantsNativeSnapshots && preSnapshot !== undefined) {
-      const postSnapshot = await input.page
-        .locator("body")
-        .ariaSnapshot({ timeout: DEFAULT_SCORING_TIMEOUT_MS })
-        .catch(() => undefined);
+    if (input.wantsNativeSnapshots && scopedSnapshot) {
+      const postSnapshot = await scopedSnapshot.capturePostSnapshot();
       if (postSnapshot) {
         let postUrl = "";
         let postTitle = "";
@@ -231,8 +242,9 @@ export async function runImproveSelectorPass(input: {
         const stepSnapshot: StepSnapshot = {
           index,
           step,
-          preSnapshot,
+          preSnapshot: scopedSnapshot.preSnapshot,
           postSnapshot,
+          scope: scopedSnapshot.scope,
         };
         if (preUrl !== undefined) stepSnapshot.preUrl = preUrl;
         if (postUrl !== undefined) stepSnapshot.postUrl = postUrl;
@@ -253,8 +265,6 @@ export async function runImproveSelectorPass(input: {
     selectorRepairsAdoptedOnTie,
     selectorRepairsGeneratedByPlaywrightRuntime,
     selectorRepairsAppliedFromPlaywrightRuntime,
-    selectorRepairsGeneratedByPrivateFallback,
-    selectorRepairsAppliedFromPrivateFallback,
   };
 }
 

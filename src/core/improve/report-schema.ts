@@ -3,10 +3,38 @@ import { stepSchema, targetSchema } from "../yaml-schema.js";
 
 export const improveProviderSchema = z.enum(["playwright"]);
 
+export const improveMutationTypeSchema = z.enum([
+  "selector_update",
+  "assertion_insert",
+  "runtime_step_removal",
+  "runtime_step_retention",
+  "stale_assertion_removal",
+  "none",
+]);
+
+export const improveMutationSafetySchema = z.enum([
+  "safe",
+  "review_required",
+  "unsafe_to_auto_apply",
+]);
+
+export const improveAppliedBySchema = z.enum([
+  "auto_apply",
+  "manual_apply",
+  "plan_apply",
+  "plan_preview",
+  "report_only",
+]);
+
 export const improveDiagnosticSchema = z.object({
   code: z.string().min(1),
   level: z.enum(["info", "warn", "error"]),
   message: z.string().min(1),
+  decisionConfidence: z.number().min(0).max(1).optional(),
+  mutationType: improveMutationTypeSchema.optional(),
+  mutationSafety: improveMutationSafetySchema.optional(),
+  evidenceRefs: z.array(z.string()).optional(),
+  appliedBy: improveAppliedBySchema.optional(),
 });
 
 export const stepFindingSchema = z.object({
@@ -69,8 +97,6 @@ export const improveSummarySchema = z.object({
   selectorRepairsAdoptedOnTie: z.number().int().nonnegative().optional(),
   selectorRepairsGeneratedByPlaywrightRuntime: z.number().int().nonnegative().optional(),
   selectorRepairsAppliedFromPlaywrightRuntime: z.number().int().nonnegative().optional(),
-  selectorRepairsGeneratedByPrivateFallback: z.number().int().nonnegative().optional(),
-  selectorRepairsAppliedFromPrivateFallback: z.number().int().nonnegative().optional(),
   deterministicAssertionsSkippedNavigationLikeClick: z
     .number()
     .int()
@@ -107,6 +133,7 @@ export const improveReportSchema = z.object({
   testFile: z.string().min(1),
   generatedAt: z.string().datetime(),
   providerUsed: improveProviderSchema,
+  appliedBy: improveAppliedBySchema,
   summary: improveSummarySchema,
   stepFindings: z.array(stepFindingSchema),
   assertionCandidates: z.array(assertionCandidateSchema),
@@ -114,6 +141,9 @@ export const improveReportSchema = z.object({
 });
 
 export type ImproveProviderUsed = z.infer<typeof improveProviderSchema>;
+export type ImproveMutationType = z.infer<typeof improveMutationTypeSchema>;
+export type ImproveMutationSafety = z.infer<typeof improveMutationSafetySchema>;
+export type ImproveAppliedBy = z.infer<typeof improveAppliedBySchema>;
 export type ImproveDiagnostic = z.infer<typeof improveDiagnosticSchema>;
 export type StepFinding = z.infer<typeof stepFindingSchema>;
 export type AssertionApplyStatus = z.infer<typeof assertionApplyStatusSchema>;

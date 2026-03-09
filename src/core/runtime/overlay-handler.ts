@@ -5,7 +5,7 @@ import {
 } from "./cookie-banner.js";
 
 const CONSENT_HANDLER_TRIGGER_SELECTOR =
-  '[id*="consent"], [class*="consent"], [id*="cookie"], [class*="cookie"], [id*="gdpr"], [class*="gdpr"], [data-testid*="consent"], [data-testid*="cookie"], [data-cmp]';
+  '[role="dialog"][id*="consent" i], [role="dialog"][class*="consent" i], [role="dialog"][id*="cookie" i], [role="dialog"][class*="cookie" i], [role="dialog"][id*="gdpr" i], [role="dialog"][class*="gdpr" i], [role="dialog"][data-testid*="consent" i], [role="dialog"][data-testid*="cookie" i], [role="dialog"][data-cmp], iframe[src*="onetrust" i], iframe[src*="cookiebot" i], iframe[src*="didomi" i], iframe[src*="trustarc" i]';
 const NON_COOKIE_OVERLAY_TRIGGER_SELECTOR =
   '[role="dialog"][aria-modal="true"], .modal[aria-modal="true"], .modal--breaking-push, .breaking-push-modal';
 const DEFAULT_HANDLER_TIMEOUT_MS = 1_200;
