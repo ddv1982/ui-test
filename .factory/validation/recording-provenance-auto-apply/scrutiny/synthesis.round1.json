@@ -1,0 +1,54 @@
+{
+  "milestone": "recording-provenance-auto-apply",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" test -- --maxWorkers=5",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run typecheck:test",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "npm --prefix \"/Users/vriesd/projects/ui-test\" run lint",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "failedFeatures": [
+      "record-default-auto-apply-integration"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "record-default-auto-apply-integration",
+      "severity": "blocking",
+      "description": "Record auto-apply forces assertionPolicy=\"reliable\" in src/app/services/record-service.ts while the printed manual fallback (`ui-test improve <file> --plan` then `--apply-plan`) uses improve defaults (balanced), so auto-apply/manual convergence is not guaranteed."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": ".factory/skills/record-improve-worker/SKILL.md",
+      "suggestion": "Add explicit validator-command fallback guidance: prefer npm-backed commands from .factory/services.yaml when direct `vitest` binary is unavailable on PATH.",
+      "evidence": "Review of recording-provenance-persistence observed a failed direct `vitest` invocation followed by successful npm-backed test execution in worker session 11814fa4-4b87-497d-a922-2f2fd2ad82de.",
+      "isSystemic": false
+    },
+    {
+      "target": ".factory/skills/record-improve-worker/SKILL.md",
+      "suggestion": "Clarify and enforce evidence requirements for user-facing CLI sanity checks in worker transcripts/handoffs when command-surface behavior changes.",
+      "evidence": "Review of record-default-auto-apply-integration found user-facing command changes but transcript skeleton showed only tests/typecheck/git commands while handoff still marked procedure followed.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}

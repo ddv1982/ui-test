@@ -1,0 +1,21 @@
+{
+  "featureId": "record-auto-apply-policy-convergence-fix",
+  "reviewedAt": "2026-03-09T07:15:37Z",
+  "commitId": "a219c37",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Pass. The fix directly closes the prior convergence defect by introducing a shared resolver for record auto-improve profile values and reusing it for the manual fallback command text, so the fallback `--plan` invocation now carries the same assertions/source/policy as auto-apply. Review of both commits (`9ed2475` and fix `a219c37`) confirms the original mismatch (`reliable` auto-apply vs default manual `balanced`) was addressed and regression tests were added for both apply and report fallback guidance.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The skill requires one manual/CLI sanity check whenever user-facing command behavior changes, but the fix transcript skeleton shows only test/typecheck/lint/diff/commit steps and no explicit `ui-test` CLI sanity run. Handoff still marks `followedProcedure: true`.",
+      "evidence": "Skill requirement: `.factory/skills/record-improve-worker/SKILL.md:30`. Fix transcript skeleton for `22147114-ccdd-4d7c-8cff-64ab63292db2` lists vitest, typecheck, lint, and git commands but no explicit `ui-test record` or `ui-test improve` sanity invocation."
+    }
+  ],
+  "addressesFailureFrom": "/Users/vriesd/projects/ui-test/.factory/validation/recording-provenance-auto-apply/scrutiny/reviews/record-default-auto-apply-integration.json",
+  "summary": "Fix verified. The convergence gap flagged in the prior failed review is resolved: auto-apply and manual fallback guidance now derive the same deterministic assertion profile, and updated tests lock this behavior for both apply and report fallback paths."
+}
