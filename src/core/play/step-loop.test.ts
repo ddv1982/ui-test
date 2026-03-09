@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserContext, Page } from "playwright";
 import type { Step } from "../yaml-schema.js";
 import { runPlayStepLoop } from "./step-loop.js";
+import type * as cookieBannerModule from "../runtime/cookie-banner.js";
+import type * as networkIdleModule from "../runtime/network-idle.js";
+import type * as executeRuntimeStepModule from "../runtime/step-executor.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn<
-    typeof import("../runtime/step-executor.js").executeRuntimeStep
+    typeof executeRuntimeStepModule.executeRuntimeStep
   >(async () => {}),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+    typeof networkIdleModule.waitForPostStepReadiness
   >(async () => ({
     navigationTimedOut: false,
     networkIdleTimedOut: false,
@@ -23,10 +26,10 @@ const {
   isLikelyOverlayInterceptionErrorMock,
 } = vi.hoisted(() => ({
   dismissCookieBannerWithDetailsMock: vi.fn<
-    typeof import("../runtime/cookie-banner.js").dismissCookieBannerWithDetails
+    typeof cookieBannerModule.dismissCookieBannerWithDetails
   >(async () => ({ dismissed: false })),
   isLikelyOverlayInterceptionErrorMock: vi.fn<
-    typeof import("../runtime/cookie-banner.js").isLikelyOverlayInterceptionError
+    typeof cookieBannerModule.isLikelyOverlayInterceptionError
   >(() => false),
 }));
 const { warnMock, successMock, errorMock } = vi.hoisted(() => ({

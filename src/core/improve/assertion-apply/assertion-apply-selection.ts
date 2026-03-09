@@ -139,6 +139,8 @@ function candidateSourcePriority(source: AssertionCandidate["candidateSource"]):
       return 0;
     case "snapshot_native":
       return 1;
+    case undefined:
+      return 2;
     default:
       return 2;
   }

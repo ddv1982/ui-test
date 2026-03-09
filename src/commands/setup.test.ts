@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Command } from "commander";
+import type * as nodeFsModule from "node:fs";
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(),
 }));
 
 vi.mock("node:fs", async () => {
-  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+  const actual = (await vi.importActual("node:fs")) as typeof nodeFsModule;
   return {
     ...actual,
     existsSync: vi.fn(actual.existsSync),

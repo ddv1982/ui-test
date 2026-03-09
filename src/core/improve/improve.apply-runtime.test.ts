@@ -4,15 +4,19 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Step } from "../yaml-schema.js";
 import type { AssertionCandidate } from "./report-schema.js";
+import type * as assertionCandidatesModule from "./assertion-candidates/assertion-candidates.js";
+import type * as selectorRuntimeRepairModule from "./selector-runtime-repair.js";
+import type * as networkIdleModule from "../runtime/network-idle.js";
+import type * as stepExecutorModule from "../runtime/step-executor.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn<
-    typeof import("../runtime/step-executor.js").executeRuntimeStep
+    typeof stepExecutorModule.executeRuntimeStep
   >(async () => {}),
 }));
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn<
-    typeof import("./assertion-candidates/assertion-candidates.js").buildAssertionCandidates
+    typeof assertionCandidatesModule.buildAssertionCandidates
   >(() => ({
     candidates: [],
     skippedNavigationLikeClicks: [],
@@ -20,7 +24,7 @@ const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+    typeof networkIdleModule.waitForPostStepReadiness
   >(async () => ({
     navigationTimedOut: false,
     networkIdleTimedOut: false,
@@ -30,7 +34,7 @@ const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
 }));
 const { generateRuntimeRepairCandidatesMock } = vi.hoisted(() => ({
   generateRuntimeRepairCandidatesMock: vi.fn<
-    typeof import("./selector-runtime-repair.js").generateRuntimeRepairCandidates
+    typeof selectorRuntimeRepairModule.generateRuntimeRepairCandidates
   >(async () => ({
     candidates: [],
     diagnostics: [],
@@ -660,9 +664,9 @@ describe("improve apply runtime replay", () => {
   });
 
   it("expands candidate coverage for click/press/hover with deterministic fallbacks", async () => {
-    const { buildAssertionCandidates } = await vi.importActual<
-      typeof import("./assertion-candidates/assertion-candidates.js")
-    >("./assertion-candidates/assertion-candidates.js");
+    const { buildAssertionCandidates } = (await vi.importActual(
+      "./assertion-candidates/assertion-candidates.js"
+    )) as typeof assertionCandidatesModule;
     buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
 
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-coverage-fallback-"));
@@ -720,9 +724,9 @@ describe("improve apply runtime replay", () => {
 
   it("adds snapshot-native inventory candidates for weak/no-delta interaction steps", async () => {
     const { chromium } = await import("playwright");
-    const { buildAssertionCandidates } = await vi.importActual<
-      typeof import("./assertion-candidates/assertion-candidates.js")
-    >("./assertion-candidates/assertion-candidates.js");
+    const { buildAssertionCandidates } = (await vi.importActual(
+      "./assertion-candidates/assertion-candidates.js"
+    )) as typeof assertionCandidatesModule;
     buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
 
     const ariaSnapshotMock = vi.fn(async (): Promise<string> => "- generic");
@@ -1505,9 +1509,9 @@ describe("improve apply runtime replay", () => {
   });
 
   it("keeps finding indexes aligned for assertion apply with adjacent assertions", async () => {
-    const { buildAssertionCandidates } = await vi.importActual<
-      typeof import("./assertion-candidates/assertion-candidates.js")
-    >("./assertion-candidates/assertion-candidates.js");
+    const { buildAssertionCandidates } = (await vi.importActual(
+      "./assertion-candidates/assertion-candidates.js"
+    )) as typeof assertionCandidatesModule;
     buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
 
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-indexes-"));

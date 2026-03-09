@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import yaml from "js-yaml";
 import { chromium } from "playwright";
+import type { Browser } from "playwright";
 import { play } from "./player-runner.js";
 import { createTestSlug } from "../play-failure-report.js";
 import { ui } from "../../utils/ui.js";
@@ -107,7 +108,7 @@ async function exists(pathToCheck: string): Promise<boolean> {
 }
 
 async function canLaunchHeadedChromium(): Promise<boolean> {
-  let browser: import("playwright").Browser | undefined;
+  let browser: Browser | undefined;
   try {
     browser = await chromium.launch({ headless: false });
     return true;

@@ -15,7 +15,7 @@ vi.mock("../../utils/chromium-runtime.js", () => ({
 }));
 
 vi.mock("../../core/recorder.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../core/recorder.js")>();
+  const actual = await importOriginal();
   return {
     ...actual,
     record: vi.fn(),

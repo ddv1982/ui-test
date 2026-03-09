@@ -51,6 +51,9 @@ export function extractTargetTextFragments(target: Target): string[] {
       return extractLocatorExpressionTextFragments(target.value);
     case "playwrightSelector":
     case "internal":
+    case "css":
+    case "xpath":
+    case "unknown":
       return extractRuntimeSelectorTextFragments(target.value);
     default:
       return [];

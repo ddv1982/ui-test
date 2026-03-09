@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import type { Step } from "../yaml-schema.js";
 import { buildAssertionCandidates } from "./assertion-candidates/assertion-candidates.js";
 import { type StepSnapshot } from "./assertion-candidates/assertion-candidates-snapshot.js";
 import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates/assertion-candidates-snapshot-native.js";
@@ -31,11 +32,12 @@ import type {
   AssertionApplyStatus,
   AssertionCandidate,
   ImproveDiagnostic,
+  StepFinding,
 } from "./report-schema.js";
 import { UserError } from "../../utils/errors.js";
 
 export interface AssertionPassResult {
-  outputSteps: import("../yaml-schema.js").Step[];
+  outputSteps: Step[];
   assertionCandidates: AssertionCandidate[];
   appliedAssertions: number;
   skippedAssertions: number;
@@ -52,8 +54,8 @@ export async function runImproveAssertionPass(input: {
   assertionPolicy: ImproveAssertionPolicy;
   applyAssertions: boolean;
   page?: Page;
-  outputSteps: import("../yaml-schema.js").Step[];
-  findings: import("./report-schema.js").StepFinding[];
+  outputSteps: Step[];
+  findings: StepFinding[];
   outputStepOriginalIndexes: number[];
   nativeStepSnapshots: StepSnapshot[];
   testBaseUrl?: string;

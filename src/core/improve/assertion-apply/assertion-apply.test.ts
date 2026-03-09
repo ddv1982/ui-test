@@ -8,15 +8,17 @@ import {
   validateCandidatesAgainstRuntime,
 } from "./assertion-apply.js";
 import { ASSERTION_POLICY_CONFIG } from "../assertion-policy.js";
+import type * as networkIdleModule from "../../runtime/network-idle.js";
+import type * as stepExecutorModule from "../../runtime/step-executor.js";
 
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn<
-    typeof import("../../runtime/step-executor.js").executeRuntimeStep
+    typeof stepExecutorModule.executeRuntimeStep
   >(async () => {}),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../../runtime/network-idle.js").waitForPostStepReadiness
+    typeof networkIdleModule.waitForPostStepReadiness
   >(async () => ({
     navigationTimedOut: false,
     networkIdleTimedOut: false,

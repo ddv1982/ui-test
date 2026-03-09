@@ -6,6 +6,7 @@ import type { ChildProcess } from "node:child_process";
 import { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { globby } from "globby";
+import type * as playFailureReportModule from "../core/play-failure-report.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
   PLAY_DEFAULT_BASE_URL,
@@ -27,9 +28,7 @@ vi.mock("../core/play/player-runner.js", () => ({
 }));
 
 vi.mock("../core/play-failure-report.js", async () => {
-  const actual = await vi.importActual<typeof import("../core/play-failure-report.js")>(
-    "../core/play-failure-report.js"
-  );
+  const actual = (await vi.importActual("../core/play-failure-report.js")) as typeof playFailureReportModule;
   return {
     ...actual,
     createPlayRunId: vi.fn(() => "run-test-id"),

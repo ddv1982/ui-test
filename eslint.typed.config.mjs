@@ -30,6 +30,7 @@ export default defineConfig(
       },
     },
     rules: {
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
       "no-console": "off",
     },
   },

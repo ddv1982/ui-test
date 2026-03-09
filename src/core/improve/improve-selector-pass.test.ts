@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Page } from "playwright";
 import type { Step } from "../yaml-schema.js";
+import type * as candidateScorerModule from "./candidate-scorer.js";
+import type * as selectorRuntimeRepairModule from "./selector-runtime-repair.js";
+import type * as cookieBannerModule from "../runtime/cookie-banner.js";
+import type * as networkIdleModule from "../runtime/network-idle.js";
+import type * as stepExecutorModule from "../runtime/step-executor.js";
 
 const {
   scoreTargetCandidatesMock,
@@ -11,19 +16,19 @@ const {
   generateRuntimeRepairCandidatesMock,
 } = vi.hoisted(() => ({
   scoreTargetCandidatesMock: vi.fn<
-    typeof import("./candidate-scorer.js").scoreTargetCandidates
+    typeof candidateScorerModule.scoreTargetCandidates
   >(),
   shouldAdoptCandidateMock: vi.fn<
-    typeof import("./candidate-scorer.js").shouldAdoptCandidate
+    typeof candidateScorerModule.shouldAdoptCandidate
   >(),
   executeRuntimeStepMock: vi.fn<
-    typeof import("../runtime/step-executor.js").executeRuntimeStep
+    typeof stepExecutorModule.executeRuntimeStep
   >(async () => {}),
   dismissCookieBannerWithDetailsMock: vi.fn<
-    typeof import("../runtime/cookie-banner.js").dismissCookieBannerWithDetails
+    typeof cookieBannerModule.dismissCookieBannerWithDetails
   >(async () => ({ dismissed: false })),
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+    typeof networkIdleModule.waitForPostStepReadiness
   >(async () => ({
     navigationTimedOut: false,
     networkIdleTimedOut: false,
@@ -31,7 +36,7 @@ const {
     usedNetworkIdleWait: false,
   })),
   generateRuntimeRepairCandidatesMock: vi.fn<
-    typeof import("./selector-runtime-repair.js").generateRuntimeRepairCandidates
+    typeof selectorRuntimeRepairModule.generateRuntimeRepairCandidates
   >(async () => ({
     candidates: [],
     diagnostics: [],

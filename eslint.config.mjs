@@ -19,6 +19,11 @@ export default defineConfig(
   {
     files: ["src/**/*.ts"],
     rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        { fixStyle: "separate-type-imports" },
+      ],
+      eqeqeq: ["error", "always"],
       "no-console": "off",
     },
   },

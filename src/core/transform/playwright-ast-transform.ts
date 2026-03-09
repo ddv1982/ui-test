@@ -246,13 +246,13 @@ function extractSelectOptionValue(argument: unknown, source: string): string {
   if (!argument || typeof argument !== "object") return "";
   const node = argument as AstNode;
 
-  if (node.type === "Literal" && node["value"] != null) {
+  if (node.type === "Literal" && node["value"] !== null) {
     return stringifyLiteralValue(node["value"]) ?? "";
   }
 
   if (node.type === "ArrayExpression" && Array.isArray(node["elements"])) {
     const first = node["elements"][0] as AstNode | undefined;
-    if (first?.type === "Literal" && first["value"] != null) {
+    if (first?.type === "Literal" && first["value"] !== null) {
       return stringifyLiteralValue(first["value"]) ?? "";
     }
     return "";
@@ -270,7 +270,7 @@ function extractSelectOptionValue(argument: unknown, source: string): string {
     });
 
     const valueNode = prop?.["value"] as AstNode | undefined;
-    if (valueNode?.type === "Literal" && valueNode["value"] != null) {
+    if (valueNode?.type === "Literal" && valueNode["value"] !== null) {
       return stringifyLiteralValue(valueNode["value"]) ?? "";
     }
   }

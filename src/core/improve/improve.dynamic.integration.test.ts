@@ -4,6 +4,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { chromium } from "playwright";
+import type { Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { improveTestFile } from "./improve.js";
 import { play } from "../play/player-runner.js";
@@ -132,7 +133,7 @@ describe("improve dynamic acceptance benchmark", () => {
 });
 
 async function canLaunchHeadedChromium(): Promise<boolean> {
-  let browser: import("playwright").Browser | undefined;
+  let browser: Browser | undefined;
   try {
     browser = await chromium.launch({ headless: false });
     return true;

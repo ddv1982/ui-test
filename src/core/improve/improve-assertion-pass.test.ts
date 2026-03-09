@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AssertionCandidate } from "./report-schema.js";
+import type { AssertionCandidate, ImproveDiagnostic } from "./report-schema.js";
 import { runImproveAssertionPass } from "./improve-assertion-pass.js";
+import type * as assertionCandidatesInventoryModule from "./assertion-candidates/assertion-candidates-inventory.js";
+import type * as assertionCandidatesModule from "./assertion-candidates/assertion-candidates.js";
+import type * as networkIdleModule from "../runtime/network-idle.js";
+import type * as stepExecutorModule from "../runtime/step-executor.js";
 
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn<
-    typeof import("./assertion-candidates/assertion-candidates.js").buildAssertionCandidates
+    typeof assertionCandidatesModule.buildAssertionCandidates
   >(() => ({
     candidates: [],
     skippedNavigationLikeClicks: [],
@@ -12,17 +16,17 @@ const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
 }));
 const { buildSnapshotInventoryAssertionCandidatesMock } = vi.hoisted(() => ({
   buildSnapshotInventoryAssertionCandidatesMock: vi.fn<
-    typeof import("./assertion-candidates/assertion-candidates-inventory.js").buildSnapshotInventoryAssertionCandidates
+    typeof assertionCandidatesInventoryModule.buildSnapshotInventoryAssertionCandidates
   >(() => []),
 }));
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
   executeRuntimeStepMock: vi.fn<
-    typeof import("../runtime/step-executor.js").executeRuntimeStep
+    typeof stepExecutorModule.executeRuntimeStep
   >(async () => {}),
 }));
 const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   waitForPostStepNetworkIdleMock: vi.fn<
-    typeof import("../runtime/network-idle.js").waitForPostStepReadiness
+    typeof networkIdleModule.waitForPostStepReadiness
   >(async () => ({
     navigationTimedOut: false,
     networkIdleTimedOut: false,
@@ -107,7 +111,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
       deterministicCandidateResult(baseCandidates())
     );
 
-    const diagnostics: import("./report-schema.js").ImproveDiagnostic[] = [];
+    const diagnostics: ImproveDiagnostic[] = [];
     const result = await runImproveAssertionPass({
       assertions: "candidates",
       assertionSource: "deterministic",
@@ -417,7 +421,7 @@ describe("runImproveAssertionPass coverage fallback behavior", () => {
         },
       ],
     });
-    const diagnostics: import("./report-schema.js").ImproveDiagnostic[] = [];
+    const diagnostics: ImproveDiagnostic[] = [];
 
     const result = await runImproveAssertionPass({
       assertions: "candidates",
