@@ -1,0 +1,57 @@
+{
+  "milestone": "deterministic-planning-core",
+  "flowId": "cli-plan-core",
+  "assertionResults": [
+    {
+      "id": "VAL-IMPROVE-001",
+      "status": "pass",
+      "reason": "`ui-test improve <file> --plan` generated both plan and report artifacts while leaving the source YAML unchanged.",
+      "evidence": [
+        "Command: node /Users/vriesd/projects/ui-test/dist/bin/ui-test.js improve /tmp/utv-dpc-flow-a/flow-a-plan.yaml --plan --report /tmp/utv-dpc-flow-a/artifacts/flow-a-plan.improve-report.json (exit 0)",
+        "Artifacts: /tmp/utv-dpc-flow-a/flow-a-plan.improve-plan.json and /tmp/utv-dpc-flow-a/artifacts/flow-a-plan.improve-report.json both exist",
+        "Source checksum before/after plan runs remained cfb0f03f77aae0cc408480bf107337f28490c83d28540de1f9c1d9301ffab789"
+      ]
+    },
+    {
+      "id": "VAL-IMPROVE-002",
+      "status": "pass",
+      "reason": "Repeated `--plan` runs on unchanged input produced identical normalized plan content, stable proposed test content, and stable assertion candidate ordering.",
+      "evidence": [
+        "Run1 artifact: /tmp/utv-dpc-flow-a/artifacts/flow-a-plan.improve-plan.run1.json; Run2 artifact: /tmp/utv-dpc-flow-a/flow-a-plan.improve-plan.json",
+        "Comparator output: normalized_plan_equal=True, proposed_test_equal=True",
+        "Comparator output: run1_assertion_order=['assertValue','assertVisible'], run2_assertion_order=['assertValue','assertVisible']; run1_indexes=[1,2], run2_indexes=[1,2]"
+      ]
+    },
+    {
+      "id": "VAL-IMPROVE-006",
+      "status": "pass",
+      "reason": "Runtime-failing assertion candidates were surfaced as skipped and runtime-failing steps were retained by safety guard, with no silent assertion writes into YAML.",
+      "evidence": [
+        "Command: node /Users/vriesd/projects/ui-test/dist/bin/ui-test.js improve /tmp/utv-dpc-flow-a/flow-a-candidate-skip.yaml --apply --in-place --report /tmp/utv-dpc-flow-a/artifacts/flow-a-candidate-skip.improve-report.json (exit 0)",
+        "CLI summary included: Assertion apply status: skipped_runtime_failure=2 and runtimeFailingStepsRetained=2, runtimeFailingStepsRemoved=0",
+        "Report /tmp/utv-dpc-flow-a/artifacts/flow-a-candidate-skip.improve-report.json contains assertionCandidates[*].applyStatus=skipped_runtime_failure and diagnostics code runtime_failing_step_retained",
+        "Diff /tmp/utv-dpc-flow-a/artifacts/flow-a-candidate-skip.before.yaml vs /tmp/utv-dpc-flow-a/flow-a-candidate-skip.yaml shows formatting/key-order changes only; no new assert* steps were inserted"
+      ]
+    },
+    {
+      "id": "VAL-IMPROVE-007",
+      "status": "pass",
+      "reason": "When apply-mode mutations produced schema-invalid output (no remaining steps), CLI failed closed, wrote diagnostics report, and left source YAML untouched.",
+      "evidence": [
+        "Command: node /Users/vriesd/projects/ui-test/dist/bin/ui-test.js improve /tmp/utv-dpc-flow-a/flow-a-invalid-output.yaml --apply --in-place --assertions none --report /tmp/utv-dpc-flow-a/artifacts/flow-a-invalid-output.improve-report.json (exit 1)",
+        "Terminal output: 'Improve apply aborted: generated output is invalid and was not written' with validation issue 'steps: Test must have at least one step'",
+        "Report /tmp/utv-dpc-flow-a/artifacts/flow-a-invalid-output.improve-report.json includes diagnostics code apply_write_blocked_invalid_output",
+        "Diff /tmp/utv-dpc-flow-a/artifacts/flow-a-invalid-output.before.yaml vs /tmp/utv-dpc-flow-a/flow-a-invalid-output.yaml returned no differences (exit 0)"
+      ]
+    }
+  ],
+  "frictions": [
+    "Navigation to data: URLs is treated as a relative navigation in improve runtime ('Cannot resolve relative navigation URL'); used this deterministic behavior intentionally for runtime-failure candidate/retention validation evidence."
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "execute",
+    "read",
+    "grep"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "milestone": "deterministic-planning-core",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-IMPROVE-001",
+    "VAL-IMPROVE-002",
+    "VAL-IMPROVE-003",
+    "VAL-IMPROVE-004",
+    "VAL-IMPROVE-005",
+    "VAL-IMPROVE-006",
+    "VAL-IMPROVE-007"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance for CLI surface covering temp-directory isolation, unique artifact prefixes, and local-only deterministic boundaries for parallel subagents.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Captured CLI validation quirks from flow reports: deterministic data: URL relative-resolution behavior and fallback to existing dist binary when local build is blocked by unrelated worktree type errors.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

@@ -1,0 +1,50 @@
+{
+  "milestone": "deterministic-planning-core",
+  "flowId": "cli-apply-core",
+  "assertionResults": [
+    {
+      "id": "VAL-IMPROVE-003",
+      "status": "pass",
+      "reason": "Applying the reviewed plan produced YAML structurally identical to plan.test payload, indicating apply used the reviewed payload rather than recomputing recommendations.",
+      "evidence": [
+        "CLI: \u2714 Applied improve plan: /tmp/utv-dpc-flow-b/flow-b-source.improve-plan.json",
+        "CLI: \u2714 Updated test file: /tmp/utv-dpc-flow-b/flow-b-source.improved.yaml",
+        "Comparison: val003_structural_match=true (plan.test vs flow-b-source.improved.yaml)",
+        "Artifact: /tmp/utv-dpc-flow-b/flow-b-source.improved.yaml"
+      ]
+    },
+    {
+      "id": "VAL-IMPROVE-004",
+      "status": "pass",
+      "reason": "Applying the same plan to moved-but-identical content succeeded and emitted explicit fingerprint-match warning while writing plan-matching output.",
+      "evidence": [
+        "CLI: \u26a0 Plan path resolved to /tmp/utv-dpc-flow-b/flow-b-source.yaml, but the requested target matched by content fingerprint.",
+        "CLI: \u2714 Updated test file: /tmp/utv-dpc-flow-b/flow-b-moved.improved.yaml",
+        "Comparison: val004_structural_match=true (plan.test vs flow-b-moved.improved.yaml)",
+        "Artifact: /tmp/utv-dpc-flow-b/flow-b-moved.yaml"
+      ]
+    },
+    {
+      "id": "VAL-IMPROVE-005",
+      "status": "pass",
+      "reason": "Applying the reviewed plan to drifted source content failed closed with mismatch error and wrote no output; source file remained unchanged.",
+      "evidence": [
+        "Execution: val005_exit_code=1",
+        "CLI: Plan source mismatch: /tmp/utv-dpc-flow-b/flow-b-drift.yaml no longer matches the test content used to generate /tmp/utv-dpc-flow-b/flow-b-source.improve-plan.json.",
+        "File integrity: val005_source_unchanged=true",
+        "Write guard: val005_output_written=no",
+        "Log: /tmp/utv-dpc-flow-b/val005-cli.log"
+      ]
+    }
+  ],
+  "frictions": [
+    "npm run build failed in current worktree due TypeScript exactOptionalPropertyTypes errors, so validation used existing dist CLI binary (/Users/vriesd/projects/ui-test/dist/bin/ui-test.js)."
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "Execute",
+    "TodoWrite"
+  ]
+}
