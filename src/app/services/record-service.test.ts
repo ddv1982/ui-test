@@ -135,6 +135,27 @@ describe("runRecord auto-improve", () => {
 
     expect(improveTestFile).toHaveBeenCalledWith({
       testFile: "e2e/sample.yaml",
+      outputPath: "e2e/sample.improved.yaml",
+      applySelectors: true,
+      applyAssertions: true,
+      assertions: "candidates",
+      assertionPolicy: "reliable",
+      appliedBy: "auto_apply",
+    });
+  });
+
+  it("supports explicit auto-improve report mode", async () => {
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improveMode: "report",
+    });
+
+    expect(improveTestFile).toHaveBeenCalledWith({
+      testFile: "e2e/sample.yaml",
       applySelectors: false,
       applyAssertions: false,
       assertions: "candidates",
@@ -178,19 +199,32 @@ describe("runRecord auto-improve", () => {
     expect(improveTestFile).not.toHaveBeenCalled();
   });
 
+  it("skips auto-improve when improve mode is off", async () => {
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improveMode: "off",
+    });
+
+    expect(improveTestFile).not.toHaveBeenCalled();
+  });
+
   it("prints summary when auto-improve makes changes", async () => {
     vi.mocked(improveTestFile).mockResolvedValue({
       report: {
         testFile: "e2e/sample.yaml",
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
-        appliedBy: "report_only",
+        appliedBy: "auto_apply",
         summary: {
           unchanged: 0,
           improved: 2,
           fallback: 0,
           warnings: 0,
-          assertionCandidates: 1,
+          assertionCandidates: 0,
           appliedAssertions: 1,
           skippedAssertions: 0,
         },
@@ -205,6 +239,7 @@ describe("runRecord auto-improve", () => {
         ],
       },
       reportPath: "e2e/sample.improve-report.json",
+      outputPath: "e2e/sample.improved.yaml",
     });
 
     await runRecord({
@@ -215,8 +250,8 @@ describe("runRecord auto-improve", () => {
       browser: "firefox",
     });
 
-    expect(ui.info).toHaveBeenCalledWith(
-      "Auto-improve report: 2 selector recommendations, 1 assertion candidates"
+    expect(ui.success).toHaveBeenCalledWith(
+      "Auto-improve: 2 selectors improved, 1 assertions applied, 1 transient steps removed"
     );
   });
 
@@ -318,7 +353,10 @@ describe("runRecord auto-improve", () => {
     expect(ui.warn).toHaveBeenCalledWith(
       "You can run it manually: ui-test improve " +
         path.resolve("e2e/sample.yaml") +
-        " --no-apply"
+        " --plan && ui-test improve " +
+        path.resolve("e2e/sample.yaml") +
+        " --apply-plan " +
+        path.resolve("e2e/sample.improve-plan.json")
     );
   });
 
@@ -337,7 +375,10 @@ describe("runRecord auto-improve", () => {
     expect(ui.warn).toHaveBeenCalledWith(
       "You can run it manually: ui-test improve " +
         path.resolve("e2e/sample.yaml") +
-        " --apply"
+        " --plan && ui-test improve " +
+        path.resolve("e2e/sample.yaml") +
+        " --apply-plan " +
+        path.resolve("e2e/sample.improve-plan.json")
     );
   });
 });
@@ -495,7 +536,7 @@ describe("runRecordFromFile", () => {
   });
 
   it("runs from-file auto-improve in report mode by default", async () => {
-    await runRecord({ fromFile: "/tmp/recording.json" });
+    await runRecord({ fromFile: "/tmp/recording.json", improveMode: "report" });
 
     expect(improveTestFile).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -511,6 +552,19 @@ describe("runRecordFromFile", () => {
 
     expect(improveTestFile).toHaveBeenCalledWith(
       expect.objectContaining({
+        applySelectors: true,
+        applyAssertions: true,
+        appliedBy: "auto_apply",
+      })
+    );
+  });
+
+  it("runs from-file auto-improve in apply mode by default", async () => {
+    await runRecord({ fromFile: "/tmp/recording.json" });
+
+    expect(improveTestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputPath: expect.stringContaining("login-flow.improved.yaml"),
         applySelectors: true,
         applyAssertions: true,
         appliedBy: "auto_apply",

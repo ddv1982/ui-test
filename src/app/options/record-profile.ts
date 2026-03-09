@@ -2,6 +2,8 @@ import type { RecordBrowser } from "../../core/recorder.js";
 import { PLAY_DEFAULT_TEST_DIR } from "../../core/play/play-defaults.js";
 import { UserError } from "../../utils/errors.js";
 
+export type RecordImproveMode = "off" | "report" | "apply";
+
 export interface RecordProfileInput {
   browser?: string;
   device?: string;
@@ -9,6 +11,7 @@ export interface RecordProfileInput {
   loadStorage?: string;
   saveStorage?: string;
   outputDir?: string;
+  improveMode?: string;
 }
 
 export interface ResolvedRecordProfile {
@@ -18,6 +21,7 @@ export interface ResolvedRecordProfile {
   loadStorage?: string;
   saveStorage?: string;
   outputDir: string;
+  improveMode: RecordImproveMode;
 }
 
 export function resolveRecordProfile(
@@ -26,6 +30,7 @@ export function resolveRecordProfile(
   const profile: ResolvedRecordProfile = {
     browser: parseRecordBrowser(input.browser) ?? "chromium",
     outputDir: input.outputDir ?? PLAY_DEFAULT_TEST_DIR,
+    improveMode: parseRecordImproveMode(input.improveMode) ?? "apply",
   };
 
   const device = cleanOptional(input.device);
@@ -56,6 +61,20 @@ export function parseRecordBrowser(value: string | undefined): RecordBrowser | u
   throw new UserError(
     `Invalid browser: ${value}`,
     "Use --browser chromium, --browser firefox, or --browser webkit"
+  );
+}
+
+export function parseRecordImproveMode(
+  value: string | undefined
+): RecordImproveMode | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "off" || normalized === "report" || normalized === "apply") {
+    return normalized;
+  }
+  throw new UserError(
+    `Invalid improve mode: ${value}`,
+    "Use --improve-mode off, --improve-mode report, or --improve-mode apply"
   );
 }
 

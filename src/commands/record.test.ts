@@ -20,6 +20,8 @@ describe("record command options", () => {
       ".auth/in.json",
       "--save-storage",
       ".auth/out.json",
+      "--improve-mode",
+      "apply",
     ]);
 
     const opts = command?.opts() as Record<string, string>;
@@ -28,6 +30,7 @@ describe("record command options", () => {
     expect(opts.testIdAttribute).toBe("data-qa");
     expect(opts.loadStorage).toBe(".auth/in.json");
     expect(opts.saveStorage).toBe(".auth/out.json");
+    expect(opts.improveMode).toBe("apply");
   });
 
   it("registers --no-improve flag", () => {
@@ -48,5 +51,15 @@ describe("record command options", () => {
     command?.parseOptions([]);
     const opts = command?.opts() as Record<string, unknown>;
     expect(opts.improve).toBe(true);
+  });
+
+  it("accepts off as an explicit improve mode value", () => {
+    const program = new Command();
+    registerRecord(program);
+    const command = program.commands.find((entry) => entry.name() === "record");
+
+    command?.parseOptions(["--improve-mode", "off"]);
+    const opts = command?.opts() as Record<string, unknown>;
+    expect(opts.improveMode).toBe("off");
   });
 });

@@ -3,6 +3,7 @@ import { UserError } from "../../utils/errors.js";
 import {
   normalizeRecordUrl,
   parseRecordBrowser,
+  parseRecordImproveMode,
   resolveRecordProfile,
 } from "./record-profile.js";
 
@@ -23,6 +24,7 @@ describe("resolveRecordProfile", () => {
       loadStorage: ".auth/in.json",
       saveStorage: ".auth/out.json",
       outputDir: "e2e",
+      improveMode: "apply",
     });
   });
 
@@ -30,16 +32,20 @@ describe("resolveRecordProfile", () => {
     const out = resolveRecordProfile({});
     expect(out.browser).toBe("chromium");
     expect(out.outputDir).toBe("e2e");
+    expect(out.improveMode).toBe("apply");
   });
 });
 
 describe("record-profile parsing", () => {
   it("parses valid enums", () => {
     expect(parseRecordBrowser("Webkit")).toBe("webkit");
+    expect(parseRecordImproveMode("Off")).toBe("off");
+    expect(parseRecordImproveMode("Apply")).toBe("apply");
   });
 
   it("rejects invalid enums", () => {
     expect(() => parseRecordBrowser("safari")).toThrow(UserError);
+    expect(() => parseRecordImproveMode("fast")).toThrow(UserError);
   });
 
   it("normalizes record URLs", () => {

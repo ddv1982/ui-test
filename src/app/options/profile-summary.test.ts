@@ -9,6 +9,7 @@ describe("profile summary formatting", () => {
   it("formats record summary", () => {
     const out = formatRecordingProfileSummary({
       browser: "chromium",
+      improveMode: "apply",
       device: "iPhone 13",
       testIdAttribute: "data-qa",
       loadStorage: ".auth/in.json",
@@ -16,7 +17,16 @@ describe("profile summary formatting", () => {
     });
 
     expect(out).toContain("browser=chromium");
+    expect(out).toContain("improveMode=apply");
     expect(out).toContain("loadStorage=.auth/in.json");
+  });
+
+  it("defaults record summary improve mode to apply", () => {
+    const out = formatRecordingProfileSummary({
+      browser: "firefox",
+    });
+
+    expect(out).toContain("improveMode=apply");
   });
 
   it("formats improve summary", () => {

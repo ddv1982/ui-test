@@ -17,6 +17,10 @@ export function registerRecord(program: Command) {
     .option("--load-storage <path>", "Path to storage state to preload")
     .option("--save-storage <path>", "Path to write resulting storage state")
     .option("--from-file <path>", "Import a Chrome DevTools Recorder JSON export instead of recording")
+    .option(
+      "--improve-mode <mode>",
+      "Auto-improve mode after recording: apply (default), report, or off"
+    )
     .option("--no-improve", "Skip automatic improvement after recording")
     .action(async (opts: unknown) => {
       try {
@@ -41,6 +45,7 @@ function parseRecordCliOptions(value: unknown): RecordCliOptions {
   const loadStorage = asOptionalString(value.loadStorage);
   const saveStorage = asOptionalString(value.saveStorage);
   const fromFile = asOptionalString(value.fromFile);
+  const improveMode = asOptionalString(value.improveMode);
   const improve = asOptionalBoolean(value.improve);
 
   if (name !== undefined) out.name = name;
@@ -53,6 +58,7 @@ function parseRecordCliOptions(value: unknown): RecordCliOptions {
   if (loadStorage !== undefined) out.loadStorage = loadStorage;
   if (saveStorage !== undefined) out.saveStorage = saveStorage;
   if (fromFile !== undefined) out.fromFile = fromFile;
+  if (improveMode !== undefined) out.improveMode = improveMode;
   if (improve !== undefined) out.improve = improve;
 
   return out;
@@ -69,6 +75,7 @@ interface RawRecordCliOptions {
   loadStorage?: unknown;
   saveStorage?: unknown;
   fromFile?: unknown;
+  improveMode?: unknown;
   improve?: unknown;
 }
 
