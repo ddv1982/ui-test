@@ -1,0 +1,78 @@
+{
+  "milestone": "parity-and-determinism-hardening",
+  "flowId": "headed-parity",
+  "testedAt": "2026-03-09T07:51:58Z",
+  "credentials": {
+    "account": "cli-flow-b@example.test",
+    "passwordLabel": "flow-b-pass",
+    "namespace": "flow-b"
+  },
+  "assertionsTested": [
+    "VAL-CROSS-004",
+    "VAL-CROSS-005",
+    "VAL-CROSS-006"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-CROSS-004",
+      "status": "pass",
+      "reason": "Parity-covered fixture behavior was validated by integration coverage that explicitly runs the same YAML in headless and headed modes, with both variants passing.",
+      "evidence": [
+        "targeted-test-output: src/core/player.integration.test.ts includes passing tests 'runs the same YAML in headless and headed modes when headed Chromium is available' and 'runs non-cookie overlay YAML in headless and headed modes when headed Chromium is available' (exit 0)",
+        "targeted-test-output: src/core/improve/improve.dynamic.integration.test.ts passed mission-critical improved-flow repair benchmark (exit 0)",
+        "terminal-output(headless-pass): headless execution steps completed and assertions passed in parity tests",
+        "terminal-output(headed-pass): headed parity mode executed under UI_TEST_REQUIRE_HEADED_PARITY=1 via scripts/run-headed-parity.mjs and passed"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-005",
+      "status": "pass",
+      "reason": "The headed parity resolver test confirms mission-critical suite resolution and explicit zero-match failure behavior; parity runner output confirms resolved files are the expected player and improve integration files.",
+      "evidence": [
+        "targeted-test-output: scripts/run-headed-parity.test.mjs passed 'resolves all configured parity suites'",
+        "targeted-test-output: scripts/run-headed-parity.test.mjs passed 'fails when a configured suite resolves to zero tests'",
+        "targeted-test-output: scripts/run-headed-parity.test.mjs passed 'deduplicates and sorts matched files'",
+        "terminal-output(test:parity:headed): [headed-parity] Running parity suites (2 files): src/core/improve/improve.dynamic.integration.test.ts, src/core/player.integration.test.ts"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-006",
+      "status": "pass",
+      "reason": "Mission-critical headed parity command completed successfully and reported a fully green parity surface for player and improve integration tests.",
+      "evidence": [
+        "terminal-output(test:parity:headed): npm run test:parity:headed exited 0",
+        "terminal-output(test:parity:headed): Test Files 2 passed, Tests 26 passed",
+        "terminal-output(targeted-integration): includes src/core/player.integration.test.ts (25 tests) and src/core/improve/improve.dynamic.integration.test.ts (1 test) both passed"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "LS",
+    "Execute",
+    "ApplyPatch"
+  ],
+  "frictions": [],
+  "blockers": [],
+  "commandsRun": [
+    {
+      "command": "FLOW_B_TMP=$(mktemp -d /tmp/flow-b-vitest-XXXXXX) && TMPDIR=\"$FLOW_B_TMP\" node /Users/vriesd/projects/ui-test/node_modules/vitest/vitest.mjs run /Users/vriesd/projects/ui-test/scripts/run-headed-parity.test.mjs /Users/vriesd/projects/ui-test/src/core/player.integration.test.ts /Users/vriesd/projects/ui-test/src/core/improve/improve.dynamic.integration.test.ts --reporter=verbose",
+      "exitCode": 0,
+      "observations": [
+        "3 test files passed, 29 tests passed.",
+        "Resolver coverage passed including zero-match loud failure assertion.",
+        "Parity-focused player and improve integration tests passed with expected intentional failure-step logs contained within passing test cases."
+      ]
+    },
+    {
+      "command": "FLOW_B_TMP=$(mktemp -d /tmp/flow-b-headed-XXXXXX) && TMPDIR=\"$FLOW_B_TMP\" npm --prefix /Users/vriesd/projects/ui-test run test:parity:headed",
+      "exitCode": 0,
+      "observations": [
+        "Headed parity resolver selected exactly 2 mission-critical files.",
+        "Parity run completed green: 2 files passed, 26 tests passed.",
+        "Included headless/headed parity assertions for shared YAML flows and improve dynamic integration coverage."
+      ]
+    }
+  ],
+  "summary": "Validated VAL-CROSS-004/005/006 with deterministic local fixtures: resolver behavior (including zero-match fail-loud), headless+headed parity stability, and full npm headed parity gate all passed with exit code 0."
+}

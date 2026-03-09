@@ -1,0 +1,121 @@
+{
+  "milestone": "parity-and-determinism-hardening",
+  "flowId": "brittle-determinism",
+  "testedAt": "2026-03-09T07:52:29Z",
+  "credentials": {
+    "account": "cli-flow-a@example.test",
+    "passwordLabel": "flow-a-pass",
+    "namespace": "flow-a"
+  },
+  "assertionsTested": [
+    "VAL-CROSS-002",
+    "VAL-CROSS-003",
+    "VAL-CROSS-007",
+    "VAL-CROSS-008",
+    "VAL-CROSS-009"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-CROSS-002",
+      "status": "pass",
+      "reason": "Controlled brittle baseline failure mode reproduced before improve was applied.",
+      "evidence": [
+        "Command cmd-1: src/core/improve/improve.dynamic.integration.test.ts passed while logging baseline failure: '✖ Step 2: click ... Timeout 2500ms exceeded' for exact brittle locator.",
+        "Command cmd-1 targeted test output: improve dynamic acceptance benchmark > repairs brittle exact news locator and turns baseline failure into pass."
+      ]
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "status": "pass",
+      "reason": "Redesigned improve path repaired brittle selector and replay succeeded after repair.",
+      "evidence": [
+        "Command cmd-1: same integration test logged repaired replay steps passing (click 'link', assertVisible '#article') and overall test pass.",
+        "Command cmd-5: full suite rerun repeated baseline failure signal first, then successful improved replay in both headless and headed sections within the same deterministic fixture test."
+      ]
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "status": "pass",
+      "reason": "Runtime-failing step removal behavior remained gated by classifier disposition/safety/confidence and retained when unsafe.",
+      "evidence": [
+        "Command cmd-2: improve.test targeted pass for 'retains non-transient runtime-failing steps and removes transient ones'.",
+        "Command cmd-2: improve.test targeted pass for 'retains low-confidence transient removals behind safety guard'.",
+        "Command cmd-2: runtime-failure-classifier targeted pass for 'marks low-confidence soft transient dismissals as unsafe to auto-apply'."
+      ]
+    },
+    {
+      "id": "VAL-CROSS-008",
+      "status": "pass",
+      "reason": "Business/content interactions were retained unless explicit safe removal evidence existed.",
+      "evidence": [
+        "Command cmd-2: improve.test targeted pass for 'keeps likely business-intent transient-context failures as retained'.",
+        "Command cmd-2: runtime-failure-classifier targeted passes for retained content/business cases ('classifies content interactions as retained non-transient failures', 'keeps generic business wording in transient context as retained', 'keeps privacy content-link interactions as retained').",
+        "Command cmd-5: comprehensive classifier suite pass including both transient removals and retained content semantics tests."
+      ]
+    },
+    {
+      "id": "VAL-CROSS-009",
+      "status": "pass",
+      "reason": "Tie-break behavior for equivalent-confidence candidates remained deterministic in selector and assertion application paths.",
+      "evidence": [
+        "Command cmd-3: improve.apply-runtime targeted pass for 'adopts dynamic selector repairs on score ties when runtime match is unique'.",
+        "Command cmd-3: assertion-apply targeted pass for 'uses candidate index as stable tie-breaker when confidence, action, and source are tied'.",
+        "Command cmd-5: full deterministic candidate-related suites passed (improve.apply-runtime, improve-selector-pass, assertion-candidates-inventory)."
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "cli",
+    "npx vitest"
+  ],
+  "frictions": [],
+  "blockers": [],
+  "commandsRun": [
+    {
+      "id": "cmd-1",
+      "command": "npx vitest run src/core/improve/improve.dynamic.integration.test.ts --reporter=verbose",
+      "exitCode": 0,
+      "observations": [
+        "Baseline brittle locator failure reproduced before improve (Step 2 timeout on exact link name).",
+        "After improve, replay steps passed and test completed green."
+      ]
+    },
+    {
+      "id": "cmd-2",
+      "command": "npx vitest run src/core/improve/improve.test.ts src/core/improve/runtime-failure-classifier.test.ts --reporter=verbose -t \"retains non-transient runtime-failing steps and removes transient ones|keeps likely business-intent transient-context failures as retained|retains low-confidence transient removals behind safety guard|classifies cookie-dismiss interactions as transient removals|classifies content interactions as retained non-transient failures|keeps generic business wording in transient context as retained|keeps privacy content-link interactions as retained|marks low-confidence soft transient dismissals as unsafe to auto-apply\"",
+      "exitCode": 0,
+      "observations": [
+        "All targeted removal/retention classifier and runner tests passed (8 passed, 23 skipped).",
+        "Observed explicit retained-path and unsafe-to-auto-apply protections passing under deterministic fixtures."
+      ]
+    },
+    {
+      "id": "cmd-3",
+      "command": "npx vitest run src/core/improve/improve.apply-runtime.test.ts src/core/improve/assertion-apply.test.ts --reporter=verbose -t \"adopts dynamic selector repairs on score ties when runtime match is unique|uses candidate index as stable tie-breaker when confidence, action, and source are tied\"",
+      "exitCode": 0,
+      "observations": [
+        "Both tie-focused tests passed (2 passed, 49 skipped).",
+        "Selector tie adoption and assertion candidate index tie-break remained stable."
+      ]
+    },
+    {
+      "id": "cmd-4",
+      "command": "npx vitest run src/core/improve/improve-selector-pass.test.ts src/core/improve/assertion-candidates-inventory.test.ts --reporter=verbose",
+      "exitCode": 0,
+      "observations": [
+        "Selector pass and inventory candidate suites passed (9 passed).",
+        "Confirmed deterministic candidate generation/dedup paths are green."
+      ]
+    },
+    {
+      "id": "cmd-5",
+      "command": "npx vitest run src/core/improve/improve.dynamic.integration.test.ts src/core/improve/improve.apply-runtime.test.ts src/core/improve/runtime-failure-classifier.test.ts src/core/improve/improve-selector-pass.test.ts src/core/improve/assertion-candidates-inventory.test.ts --reporter=verbose",
+      "exitCode": 0,
+      "observations": [
+        "Comprehensive suggested command passed (5 files, 55 tests).",
+        "Output again showed brittle baseline failure signal followed by successful improved replay, plus all classifier/tie-related suites passing."
+      ]
+    }
+  ],
+  "summary": "Validated 5 assigned assertions with deterministic local fixtures/tests only: 5 passed, 0 failed, 0 blocked."
+}
