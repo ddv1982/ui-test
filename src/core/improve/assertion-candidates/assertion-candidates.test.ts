@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildAssertionCandidates } from "./assertion-candidates.js";
-import type { StepFinding } from "./report-schema.js";
+import type { StepFinding } from "../report-schema.js";
 
 describe("buildAssertionCandidates", () => {
   it("creates deterministic value and checked assertions for form actions", () => {

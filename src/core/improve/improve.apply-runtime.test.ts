@@ -12,7 +12,7 @@ const { executeRuntimeStepMock } = vi.hoisted(() => ({
 }));
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn<
-    typeof import("./assertion-candidates.js").buildAssertionCandidates
+    typeof import("./assertion-candidates/assertion-candidates.js").buildAssertionCandidates
   >(() => ({
     candidates: [],
     skippedNavigationLikeClicks: [],
@@ -128,7 +128,7 @@ vi.mock("./candidate-generator-aria.js", () => ({
   generateAriaTargetCandidates: vi.fn(async () => ({ candidates: [], diagnostics: [] })),
 }));
 
-vi.mock("./assertion-candidates.js", () => ({
+vi.mock("./assertion-candidates/assertion-candidates.js", () => ({
   buildAssertionCandidates: buildAssertionCandidatesMock,
 }));
 
@@ -661,8 +661,8 @@ describe("improve apply runtime replay", () => {
 
   it("expands candidate coverage for click/press/hover with deterministic fallbacks", async () => {
     const { buildAssertionCandidates } = await vi.importActual<
-      typeof import("./assertion-candidates.js")
-    >("./assertion-candidates.js");
+      typeof import("./assertion-candidates/assertion-candidates.js")
+    >("./assertion-candidates/assertion-candidates.js");
     buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
 
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-coverage-fallback-"));
@@ -721,8 +721,8 @@ describe("improve apply runtime replay", () => {
   it("adds snapshot-native inventory candidates for weak/no-delta interaction steps", async () => {
     const { chromium } = await import("playwright");
     const { buildAssertionCandidates } = await vi.importActual<
-      typeof import("./assertion-candidates.js")
-    >("./assertion-candidates.js");
+      typeof import("./assertion-candidates/assertion-candidates.js")
+    >("./assertion-candidates/assertion-candidates.js");
     buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
 
     const ariaSnapshotMock = vi.fn(async (): Promise<string> => "- generic");
@@ -1506,8 +1506,8 @@ describe("improve apply runtime replay", () => {
 
   it("keeps finding indexes aligned for assertion apply with adjacent assertions", async () => {
     const { buildAssertionCandidates } = await vi.importActual<
-      typeof import("./assertion-candidates.js")
-    >("./assertion-candidates.js");
+      typeof import("./assertion-candidates/assertion-candidates.js")
+    >("./assertion-candidates/assertion-candidates.js");
     buildAssertionCandidatesMock.mockImplementation(buildAssertionCandidates);
 
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-cleanup-indexes-"));

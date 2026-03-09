@@ -1,7 +1,7 @@
 import type { Page } from "playwright";
-import { buildAssertionCandidates } from "./assertion-candidates.js";
-import { type StepSnapshot } from "./assertion-candidates-snapshot.js";
-import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates-snapshot-native.js";
+import { buildAssertionCandidates } from "./assertion-candidates/assertion-candidates.js";
+import { type StepSnapshot } from "./assertion-candidates/assertion-candidates-snapshot.js";
+import { buildSnapshotNativeAssertionCandidates } from "./assertion-candidates/assertion-candidates-snapshot-native.js";
 import {
   type AssertionApplyOutcome,
   type AssertionCandidateRef,

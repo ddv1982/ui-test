@@ -1,8 +1,8 @@
-import type { Step } from "../yaml-schema.js";
+import type { Step } from "../../yaml-schema.js";
 import type {
   AssertionCandidate,
   AssertionCandidateSource,
-} from "./report-schema.js";
+} from "../report-schema.js";
 import {
   buildRoleTarget,
   buildTextTarget,

@@ -1,5 +1,5 @@
-import type { Step, Target } from "../yaml-schema.js";
-import { quote } from "./candidate-generator.js";
+import type { Step, Target } from "../../yaml-schema.js";
+import { quote } from "../candidate-generator.js";
 
 export interface SnapshotNode {
   role: string;

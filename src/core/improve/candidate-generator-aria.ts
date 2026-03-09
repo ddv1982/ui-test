@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 import type { Target } from "../yaml-schema.js";
 import { resolveLocator } from "../runtime/locator-runtime.js";
 import { quote, type TargetCandidate } from "./candidate-generator.js";
-import { parseSnapshotNodes } from "./assertion-candidates-snapshot.js";
+import { parseSnapshotNodes } from "./assertion-candidates/assertion-candidates-snapshot.js";
 import type { ImproveDiagnostic } from "./report-schema.js";
 
 const USELESS_ROLES = new Set(["generic", "none", "presentation"]);

@@ -1,6 +1,6 @@
-import type { AssertionCandidate, StepFinding } from "./report-schema.js";
-import type { Step, Target } from "../yaml-schema.js";
-import { classifyNavigationLikeInteraction } from "./navigation-like-interaction.js";
+import type { AssertionCandidate, StepFinding } from "../report-schema.js";
+import type { Step, Target } from "../../yaml-schema.js";
+import { classifyNavigationLikeInteraction } from "../navigation-like-interaction.js";
 
 const COVERAGE_FALLBACK_CONFIDENCE = 0.76;
 

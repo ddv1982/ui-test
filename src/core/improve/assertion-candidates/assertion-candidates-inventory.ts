@@ -1,10 +1,10 @@
-import type { Target } from "../yaml-schema.js";
-import { quote } from "./candidate-generator.js";
+import type { Target } from "../../yaml-schema.js";
+import { quote } from "../candidate-generator.js";
 import {
   parseSnapshotNodes,
   type StepSnapshot,
 } from "./assertion-candidates-snapshot.js";
-import type { AssertionCandidate } from "./report-schema.js";
+import type { AssertionCandidate } from "../report-schema.js";
 
 const INVENTORY_TEXT_ROLES = new Set([
   "heading",

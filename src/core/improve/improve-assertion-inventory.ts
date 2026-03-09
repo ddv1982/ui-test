@@ -1,6 +1,6 @@
 import type { Step } from "../yaml-schema.js";
-import { buildSnapshotInventoryAssertionCandidates } from "./assertion-candidates-inventory.js";
-import type { StepSnapshot } from "./assertion-candidates-snapshot.js";
+import { buildSnapshotInventoryAssertionCandidates } from "./assertion-candidates/assertion-candidates-inventory.js";
+import type { StepSnapshot } from "./assertion-candidates/assertion-candidates-snapshot.js";
 import { dedupeAssertionCandidates } from "./improve-helpers.js";
 import type {
   ImproveAssertionSource,

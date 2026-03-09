@@ -6,7 +6,7 @@ import {
 } from "../runtime/network-idle.js";
 import { dismissCookieBannerWithDetails } from "../runtime/cookie-banner.js";
 import type { Step, Target } from "../yaml-schema.js";
-import type { StepSnapshot } from "./assertion-candidates-snapshot.js";
+import type { StepSnapshot } from "./assertion-candidates/assertion-candidates-snapshot.js";
 import { scoreTargetCandidates } from "./candidate-scorer.js";
 import {
   DEFAULT_RUNTIME_TIMEOUT_MS,

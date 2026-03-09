@@ -1,8 +1,8 @@
-import type { Step } from "../yaml-schema.js";
+import type { Step } from "../../yaml-schema.js";
 import type {
   AssertionCandidate,
   AssertionCandidateSource,
-} from "./report-schema.js";
+} from "../report-schema.js";
 import {
   buildDeltaNodes,
   buildStableNodes,
@@ -23,8 +23,8 @@ import {
   normalizeForCompare,
 } from "./assertion-candidates-snapshot-shared.js";
 import { parseSnapshotNodes } from "./assertion-candidates-snapshot-parser.js";
-import { classifyNavigationLikeInteraction } from "./navigation-like-interaction.js";
-import type { StepSnapshotScope } from "./step-snapshot-scope.js";
+import { classifyNavigationLikeInteraction } from "../navigation-like-interaction.js";
+import type { StepSnapshotScope } from "../step-snapshot-scope.js";
 
 export interface StepSnapshot {
   index: number;

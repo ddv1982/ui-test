@@ -4,7 +4,7 @@ import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 
 const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
   buildAssertionCandidatesMock: vi.fn<
-    typeof import("./assertion-candidates.js").buildAssertionCandidates
+    typeof import("./assertion-candidates/assertion-candidates.js").buildAssertionCandidates
   >(() => ({
     candidates: [],
     skippedNavigationLikeClicks: [],
@@ -12,7 +12,7 @@ const { buildAssertionCandidatesMock } = vi.hoisted(() => ({
 }));
 const { buildSnapshotInventoryAssertionCandidatesMock } = vi.hoisted(() => ({
   buildSnapshotInventoryAssertionCandidatesMock: vi.fn<
-    typeof import("./assertion-candidates-inventory.js").buildSnapshotInventoryAssertionCandidates
+    typeof import("./assertion-candidates/assertion-candidates-inventory.js").buildSnapshotInventoryAssertionCandidates
   >(() => []),
 }));
 const { executeRuntimeStepMock } = vi.hoisted(() => ({
@@ -31,11 +31,11 @@ const { waitForPostStepNetworkIdleMock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("./assertion-candidates.js", () => ({
+vi.mock("./assertion-candidates/assertion-candidates.js", () => ({
   buildAssertionCandidates: buildAssertionCandidatesMock,
 }));
 
-vi.mock("./assertion-candidates-inventory.js", () => ({
+vi.mock("./assertion-candidates/assertion-candidates-inventory.js", () => ({
   buildSnapshotInventoryAssertionCandidates:
     buildSnapshotInventoryAssertionCandidatesMock,
 }));
