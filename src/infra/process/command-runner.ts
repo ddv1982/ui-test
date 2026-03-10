@@ -1,9 +1,5 @@
 import { spawn, type SpawnOptions } from "node:child_process";
-
-interface InteractiveCommandResult {
-  exitCode?: number;
-  signal?: NodeJS.Signals | null;
-}
+import type { InteractiveCommandResult } from "../../core/contracts/process-runner.js";
 
 export function runInteractiveCommand(
   command: string,

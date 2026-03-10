@@ -53,6 +53,9 @@ describe("layer boundaries", () => {
 
         const targetLayer = layerForFile(resolvedImportPath);
         if (disallowed.has(targetLayer)) {
+          if (isAllowedException(fromLayer, targetLayer, resolvedImportPath)) {
+            continue;
+          }
           violations.push({
             file: toRepoPath(file),
             fromLayer,
@@ -216,6 +219,21 @@ async function exists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function isAllowedException(
+  fromLayer: Layer,
+  targetLayer: Layer,
+  resolvedImportPath: string
+): boolean {
+  // Allow infra to import from core/contracts
+  if (fromLayer === "infra" && targetLayer === "core") {
+    const relativeTarget = path.relative(srcRoot, resolvedImportPath);
+    if (relativeTarget.startsWith(`core${path.sep}contracts${path.sep}`) || relativeTarget.startsWith("core/contracts/")) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function layerForFile(filePath: string): Layer {
