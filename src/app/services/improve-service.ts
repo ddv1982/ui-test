@@ -14,7 +14,7 @@ import {
   collectAssertionSkipDetails,
   formatAssertionApplyStatusCounts,
   formatAssertionSourceCounts,
-} from "../../app/services/improve-output.js";
+} from "./improve-output.js";
 import {
   applyImprovePlan,
   generateImprovePlan,

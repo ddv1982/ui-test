@@ -1,10 +1,8 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
-const tsconfigRootDir = path.dirname(fileURLToPath(import.meta.url));
+const tsconfigRootDir = import.meta.dirname;
 
 export default defineConfig(
   {
