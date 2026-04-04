@@ -252,7 +252,7 @@ describe("record", () => {
     expect(saved).toContain("framePath:");
     expect(saved).toContain("- iframe[title=\"Checkout\"]");
     expect(saved).toContain('value: "getByRole(\'button\', { name: \'Pay now\' })"');
-    expect(saved).toContain('raw: "page.frameLocator(\'iframe[title=\\\"Checkout\\\"]\').getByRole(\'button\', { name: \'Pay now\' })"');
+    expect(saved).toContain('raw: "page.frameLocator(\'iframe[title=\\"Checkout\\"]\').getByRole(\'button\', { name: \'Pay now\' })"');
 
     await fs.rm(outputDir, { recursive: true, force: true });
   });

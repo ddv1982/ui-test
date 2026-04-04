@@ -171,8 +171,8 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       const fallback = await maybeCreateManualFallback({
         name,
         url,
-        description: cleanedDescription,
         outputDir: profile.outputDir,
+        ...(cleanedDescription !== undefined ? { description: cleanedDescription } : {}),
       });
       if (fallback) {
         if (opts.improve !== false) {

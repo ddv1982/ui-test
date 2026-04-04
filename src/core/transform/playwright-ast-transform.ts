@@ -283,7 +283,11 @@ function flattenCallChain(expression: CallExpressionNode):
   | Array<{ method: string; propertyStart?: number; call: CallExpressionNode }>
   | null {
   if (isIdentifier(expression.callee)) {
-    return [{ method: expression.callee.name, propertyStart: expression.callee.start, call: expression }];
+    return [{
+      method: expression.callee.name,
+      ...(typeof expression.callee.start === "number" ? { propertyStart: expression.callee.start } : {}),
+      call: expression,
+    }];
   }
 
   if (!isMemberExpression(expression.callee) || expression.callee.computed || !isIdentifier(expression.callee.property)) {
@@ -292,7 +296,9 @@ function flattenCallChain(expression: CallExpressionNode):
 
   const current = {
     method: expression.callee.property.name,
-    propertyStart: expression.callee.property.start,
+    ...(typeof expression.callee.property.start === "number"
+      ? { propertyStart: expression.callee.property.start }
+      : {}),
     call: expression,
   };
 
