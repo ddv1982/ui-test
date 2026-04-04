@@ -13,6 +13,9 @@ If you see `Standalone install policy: project-local installs are not supported`
 3. Install the published package globally: `npm i -g ui-test`
 4. Re-run `ui-test setup`.
 
+If npm publication is not available yet, install the GitHub Release tarball
+instead (see `README.md` / `Getting Started`).
+
 ## Browser Installation Issues
 
 ### Chromium executable missing

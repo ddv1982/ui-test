@@ -16,6 +16,12 @@ npm i -g ui-test
 ui-test setup --browsers chromium
 ```
 
+**GitHub Release tarball install (pre-npm-publish remote install):**
+```bash
+npm i -g https://github.com/ddv1982/ui-test/releases/download/v0.1.0/ui-test-0.1.0.tgz
+ui-test setup --browsers chromium
+```
+
 **One-off run (no global install):**
 ```bash
 npx ui-test setup --browsers chromium
