@@ -89,4 +89,43 @@ steps:
 `);
     expect(parsed).toHaveProperty("name", "New Test");
   });
+
+  it("normalizes inline frameLocator chains in YAML targets into framePath metadata", () => {
+    const parsed = yamlToTest(`
+name: Frame Test
+steps:
+  - action: click
+    target:
+      value: 'frameLocator(''iframe[name="app-frame"]'').getByRole(''button'', { name: ''Log in'' })'
+      kind: locatorExpression
+      source: codegen
+`);
+
+    expect(parsed).toHaveProperty("steps.0.target.value", "getByRole('button', { name: 'Log in' })");
+    expect(parsed).toHaveProperty("steps.0.target.framePath", ['iframe[name="app-frame"]']);
+    expect(parsed).toHaveProperty(
+      "steps.0.target.raw",
+      "frameLocator('iframe[name=\"app-frame\"]').getByRole('button', { name: 'Log in' })"
+    );
+  });
+
+  it("normalizes inline contentFrame chains in YAML targets into framePath metadata", () => {
+    const parsed = yamlToTest(`
+name: Nested Frame Test
+steps:
+  - action: fill
+    target:
+      value: 'locator(''#outer'').contentFrame().locator(''iframe[name="inner"]'').contentFrame().getByLabel(''Email'')'
+      kind: locatorExpression
+      source: codegen
+    text: "user@example.com"
+`);
+
+    expect(parsed).toHaveProperty("steps.0.target.value", "getByLabel('Email')");
+    expect(parsed).toHaveProperty("steps.0.target.framePath", ["#outer", 'iframe[name="inner"]']);
+    expect(parsed).toHaveProperty(
+      "steps.0.target.raw",
+      "locator('#outer').contentFrame().locator('iframe[name=\"inner\"]').contentFrame().getByLabel('Email')"
+    );
+  });
 });
