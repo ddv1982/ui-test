@@ -44,7 +44,7 @@ describe("check-remote-global-install-dry-run", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       1,
       "npm",
-      ["i", "-g", "github:owner/repo#abc123", "--dry-run"],
+      ["i", "-g", "github:owner/repo#abc123"],
       expect.objectContaining({
         cwd: expect.any(String),
         encoding: "utf-8",
@@ -78,7 +78,7 @@ describe("check-remote-global-install-dry-run", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       1,
       "npm",
-      ["i", "-g", "github:ddv1982/ui-test", "--dry-run"],
+      ["i", "-g", "github:ddv1982/ui-test"],
       expect.objectContaining({
         cwd: expect.any(String),
         encoding: "utf-8",
@@ -90,7 +90,7 @@ describe("check-remote-global-install-dry-run", () => {
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       2,
       "npm",
-      ["i", "-g", "git+https://github.com/ddv1982/ui-test.git", "--dry-run"],
+      ["i", "-g", "git+https://github.com/ddv1982/ui-test.git"],
       expect.objectContaining({
         cwd: expect.any(String),
         encoding: "utf-8",
@@ -106,7 +106,7 @@ describe("check-remote-global-install-dry-run", () => {
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       "npm",
-      ["i", "-g", "github:ddv1982/ui-test", "--dry-run"],
+      ["i", "-g", "github:ddv1982/ui-test"],
       expect.objectContaining({
         cwd: expect.stringMatching(/ui-test-remote-global-install-.*\/cwd$/),
       })
@@ -127,7 +127,7 @@ describe("check-remote-global-install-dry-run", () => {
       });
 
     expect(() => runRemoteGlobalInstallDryRun()).toThrow(
-      /npm i -g github:ddv1982\/ui-test --dry-run failed/
+      /npm i -g github:ddv1982\/ui-test failed/
     );
     expect(mockRmSync).toHaveBeenCalledTimes(1);
   });
@@ -141,7 +141,7 @@ describe("check-remote-global-install-dry-run", () => {
     });
 
     expect(() => runRemoteGlobalInstallDryRun()).toThrow(
-      /npm i -g github:owner\/repo#abc123 --dry-run failed/
+      /npm i -g github:owner\/repo#abc123 failed/
     );
     expect(mockSpawnSync).toHaveBeenCalledTimes(1);
   });
@@ -160,7 +160,7 @@ describe("check-remote-global-install-dry-run", () => {
       });
 
     expect(() => runRemoteGlobalInstallDryRun()).toThrow(
-      /npm i -g github:ddv1982\/ui-test --dry-run failed with status 3/
+      /npm i -g github:ddv1982\/ui-test failed with status 3/
     );
     expect(mockRmSync).toHaveBeenCalledTimes(1);
   });

@@ -12,7 +12,7 @@ function runRemoteGlobalInstallDryRunCommand(
   globalPrefix,
   installWorkdir
 ) {
-  return spawnSync("npm", ["i", "-g", remotePackageSpec, "--dry-run"], {
+  return spawnSync("npm", ["i", "-g", remotePackageSpec], {
     cwd: installWorkdir,
     encoding: "utf-8",
     env: {
@@ -60,7 +60,7 @@ export function runRemoteGlobalInstallDryRun() {
       if (installResult.stdout) process.stdout.write(installResult.stdout);
       if (installResult.stderr) process.stderr.write(installResult.stderr);
       throw new Error(
-        `npm i -g ${remotePackageSpec} --dry-run failed with status ${installResult.status ?? 1}.`
+        `npm i -g ${remotePackageSpec} failed with status ${installResult.status ?? 1}.`
       );
     }
   } finally {
