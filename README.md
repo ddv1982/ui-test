@@ -10,20 +10,16 @@ Record flows, replay them, and improve selector/assertion quality with a review-
 npm run setup
 ```
 
-**GitHub Release tarball install:**
-```bash
-npm i -g https://github.com/ddv1982/ui-test/releases/download/v0.1.0/ui-test-0.1.0.tgz
-ui-test setup --browsers chromium
-```
-
 **One-off run (no global install):**
 ```bash
 npx -y github:ddv1982/ui-test setup --browsers chromium
 ```
 
-Until `ui-test` is published to npm, use the GitHub Release tarball or the one-off GitHub invocation above instead of a raw git global install.
+Until `ui-test` is published to npm, use the one-off GitHub invocation above instead of a raw git global install.
 
-All command examples below assume the global `ui-test` command is available via the GitHub Release tarball install.
+All command examples below assume either:
+- a local repository checkout (`npm run setup`), or
+- the one-off `npx -y github:ddv1982/ui-test ...` invocation.
 
 ## Core Commands
 

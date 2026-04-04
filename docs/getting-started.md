@@ -15,24 +15,17 @@ This guide is for first-time `ui-test` users.
 npm run setup
 ```
 
-### Global install
-
-Install from a GitHub Release tarball:
-
-```bash
-npm i -g https://github.com/ddv1982/ui-test/releases/download/v0.1.0/ui-test-0.1.0.tgz
-ui-test setup --browsers chromium
-```
-
 ### One-off run (no install)
 
 ```bash
 npx -y github:ddv1982/ui-test setup --browsers chromium
 ```
 
-For local development builds, use the repository checkout flow from `README.md` instead of a raw git global install.
+Until npm publication, use the repository checkout flow or the one-off
+GitHub invocation instead of a raw git global install.
 
-All command examples below use global `ui-test`.
+All command examples below use either the local checkout flow or the one-off
+GitHub invocation.
 
 ## Setup
 

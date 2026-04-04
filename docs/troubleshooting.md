@@ -10,11 +10,9 @@
 If you see `Standalone install policy: project-local installs are not supported`:
 1. Remove `ui-test` from `dependencies`/`devDependencies` in `package.json`.
 2. Run `npm uninstall ui-test`.
-3. Install the GitHub Release tarball using the command in `README.md`.
+3. Use the supported one-off command from `README.md`:
+   `npx -y github:ddv1982/ui-test setup --browsers chromium`
 4. Re-run `ui-test setup`.
-
-For one-off usage, use the `npx -y github:ddv1982/ui-test ...` command from
-`README.md`.
 
 ## Browser Installation Issues
 
