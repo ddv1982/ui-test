@@ -76,7 +76,7 @@ Before/after example — a CSS selector upgraded to a semantic locator:
 target:
   value: "#submit-btn"
   kind: css
-  source: codegen-jsonl
+  source: codegen
 # After
 target:
   value: "getByRole('button', { name: 'Submit' })"
@@ -150,6 +150,7 @@ These rules govern how assertions are inserted:
 8. Existing adjacent assertions are preserved (no automatic cleanup).
 9. Applied assertions are inserted as required steps (no `optional` field).
 10. In apply mode, runtime-failing interaction steps are classified with confidence/safety metadata: only high-confidence safe transient dismissal/control interactions are auto-removed; low-confidence or unsafe removals are retained as required steps.
+11. Runtime-derived auto-apply is guarded by determinism checks. If the test has no `baseUrl`, replay targets a different host, or replay drifts cross-origin, runtime-derived selector repairs, snapshot-native assertion insertions, and runtime-failure removals stay report-only and are called out in report diagnostics/`determinism`.
 
 ### Auto-Improve After Recording
 

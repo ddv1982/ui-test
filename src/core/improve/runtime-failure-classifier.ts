@@ -1,78 +1,8 @@
 import type { Step } from "../yaml-schema.js";
 import {
-  isCookieConsentDismissText,
-  COOKIE_CONSENT_CMP_SELECTORS,
-} from "../runtime/cookie-consent-patterns.js";
-
-const STRONG_TRANSIENT_CONTEXT_KEYWORDS = [
-  "cookie",
-  "consent",
-  "gdpr",
-  "onetrust",
-  "banner",
-  "popup",
-  "modal",
-  "dialog",
-  "trustarc",
-  "cookiebot",
-  "cmp",
-  // Multilingual additions
-  "venster",        // Dutch: window/popup
-  "melding",        // Dutch: notification
-  "einwilligung",   // German: consent
-  "consentement",   // French: consent
-];
-
-const SOFT_TRANSIENT_CONTEXT_KEYWORDS = [
-  "privacy",
-  "preference",
-  "preferences",
-  "tracking",
-];
-
-const DISMISS_INTENT_PATTERN =
-  /\b(close|dismiss|accept|agree|allow|reject|decline|continue|ok|got it|sluiten|sluit|annuleren|overslaan|doorgaan|schliessen|abbrechen|weiter|fermer|annuler|continuer|cerrar|cancelar|continuar)\b/;
-
-const CONTENT_LINK_HINTS = [
-  "policy",
-  "terms",
-  "article",
-  "nieuws",
-  "news",
-  "read",
-  "learn",
-  "details",
-];
-
-const BUSINESS_INTENT_HINTS = [
-  "payment",
-  "checkout",
-  "purchase",
-  "order",
-  "billing",
-  "invoice",
-  "subscription",
-  "account",
-  "plan",
-];
-
-/** Extract the accessible name from a Playwright locator expression like
- *  `getByRole('button', { name: 'Akkoord' })` → `"Akkoord"`. */
-function extractAccessibleName(targetValue: string): string | undefined {
-  const match = /name:\s*'([^']*)'|name:\s*"([^"]*)"/.exec(targetValue);
-  return match?.[1] ?? match?.[2];
-}
-
-/** Check whether a target value references a known CMP selector.
- *  Only matches against CSS/xpath/playwrightSelector kinds to avoid
- *  false positives from accessible names that happen to contain selector-like substrings. */
-function matchesCmpSelector(targetValue: string, targetKind: string): boolean {
-  if (targetKind === "locatorExpression") return false;
-  const lower = targetValue.toLowerCase();
-  return COOKIE_CONSENT_CMP_SELECTORS.some((selector) =>
-    lower.includes(selector.toLowerCase())
-  );
-}
+  buildRuntimeFailureSignals,
+  detectCookieConsentDismiss,
+} from "./runtime-failure-classifier-support.js";
 
 export type RuntimeFailureDisposition = "remove" | "retain";
 export type RuntimeFailureMutationSafety =
@@ -114,22 +44,25 @@ export function classifyRuntimeFailingStep(
 
   // --- Early cookie-consent detection via shared patterns ---
   const targetValue = "target" in step ? step.target.value : "";
+  const targetKind = "target" in step ? step.target.kind : "unknown";
 
-  const accessibleName = extractAccessibleName(targetValue);
-  if (accessibleName && isCookieConsentDismissText(accessibleName)) {
+  const cookieConsentDismiss = detectCookieConsentDismiss(targetValue, targetKind);
+  if (cookieConsentDismiss.matched && cookieConsentDismiss.via === "text") {
     return makeClassification(
       "remove",
       "classified as cookie-consent dismiss interaction (multilingual pattern match)",
       {
         decisionConfidence: 0.98,
         mutationSafety: "safe",
-        evidenceRefs: ["pattern:cookie_consent_text", `accessible_name:${accessibleName}`],
+        evidenceRefs: [
+          "pattern:cookie_consent_text",
+          `accessible_name:${cookieConsentDismiss.accessibleName ?? ""}`,
+        ],
       }
     );
   }
 
-  const targetKind = "target" in step ? step.target.kind : "unknown";
-  if (matchesCmpSelector(targetValue, targetKind)) {
+  if (cookieConsentDismiss.matched && cookieConsentDismiss.via === "cmp_selector") {
     return makeClassification("remove", "classified as cookie-consent CMP selector interaction", {
       decisionConfidence: 0.97,
       mutationSafety: "safe",
@@ -138,17 +71,13 @@ export function classifyRuntimeFailingStep(
   }
 
   // --- Existing transient-context classification ---
-  const stepText = `${targetValue} ${step.description ?? ""}`.toLowerCase();
+  const signals = buildRuntimeFailureSignals({
+    targetValue,
+    targetKind,
+    ...(step.description !== undefined ? { description: step.description } : {}),
+  });
 
-  const hasStrongTransientContext = STRONG_TRANSIENT_CONTEXT_KEYWORDS.some((keyword) =>
-    stepText.includes(keyword)
-  );
-  const hasSoftTransientContext = SOFT_TRANSIENT_CONTEXT_KEYWORDS.some((keyword) =>
-    stepText.includes(keyword)
-  );
-  const hasAnyTransientContext = hasStrongTransientContext || hasSoftTransientContext;
-
-  if (!hasAnyTransientContext) {
+  if (!signals.hasAnyTransientContext) {
     return makeClassification("retain", "classified as non-transient interaction", {
       decisionConfidence: 0.93,
       mutationSafety: "safe",
@@ -156,23 +85,7 @@ export function classifyRuntimeFailingStep(
     });
   }
 
-  const hasDismissIntent = DISMISS_INTENT_PATTERN.test(stepText);
-  const targetsRoleLink = /getbyrole\(\s*['"]link['"]/.test(stepText);
-  const targetsRoleButton = /getbyrole\(\s*['"]button['"]/.test(stepText);
-  const looksLikeContentLink =
-    targetsRoleLink &&
-    CONTENT_LINK_HINTS.some((keyword) => stepText.includes(keyword)) &&
-    !hasDismissIntent;
-  const hasBusinessIntent = BUSINESS_INTENT_HINTS.some((keyword) =>
-    stepText.includes(keyword)
-  );
-  const hasControlCue =
-    targetsRoleButton ||
-    /\b(cookie|consent|cmp|gdpr|onetrust|cookiebot|trustarc|banner|popup|modal|dialog)\b/.test(
-      stepText
-    );
-
-  if (looksLikeContentLink) {
+  if (signals.looksLikeContentLink) {
     return makeClassification(
       "retain",
       "transient-context safeguard: likely content link interaction",
@@ -184,7 +97,7 @@ export function classifyRuntimeFailingStep(
     );
   }
 
-  if (hasBusinessIntent && !hasStrongTransientContext) {
+  if (signals.hasBusinessIntent && !signals.hasStrongTransientContext) {
     return makeClassification(
       "retain",
       "transient-context safeguard: likely business-intent interaction",
@@ -196,19 +109,19 @@ export function classifyRuntimeFailingStep(
     );
   }
 
-  if (hasStrongTransientContext && (hasDismissIntent || hasControlCue)) {
+  if (signals.hasStrongTransientContext && (signals.hasDismissIntent || signals.hasControlCue)) {
     return makeClassification("remove", "classified as transient dismissal/control interaction", {
       decisionConfidence: 0.92,
       mutationSafety: "safe",
       evidenceRefs: [
         "context:strong_transient",
-        hasDismissIntent ? "signal:dismiss_intent" : "signal:no_dismiss_intent",
-        hasControlCue ? "signal:control_cue" : "signal:no_control_cue",
+        signals.hasDismissIntent ? "signal:dismiss_intent" : "signal:no_dismiss_intent",
+        signals.hasControlCue ? "signal:control_cue" : "signal:no_control_cue",
       ],
     });
   }
 
-  if (hasStrongTransientContext) {
+  if (signals.hasStrongTransientContext) {
     return makeClassification("remove", "classified as strong transient-context interaction", {
       decisionConfidence: 0.78,
       mutationSafety: "review_required",
@@ -216,7 +129,7 @@ export function classifyRuntimeFailingStep(
     });
   }
 
-  if (hasDismissIntent && hasControlCue) {
+  if (signals.hasDismissIntent && signals.hasControlCue) {
     return makeClassification(
       "remove",
       "classified as soft transient dismissal/control interaction",

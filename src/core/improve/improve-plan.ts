@@ -5,6 +5,7 @@ import { stepSchema } from "../yaml-schema.js";
 import {
   assertionApplyPolicySchema,
   improveAppliedBySchema,
+  improveDeterminismSchema,
 } from "./report-schema.js";
 
 const improvePlanPathLocatorSchema = z.enum(["absolute", "relative_to_plan"]);
@@ -79,6 +80,7 @@ const improvePlanSchemaV2 = z.object({
   sourceReportPathLocator: improvePlanPathLocatorSchema.optional(),
   appliedBy: improveAppliedBySchema,
   profile: improvePlanProfileSchema,
+  determinism: improveDeterminismSchema.optional(),
   summary: improvePlanSummarySchema,
   diagnostics: z.array(improvePlanDiagnosticSchema),
   assertionCandidates: z.array(improvePlanAssertionCandidateSchema),

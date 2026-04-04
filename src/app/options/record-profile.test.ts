@@ -24,7 +24,7 @@ describe("resolveRecordProfile", () => {
       loadStorage: ".auth/in.json",
       saveStorage: ".auth/out.json",
       outputDir: "e2e",
-      improveMode: "apply",
+      improveMode: "report",
     });
   });
 
@@ -32,7 +32,7 @@ describe("resolveRecordProfile", () => {
     const out = resolveRecordProfile({});
     expect(out.browser).toBe("chromium");
     expect(out.outputDir).toBe("e2e");
-    expect(out.improveMode).toBe("apply");
+    expect(out.improveMode).toBe("report");
   });
 });
 

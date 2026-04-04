@@ -50,6 +50,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [],
+      runtimeObservedUrls: [],
       selectorRepairCandidates: 0,
       selectorRepairsApplied: 0,
     }));
@@ -130,6 +131,30 @@ describe("improveTestFile runner", () => {
     return yamlPath;
   }
 
+  async function writeYamlWithBaseUrl(): Promise<string> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "base-url.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: base-url",
+        "baseUrl: https://example.com",
+        "steps:",
+        "  - action: navigate",
+        '    url: "/"',
+        "  - action: click",
+        "    target:",
+        '      value: "#submit"',
+        "      kind: css",
+        "      source: manual",
+      ].join("\n") + "\n",
+      "utf-8"
+    );
+    return yamlPath;
+  }
+
   async function writeYamlWithOnlyTransientStep(): Promise<string> {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-"));
     tempDirs.push(dir);
@@ -139,6 +164,7 @@ describe("improveTestFile runner", () => {
       yamlPath,
       [
         "name: transient-only",
+        "baseUrl: https://example.com",
         "steps:",
         "  - action: click",
         "    target:",
@@ -151,7 +177,28 @@ describe("improveTestFile runner", () => {
     return yamlPath;
   }
 
-  it("fails in review mode when chromium is unavailable", async () => {
+  it("does not require chromium for deterministic review mode", async () => {
+    chromiumLaunchMock.mockRejectedValueOnce(new Error("Executable doesn't exist"));
+    const yamlPath = await writeSampleYaml();
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: false,
+      applyAssertions: false,
+      assertions: "candidates",
+      assertionSource: "deterministic",
+    });
+
+    expect(result.reportPath).toBe(path.join(path.dirname(yamlPath), "sample.improve-report.json"));
+    expect(chromiumLaunchMock).not.toHaveBeenCalled();
+    const selectorPassArgs = runImproveSelectorPassMock.mock.calls[0]?.[0];
+    expect(selectorPassArgs).toMatchObject({
+      wantsNativeSnapshots: false,
+    });
+    expect(selectorPassArgs).not.toHaveProperty("page");
+  });
+
+  it("fails in review mode when snapshot-native analysis requires chromium", async () => {
     chromiumLaunchMock.mockRejectedValueOnce(new Error("Executable doesn't exist"));
     const yamlPath = await writeSampleYaml();
 
@@ -159,7 +206,7 @@ describe("improveTestFile runner", () => {
       testFile: yamlPath,
       applySelectors: false,
       applyAssertions: false,
-      assertions: "none",
+      assertions: "candidates",
     });
 
     await expect(run).rejects.toBeInstanceOf(UserError);
@@ -233,6 +280,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [1],
+      runtimeObservedUrls: [],
     }));
 
     const result = await improveTestFile({
@@ -260,6 +308,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [1],
+      runtimeObservedUrls: [],
     }));
 
     const result = await improveTestFile({
@@ -288,6 +337,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [0],
+      runtimeObservedUrls: [],
     }));
 
     const run = improveTestFile({
@@ -324,6 +374,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [0, 1],
+      runtimeObservedUrls: [],
     }));
 
     await improveTestFile({
@@ -352,6 +403,7 @@ describe("improveTestFile runner", () => {
         { index: 2, step: {} as any, preSnapshot: "c", postSnapshot: "c" },
       ],
       failedStepIndexes: [1],
+      runtimeObservedUrls: [],
     }));
 
     await improveTestFile({
@@ -379,6 +431,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [1],
+      runtimeObservedUrls: [],
     }));
 
     const result = await improveTestFile({
@@ -430,6 +483,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [1, 2],
+      runtimeObservedUrls: [],
       selectorRepairCandidates: 0,
       selectorRepairsApplied: 0,
     }));
@@ -478,6 +532,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [1],
+      runtimeObservedUrls: [],
       selectorRepairCandidates: 0,
       selectorRepairsApplied: 0,
     }));
@@ -523,6 +578,7 @@ describe("improveTestFile runner", () => {
       findings: [],
       nativeStepSnapshots: [],
       failedStepIndexes: [1],
+      runtimeObservedUrls: [],
       selectorRepairCandidates: 0,
       selectorRepairsApplied: 0,
     }));
@@ -544,5 +600,132 @@ describe("improveTestFile runner", () => {
           diagnostic.mutationSafety === "unsafe_to_auto_apply"
       )
     ).toBe(true);
+  });
+
+  it("suppresses runtime-derived apply without a baseUrl and keeps recommendations report-only", async () => {
+    const yamlPath = await writeSampleYaml();
+
+    runImproveSelectorPassMock.mockImplementation(async (input) => ({
+      outputSteps: [
+        input.steps[0],
+        {
+          action: "click",
+          target: {
+            value: "getByRole('button', { name: 'Save' })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+        },
+      ],
+      findings: [
+        {
+          index: 1,
+          action: "click",
+          changed: true,
+          oldTarget: { value: "#submit", kind: "css", source: "manual" },
+          recommendedTarget: {
+            value: "getByRole('button', { name: 'Save' })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          oldScore: 0.2,
+          recommendedScore: 0.9,
+          confidenceDelta: 0.7,
+          reasonCodes: ["locator_repair_playwright_runtime"],
+        },
+      ],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [1],
+      runtimeObservedUrls: ["https://example.com/"],
+      selectorRepairCandidates: 1,
+      selectorRepairsApplied: 1,
+      selectorRepairsAdoptedOnTie: 0,
+      selectorRepairsGeneratedByPlaywrightRuntime: 1,
+      selectorRepairsAppliedFromPlaywrightRuntime: 1,
+    }));
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(result.report.determinism).toMatchObject({
+      status: "unsafe",
+      reasons: ["missing_base_url"],
+      suppressedMutationTypes: ["selector_update", "runtime_step_removal"],
+    });
+    expect(result.report.summary.selectorRepairsApplied).toBe(0);
+    expect(result.report.summary.selectorRepairsAppliedFromPlaywrightRuntime).toBe(0);
+    expect(result.report.summary.runtimeFailingStepsRemoved).toBe(0);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "selector_repair_apply_suppressed_by_determinism"
+      )
+    ).toBe(true);
+    expect(
+      result.report.diagnostics.some(
+        (diagnostic) => diagnostic.code === "determinism_missing_base_url"
+      )
+    ).toBe(true);
+
+    const written = await fs.readFile(yamlPath, "utf-8");
+    expect(written).toContain('value: "#submit"');
+    expect(written).not.toContain("getByRole('button', { name: 'Save' })");
+  });
+
+  it("passes runtime assertion gating through for cross-origin drift and preserves safe local flows", async () => {
+    const unsafeYamlPath = await writeYamlWithBaseUrl();
+
+    runImproveSelectorPassMock.mockImplementationOnce(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [],
+      runtimeObservedUrls: ["https://example.com/app", "https://news.example.net/story"],
+      selectorRepairCandidates: 0,
+      selectorRepairsApplied: 0,
+      selectorRepairsAdoptedOnTie: 0,
+      selectorRepairsGeneratedByPlaywrightRuntime: 0,
+      selectorRepairsAppliedFromPlaywrightRuntime: 0,
+    }));
+
+    await improveTestFile({
+      testFile: unsafeYamlPath,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    expect(runImproveAssertionPassMock.mock.calls[0]?.[0]).toMatchObject({
+      allowRuntimeAssertionApply: false,
+    });
+
+    const safeYamlPath = await writeYamlWithBaseUrl();
+    runImproveSelectorPassMock.mockImplementationOnce(async (input) => ({
+      outputSteps: input.steps,
+      findings: [],
+      nativeStepSnapshots: [],
+      failedStepIndexes: [],
+      runtimeObservedUrls: ["https://example.com/app"],
+      selectorRepairCandidates: 0,
+      selectorRepairsApplied: 0,
+      selectorRepairsAdoptedOnTie: 0,
+      selectorRepairsGeneratedByPlaywrightRuntime: 0,
+      selectorRepairsAppliedFromPlaywrightRuntime: 0,
+    }));
+
+    const safeResult = await improveTestFile({
+      testFile: safeYamlPath,
+      applySelectors: false,
+      applyAssertions: true,
+      assertions: "candidates",
+    });
+
+    expect(runImproveAssertionPassMock.mock.calls[1]?.[0]).toMatchObject({
+      allowRuntimeAssertionApply: true,
+    });
+    expect(safeResult.report.determinism.status).toBe("safe");
   });
 });

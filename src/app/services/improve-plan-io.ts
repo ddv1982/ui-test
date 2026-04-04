@@ -20,6 +20,10 @@ import { stepsToYaml } from "../../core/transform/yaml-io.js";
 import { ui } from "../../utils/ui.js";
 import { UserError } from "../../utils/errors.js";
 import { formatImproveProfileSummary } from "../options/profile-summary.js";
+import {
+  formatDeterminismVerdict,
+  formatDeterminismVerdictWithPrefix,
+} from "./improve-output.js";
 
 interface ImprovePlanProfile {
   assertions: ImproveAssertionsMode;
@@ -104,6 +108,7 @@ export async function generateImprovePlan(
       applySelectors,
       applyAssertions,
     },
+    determinism: result.report.determinism,
     summary: {
       runtimeFailingStepsRetained:
         result.report.summary.runtimeFailingStepsRetained ?? 0,
@@ -133,6 +138,14 @@ export async function generateImprovePlan(
 
   ui.success(`Improve report saved to ${result.reportPath}`);
   ui.success(`Improve plan saved to ${planPath}`);
+  const determinismVerdict = formatDeterminismVerdict(result.report.determinism);
+  if (determinismVerdict) {
+    if (determinismVerdict.level === "warn") {
+      ui.warn(determinismVerdict.message);
+    } else {
+      ui.info(determinismVerdict.message);
+    }
+  }
   ui.step(`Apply plan: ui-test improve ${absoluteTestPath} --apply-plan ${planPath}`);
 }
 
@@ -209,6 +222,19 @@ export async function applyImprovePlan(
 
   ui.success(`Applied improve plan: ${absolutePlanPath}`);
   ui.success(`Updated test file: ${writeTarget.destinationPath}`);
+  if (plan.version === 2) {
+    const determinismVerdict = formatDeterminismVerdictWithPrefix(
+      "Plan determinism",
+      plan.determinism
+    );
+    if (determinismVerdict) {
+      if (determinismVerdict.level === "warn") {
+        ui.warn(determinismVerdict.message);
+      } else {
+        ui.info(determinismVerdict.message);
+      }
+    }
+  }
   ui.info(
     `Plan summary: skippedAssertions=${plan.version === 2 ? plan.summary.skippedAssertions : 0}, runtimeFailingStepsRetained=${plan.version === 2 ? plan.summary.runtimeFailingStepsRetained : 0}, runtimeFailingStepsRemoved=${plan.version === 2 ? plan.summary.runtimeFailingStepsRemoved : 0}`
   );

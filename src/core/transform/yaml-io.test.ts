@@ -42,6 +42,7 @@ steps:
       source: codegen-jsonl
 `);
     expect(parsed).toHaveProperty("name", "Legacy Test");
+    expect(parsed).toHaveProperty("steps.0.target.source", "codegen");
   });
 
   it("parses YAML with legacy codegen-fallback source", () => {
@@ -55,6 +56,25 @@ steps:
       source: codegen-fallback
 `);
     expect(parsed).toHaveProperty("name", "Legacy Test");
+    expect(parsed).toHaveProperty("steps.0.target.source", "codegen");
+  });
+
+  it("normalizes legacy fallback target sources recursively", () => {
+    const parsed = yamlToTest(`
+name: Legacy Fallback Test
+steps:
+  - action: click
+    target:
+      value: "getByRole('button')"
+      kind: locatorExpression
+      source: manual
+      fallbacks:
+        - value: "#submit"
+          kind: css
+          source: codegen-fallback
+`);
+
+    expect(parsed).toHaveProperty("steps.0.target.fallbacks.0.source", "codegen");
   });
 
   it("parses YAML with new codegen source", () => {

@@ -15,7 +15,7 @@ vi.mock("../../utils/chromium-runtime.js", () => ({
 }));
 
 vi.mock("../../core/recorder.js", async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
     record: vi.fn(),
@@ -135,13 +135,12 @@ describe("runRecord auto-improve", () => {
 
     expect(improveTestFile).toHaveBeenCalledWith({
       testFile: "e2e/sample.yaml",
-      outputPath: "e2e/sample.improved.yaml",
-      applySelectors: true,
-      applyAssertions: true,
+      applySelectors: false,
+      applyAssertions: false,
       assertions: "candidates",
-      assertionSource: "snapshot-native",
+      assertionSource: "deterministic",
       assertionPolicy: "reliable",
-      appliedBy: "auto_apply",
+      appliedBy: "report_only",
     });
   });
 
@@ -160,11 +159,53 @@ describe("runRecord auto-improve", () => {
       applySelectors: false,
       applyAssertions: false,
       assertions: "candidates",
-      assertionSource: "snapshot-native",
+      assertionSource: "deterministic",
       assertionPolicy: "reliable",
       appliedBy: "report_only",
     });
     expect(ui.info).toHaveBeenCalledWith("Auto-improve report: no recommendations");
+  });
+
+  it("prints unsafe determinism verdict in auto-improve report mode", async () => {
+    vi.mocked(improveTestFile).mockResolvedValue({
+      report: {
+        testFile: "e2e/sample.yaml",
+        generatedAt: new Date().toISOString(),
+        providerUsed: "playwright",
+        appliedBy: "report_only",
+        determinism: {
+          status: "unsafe",
+          reasons: ["missing_base_url"],
+          suppressedMutationTypes: ["selector_update"],
+        },
+        summary: {
+          unchanged: 1,
+          improved: 0,
+          fallback: 0,
+          warnings: 1,
+          assertionCandidates: 0,
+          appliedAssertions: 0,
+          skippedAssertions: 0,
+        },
+        stepFindings: [],
+        assertionCandidates: [],
+        diagnostics: [],
+      },
+      reportPath: "e2e/sample.improve-report.json",
+    });
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improveMode: "report",
+    });
+
+    expect(ui.warn).toHaveBeenCalledWith(
+      "Auto-improve determinism: unsafe (missing baseUrl) — runtime selector apply blocked; recommendations kept report-only"
+    );
   });
 
   it("supports explicit auto-improve apply mode", async () => {
@@ -183,7 +224,7 @@ describe("runRecord auto-improve", () => {
       applySelectors: true,
       applyAssertions: true,
       assertions: "candidates",
-      assertionSource: "snapshot-native",
+      assertionSource: "deterministic",
       assertionPolicy: "reliable",
       appliedBy: "auto_apply",
     });
@@ -251,10 +292,53 @@ describe("runRecord auto-improve", () => {
       description: "demo",
       outputDir: "e2e",
       browser: "firefox",
+      improveMode: "apply",
     });
 
     expect(ui.success).toHaveBeenCalledWith(
       "Auto-improve: 2 selectors improved, 1 assertions applied, 1 transient steps removed"
+    );
+  });
+
+  it("prints safe determinism verdict in auto-improve apply mode", async () => {
+    vi.mocked(improveTestFile).mockResolvedValue({
+      report: {
+        testFile: "e2e/sample.yaml",
+        generatedAt: new Date().toISOString(),
+        providerUsed: "playwright",
+        appliedBy: "auto_apply",
+        determinism: {
+          status: "safe",
+          reasons: [],
+        },
+        summary: {
+          unchanged: 0,
+          improved: 1,
+          fallback: 0,
+          warnings: 0,
+          assertionCandidates: 0,
+          appliedAssertions: 1,
+          skippedAssertions: 0,
+        },
+        stepFindings: [],
+        assertionCandidates: [],
+        diagnostics: [],
+      },
+      reportPath: "e2e/sample.improve-report.json",
+      outputPath: "e2e/sample.improved.yaml",
+    });
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improveMode: "apply",
+    });
+
+    expect(ui.info).toHaveBeenCalledWith(
+      "Auto-improve determinism: safe — runtime-derived auto-apply allowed."
     );
   });
 
@@ -356,10 +440,7 @@ describe("runRecord auto-improve", () => {
     expect(ui.warn).toHaveBeenCalledWith(
       "You can run it manually: ui-test improve " +
         path.resolve("e2e/sample.yaml") +
-        " --assertions candidates --assertion-source snapshot-native --assertion-policy reliable --plan && ui-test improve " +
-        path.resolve("e2e/sample.yaml") +
-        " --apply-plan " +
-        path.resolve("e2e/sample.improve-plan.json")
+        " --assertions candidates --assertion-source deterministic --assertion-policy reliable --no-apply"
     );
   });
 
@@ -378,7 +459,7 @@ describe("runRecord auto-improve", () => {
     expect(ui.warn).toHaveBeenCalledWith(
       "You can run it manually: ui-test improve " +
         path.resolve("e2e/sample.yaml") +
-        " --assertions candidates --assertion-source snapshot-native --assertion-policy reliable --plan && ui-test improve " +
+        " --assertions candidates --assertion-source deterministic --assertion-policy reliable --plan && ui-test improve " +
         path.resolve("e2e/sample.yaml") +
         " --apply-plan " +
         path.resolve("e2e/sample.improve-plan.json")
@@ -400,14 +481,14 @@ describe("runRecord auto-improve", () => {
     expect(improveTestFile).toHaveBeenCalledWith(
       expect.objectContaining({
         assertions: "candidates",
-        assertionSource: "snapshot-native",
+        assertionSource: "deterministic",
         assertionPolicy: "reliable",
       })
     );
     expect(ui.warn).toHaveBeenCalledWith(
       "You can run it manually: ui-test improve " +
         path.resolve("e2e/sample.yaml") +
-        " --assertions candidates --assertion-source snapshot-native --assertion-policy reliable --no-apply"
+        " --assertions candidates --assertion-source deterministic --assertion-policy reliable --no-apply"
     );
   });
 });
@@ -571,7 +652,7 @@ describe("runRecordFromFile", () => {
       expect.objectContaining({
         applySelectors: false,
         applyAssertions: false,
-        assertionSource: "snapshot-native",
+        assertionSource: "deterministic",
         appliedBy: "report_only",
       })
     );
@@ -584,22 +665,21 @@ describe("runRecordFromFile", () => {
       expect.objectContaining({
         applySelectors: true,
         applyAssertions: true,
-        assertionSource: "snapshot-native",
+        assertionSource: "deterministic",
         appliedBy: "auto_apply",
       })
     );
   });
 
-  it("runs from-file auto-improve in apply mode by default", async () => {
+  it("uses report mode by default for from-file auto-improve", async () => {
     await runRecord({ fromFile: "/tmp/recording.json" });
 
     expect(improveTestFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        outputPath: expect.stringContaining("login-flow.improved.yaml"),
-        applySelectors: true,
-        applyAssertions: true,
-        assertionSource: "snapshot-native",
-        appliedBy: "auto_apply",
+        applySelectors: false,
+        applyAssertions: false,
+        assertionSource: "deterministic",
+        appliedBy: "report_only",
       })
     );
   });

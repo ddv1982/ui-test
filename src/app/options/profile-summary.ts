@@ -8,7 +8,7 @@ export function formatRecordingProfileSummary(profile: {
   loadStorage?: string;
   saveStorage?: string;
 }): string {
-  return `Recording profile: browser=${profile.browser}, improveMode=${profile.improveMode ?? "apply"}, device=${profile.device ?? "(none)"}, testIdAttr=${profile.testIdAttribute ?? "(default)"}, loadStorage=${profile.loadStorage ?? "(none)"}, saveStorage=${profile.saveStorage ?? "(none)"}`;
+  return `Recording profile: browser=${profile.browser}, improveMode=${profile.improveMode ?? "report"}, device=${profile.device ?? "(none)"}, testIdAttr=${profile.testIdAttribute ?? "(default)"}, loadStorage=${profile.loadStorage ?? "(none)"}, saveStorage=${profile.saveStorage ?? "(none)"}`;
 }
 
 export function formatImproveProfileSummary(profile: {

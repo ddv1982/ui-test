@@ -67,7 +67,7 @@ export function buildRoleTarget(
   return {
     value: "getByRole(" + quote(role) + ", { name: " + quote(name) + " })",
     kind: "locatorExpression",
-    source: "codegen-fallback",
+    source: "codegen",
     ...(framePath && framePath.length > 0 ? { framePath } : {}),
   };
 }
@@ -85,7 +85,7 @@ export function buildTextTarget(
   return {
     value,
     kind: "locatorExpression",
-    source: "codegen-fallback",
+    source: "codegen",
     ...(framePath && framePath.length > 0 ? { framePath } : {}),
   };
 }

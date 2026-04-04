@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { AssertionCandidate } from "./report-schema.js";
-import { dedupeAssertionCandidates } from "./improve-helpers.js";
+import {
+  buildAssertionApplyStatusCounts,
+  buildAssertionCandidateSourceCounts,
+  buildOriginalToRuntimeIndex,
+  buildOutputStepOriginalIndexes,
+  dedupeAssertionCandidates,
+  defaultReportPath,
+} from "./improve-helpers.js";
 
 function makeVisibleCandidate(
   partial: Partial<AssertionCandidate>
@@ -91,5 +98,63 @@ describe("dedupeAssertionCandidates", () => {
 
     expect(deduped).toHaveLength(1);
     expect(deduped[0]?.rationale).toBe("first");
+  });
+});
+
+describe("other improve helpers", () => {
+  it("builds report path next to the input file", () => {
+    expect(defaultReportPath("/tmp/login.yaml")).toBe("/tmp/login.improve-report.json");
+    expect(defaultReportPath("/tmp/login")).toBe("/tmp/login.improve-report.json");
+  });
+
+  it("builds original-to-runtime index maps", () => {
+    expect([...buildOriginalToRuntimeIndex([0, 2, 4]).entries()]).toEqual([
+      [0, 0],
+      [2, 1],
+      [4, 2],
+    ]);
+  });
+
+  it("builds output-step original indexes with stale assertions removed", () => {
+    const steps = [
+      { action: "navigate" as const, url: "/" },
+      {
+        action: "assertVisible" as const,
+        target: { value: "#a", kind: "css" as const, source: "manual" as const },
+      },
+      {
+        action: "click" as const,
+        target: { value: "#b", kind: "css" as const, source: "manual" as const },
+      },
+    ];
+
+    expect(buildOutputStepOriginalIndexes(steps, [1], true)).toEqual([0, 2]);
+    expect(buildOutputStepOriginalIndexes(steps, [1], false)).toEqual([0, 1, 2]);
+  });
+
+  it("counts assertion apply statuses and candidate sources", () => {
+    const candidates = [
+      makeVisibleCandidate({
+        applyStatus: "applied",
+        candidateSource: "deterministic",
+      }),
+      makeVisibleCandidate({
+        applyStatus: "skipped_policy",
+        candidateSource: "snapshot_native",
+      }),
+      makeVisibleCandidate({
+        applyStatus: "applied",
+        candidateSource: "snapshot_native",
+      }),
+    ];
+
+    expect(buildAssertionApplyStatusCounts(candidates)).toEqual({
+      applied: 2,
+      skipped_policy: 1,
+    });
+    expect(buildAssertionCandidateSourceCounts(candidates)).toEqual({
+      deterministic: 1,
+      snapshot_native: 2,
+    });
   });
 });

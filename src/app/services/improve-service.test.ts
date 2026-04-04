@@ -300,6 +300,77 @@ describe("runImprove confirm prompt", () => {
         )
     ).toBe(true);
   });
+
+  it("prints unsafe determinism verdict when runtime-derived apply is report-only", async () => {
+    vi.mocked(improveTestFile).mockResolvedValue({
+      reportPath: "e2e/sample.improve-report.json",
+      outputPath: undefined,
+      report: {
+        testFile: "e2e/sample.yaml",
+        generatedAt: new Date().toISOString(),
+        providerUsed: "playwright",
+        appliedBy: "report_only",
+        determinism: {
+          status: "unsafe",
+          reasons: ["missing_base_url", "cross_origin_drift"],
+          suppressedMutationTypes: ["selector_update", "assertion_insert"],
+        },
+        summary: {
+          unchanged: 1,
+          improved: 0,
+          fallback: 0,
+          warnings: 1,
+          assertionCandidates: 1,
+          appliedAssertions: 0,
+          skippedAssertions: 1,
+        },
+        stepFindings: [],
+        assertionCandidates: [],
+        diagnostics: [],
+      },
+    });
+
+    await runImprove("e2e/sample.yaml", { apply: false });
+
+    expect(ui.warn).toHaveBeenCalledWith(
+      "Determinism: unsafe (missing baseUrl, cross-origin drift) — runtime selector apply blocked, runtime assertion apply blocked; recommendations kept report-only"
+    );
+  });
+
+  it("prints safe determinism verdict when runtime-derived apply is allowed", async () => {
+    vi.mocked(improveTestFile).mockResolvedValue({
+      reportPath: "e2e/sample.improve-report.json",
+      outputPath: undefined,
+      report: {
+        testFile: "e2e/sample.yaml",
+        generatedAt: new Date().toISOString(),
+        providerUsed: "playwright",
+        appliedBy: "manual_apply",
+        determinism: {
+          status: "safe",
+          reasons: [],
+        },
+        summary: {
+          unchanged: 1,
+          improved: 1,
+          fallback: 0,
+          warnings: 0,
+          assertionCandidates: 1,
+          appliedAssertions: 1,
+          skippedAssertions: 0,
+        },
+        stepFindings: [],
+        assertionCandidates: [],
+        diagnostics: [],
+      },
+    });
+
+    await runImprove("e2e/sample.yaml", { apply: true });
+
+    expect(ui.info).toHaveBeenCalledWith(
+      "Determinism: safe — runtime-derived auto-apply allowed."
+    );
+  });
 });
 
 describe("runImprove plan/apply-plan modes", () => {
@@ -315,6 +386,10 @@ describe("runImprove plan/apply-plan modes", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "plan_preview",
+        determinism: {
+          status: "safe",
+          reasons: [],
+        },
         summary: {
           unchanged: 0,
           improved: 1,
@@ -357,6 +432,7 @@ describe("runImprove plan/apply-plan modes", () => {
     );
     const serializedPlan = String(planWrite?.[1] ?? "");
     expect(serializedPlan).toContain('"summary"');
+    expect(serializedPlan).toContain('"determinism"');
     expect(serializedPlan).toContain('"diagnostics"');
     expect(serializedPlan).toContain('"assertionCandidates"');
   });
@@ -369,6 +445,11 @@ describe("runImprove plan/apply-plan modes", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "plan_preview",
+        determinism: {
+          status: "unsafe",
+          reasons: ["missing_base_url"],
+          suppressedMutationTypes: ["selector_update"],
+        },
         summary: {
           unchanged: 0,
           improved: 1,
@@ -443,6 +524,9 @@ describe("runImprove plan/apply-plan modes", () => {
       "assertValue",
       "assertVisible",
     ]);
+    expect(vi.mocked(ui.warn)).toHaveBeenCalledWith(
+      "Determinism: unsafe (missing baseUrl) — runtime selector apply blocked; recommendations kept report-only"
+    );
   });
 
   it("stores effective apply flags when assertions are disabled in plan mode", async () => {
@@ -501,6 +585,11 @@ describe("runImprove plan/apply-plan modes", () => {
           sourceReportPath: "sample.improve-report.json",
           sourceReportPathLocator: "relative_to_plan",
           appliedBy: "plan_preview",
+          determinism: {
+            status: "unsafe",
+            reasons: ["missing_base_url"],
+            suppressedMutationTypes: ["selector_update"],
+          },
           profile: {
             assertions: "candidates",
             assertionSource: "snapshot-native",
@@ -556,6 +645,9 @@ describe("runImprove plan/apply-plan modes", () => {
     expect(ui.info).toHaveBeenCalledWith(
       expect.stringContaining("skippedAssertions=2")
     );
+    expect(ui.warn).toHaveBeenCalledWith(
+      "Plan determinism: unsafe (missing baseUrl) — runtime selector apply blocked; recommendations kept report-only"
+    );
   });
 
   it("applies a generated plan in place when requested", async () => {
@@ -570,6 +662,10 @@ describe("runImprove plan/apply-plan modes", () => {
           sourceReportPath: "sample.improve-report.json",
           sourceReportPathLocator: "relative_to_plan",
           appliedBy: "plan_preview",
+          determinism: {
+            status: "safe",
+            reasons: [],
+          },
           profile: {
             assertions: "candidates",
             assertionSource: "snapshot-native",
@@ -617,6 +713,10 @@ describe("runImprove plan/apply-plan modes", () => {
           sourceReportPath: "sample.improve-report.json",
           sourceReportPathLocator: "relative_to_plan",
           appliedBy: "plan_preview",
+          determinism: {
+            status: "safe",
+            reasons: [],
+          },
           profile: {
             assertions: "candidates",
             assertionSource: "snapshot-native",
@@ -664,6 +764,10 @@ describe("runImprove plan/apply-plan modes", () => {
           sourceReportPath: "sample.improve-report.json",
           sourceReportPathLocator: "relative_to_plan",
           appliedBy: "plan_preview",
+          determinism: {
+            status: "safe",
+            reasons: [],
+          },
           profile: {
             assertions: "candidates",
             assertionSource: "snapshot-native",
@@ -709,6 +813,10 @@ describe("runImprove plan/apply-plan modes", () => {
           sourceReportPath: "sample.improve-report.json",
           sourceReportPathLocator: "relative_to_plan",
           appliedBy: "plan_preview",
+          determinism: {
+            status: "safe",
+            reasons: [],
+          },
           profile: {
             assertions: "candidates",
             assertionSource: "snapshot-native",

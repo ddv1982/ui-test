@@ -12,6 +12,7 @@ import { UserError } from "../../utils/errors.js";
 import {
   buildExternalCliInvocationWarning,
   collectAssertionSkipDetails,
+  formatDeterminismVerdict,
   formatAssertionApplyStatusCounts,
   formatAssertionSourceCounts,
 } from "./improve-output.js";
@@ -119,7 +120,16 @@ export async function runImprove(
       : { ...improveOptions, reportPath: profile.reportPath }
   );
 
+  const determinismVerdict = formatDeterminismVerdict(result.report.determinism);
+
   ui.success(`Improve report saved to ${result.reportPath}`);
+  if (determinismVerdict) {
+    if (determinismVerdict.level === "warn") {
+      ui.warn(determinismVerdict.message);
+    } else {
+      ui.info(determinismVerdict.message);
+    }
+  }
   if (result.outputPath) {
     ui.success(`Applied improvements to ${result.outputPath}`);
     if (path.resolve(result.outputPath) !== path.resolve(testFile)) {

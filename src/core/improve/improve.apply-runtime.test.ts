@@ -199,6 +199,7 @@ describe("improve apply runtime replay", () => {
       yamlPath,
       [
         "name: sample",
+        "baseUrl: https://example.com",
         "steps:",
         "  - action: navigate",
         "    url: https://example.com",
@@ -241,6 +242,7 @@ describe("improve apply runtime replay", () => {
       yamlPath,
       [
         "name: sample",
+        "baseUrl: https://example.com",
         "steps:",
         "  - action: navigate",
         "    url: https://example.com",
@@ -314,6 +316,7 @@ describe("improve apply runtime replay", () => {
       yamlPath,
       [
         "name: sample",
+        "baseUrl: https://example.com",
         "steps:",
         "  - action: navigate",
         "    url: https://example.com",
@@ -415,6 +418,7 @@ describe("improve apply runtime replay", () => {
       yamlPath,
       [
         "name: sample",
+        "baseUrl: https://example.com",
         "steps:",
         "  - action: navigate",
         "    url: https://example.com",
@@ -1615,6 +1619,7 @@ describe("improve apply runtime replay", () => {
   it("balanced applies more assertions than reliable for the same candidate set", async () => {
     const yamlBase = [
       "name: sample",
+      "baseUrl: https://example.com",
       "steps:",
       "  - action: navigate",
       "    url: https://example.com",
@@ -1695,6 +1700,7 @@ describe("improve apply runtime replay", () => {
 
     const yamlBase = [
       "name: sample",
+      "baseUrl: https://example.com",
       "steps:",
       "  - action: navigate",
       "    url: https://example.com",
@@ -1764,6 +1770,7 @@ describe("improve apply runtime replay", () => {
   it("balanced allows runtime-validated snapshot assertVisible while reliable skips it", async () => {
     const yamlBase = [
       "name: sample",
+      "baseUrl: https://example.com",
       "steps:",
       "  - action: navigate",
       "    url: https://example.com",

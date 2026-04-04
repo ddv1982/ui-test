@@ -143,4 +143,82 @@ describe("generateRuntimeRepairCandidates", () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0]?.target.framePath).toBeUndefined();
   });
+
+  it("reports unavailable when runtime match counting fails", async () => {
+    const result = await generateRuntimeRepairCandidates(
+      {
+        page: pageStub(),
+        target: {
+          value: 'internal:role=link[name="Winterweer update"i]',
+          kind: "internal",
+          source: "manual",
+        },
+        stepNumber: 4,
+      },
+      {
+        resolveLocatorFn: () =>
+          ({
+            count: async () => {
+              throw new Error("count failed");
+            },
+          }) as unknown as Locator,
+      }
+    );
+
+    expect(result.candidates).toEqual([]);
+    expect(result.runtimeUnique).toBe(false);
+    expect(
+      result.diagnostics.some(
+        (diagnostic) => diagnostic.code === "selector_repair_playwright_runtime_unavailable"
+      )
+    ).toBe(true);
+  });
+
+  it("deduplicates duplicate runtime repair candidates and keeps one source marker", async () => {
+    const result = await generateRuntimeRepairCandidates(
+      {
+        page: pageStub(),
+        target: {
+          value: 'internal:role=link[name="Winterweer update"i]',
+          kind: "internal",
+          source: "manual",
+        },
+        stepNumber: 9,
+      },
+      {
+        resolveLocatorFn: () => locatorStub({ count: 1 }),
+        toLocatorExpressionFromSelectorFn: () =>
+          "getByRole('link', { name: 'Winterweer update' })",
+      }
+    );
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.sourceMarkers).toHaveLength(1);
+    expect(result.sourceMarkers[0]?.candidateId).toBe("repair-playwright-runtime-1");
+  });
+
+  it("derives dynamic signals from the target when they are not provided", async () => {
+    const result = await generateRuntimeRepairCandidates(
+      {
+        page: pageStub(),
+        target: {
+          value: 'internal:role=link[name="Winterweer liveblog Schiphol 12:30"i]',
+          kind: "internal",
+          source: "manual",
+        },
+        stepNumber: 10,
+      },
+      {
+        resolveLocatorFn: () => locatorStub({ count: 1 }),
+        toLocatorExpressionFromSelectorFn: () =>
+          "getByRole('link', { name: /winterweer.*schiphol/i })",
+      }
+    );
+
+    expect(result.dynamicSignals).toEqual(
+      expect.arrayContaining(["contains_weather_or_news_fragment"])
+    );
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.reasonCodes).toContain("locator_repair_playwright_runtime");
+  });
 });

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   assessTargetDynamics,
+  extractLocatorExpressionTextFragments,
   extractRuntimeSelectorTextFragments,
+  normalizeDynamicSignals,
 } from "./dynamic-target.js";
 
 describe("assessTargetDynamics", () => {
@@ -59,5 +61,37 @@ describe("extractRuntimeSelectorTextFragments", () => {
     );
 
     expect(fragments).toContain("Winterweer update Schiphol 12:30");
+  });
+
+  it("extracts internal role names and quoted fragments", () => {
+    const fragments = extractRuntimeSelectorTextFragments(
+      `internal:role=link[name="Breaking News"i] >> text="Live blog"`
+    );
+
+    expect(fragments).toEqual(
+      expect.arrayContaining(["Breaking News", "Live blog"])
+    );
+  });
+});
+
+describe("extractLocatorExpressionTextFragments", () => {
+  it("extracts name/text fragments from locator expressions", () => {
+    const fragments = extractLocatorExpressionTextFragments(
+      "getByRole('button', { name: 'Save' })"
+    );
+
+    expect(fragments).toEqual(["Save"]);
+  });
+});
+
+describe("normalizeDynamicSignals", () => {
+  it("deduplicates and preserves supported signal values", () => {
+    expect(
+      normalizeDynamicSignals([
+        "contains_weather_or_news_fragment",
+        "contains_weather_or_news_fragment",
+        "exact_true",
+      ])
+    ).toEqual(["contains_weather_or_news_fragment", "exact_true"]);
   });
 });

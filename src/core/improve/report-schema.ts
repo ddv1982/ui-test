@@ -26,6 +26,14 @@ export const improveAppliedBySchema = z.enum([
   "report_only",
 ]);
 
+export const improveDeterminismStatusSchema = z.enum(["safe", "unsafe"]);
+
+export const improveDeterminismReasonSchema = z.enum([
+  "missing_base_url",
+  "replay_host_mismatch",
+  "cross_origin_drift",
+]);
+
 export const improveDiagnosticSchema = z.object({
   code: z.string().min(1),
   level: z.enum(["info", "warn", "error"]),
@@ -129,11 +137,20 @@ export const improveSummarySchema = z.object({
     .optional(),
 });
 
+export const improveDeterminismSchema = z.object({
+  status: improveDeterminismStatusSchema,
+  reasons: z.array(improveDeterminismReasonSchema),
+  baseOrigin: z.string().min(1).optional(),
+  observedOrigins: z.array(z.string().min(1)).optional(),
+  suppressedMutationTypes: z.array(improveMutationTypeSchema).optional(),
+});
+
 export const improveReportSchema = z.object({
   testFile: z.string().min(1),
   generatedAt: z.string().datetime(),
   providerUsed: improveProviderSchema,
   appliedBy: improveAppliedBySchema,
+  determinism: improveDeterminismSchema,
   summary: improveSummarySchema,
   stepFindings: z.array(stepFindingSchema),
   assertionCandidates: z.array(assertionCandidateSchema),
@@ -144,6 +161,8 @@ export type ImproveProviderUsed = z.infer<typeof improveProviderSchema>;
 export type ImproveMutationType = z.infer<typeof improveMutationTypeSchema>;
 export type ImproveMutationSafety = z.infer<typeof improveMutationSafetySchema>;
 export type ImproveAppliedBy = z.infer<typeof improveAppliedBySchema>;
+export type ImproveDeterminismStatus = z.infer<typeof improveDeterminismStatusSchema>;
+export type ImproveDeterminismReason = z.infer<typeof improveDeterminismReasonSchema>;
 export type ImproveDiagnostic = z.infer<typeof improveDiagnosticSchema>;
 export type StepFinding = z.infer<typeof stepFindingSchema>;
 export type AssertionApplyStatus = z.infer<typeof assertionApplyStatusSchema>;
@@ -151,4 +170,5 @@ export type AssertionCandidateSource = z.infer<typeof assertionCandidateSourceSc
 export type AssertionApplyPolicy = z.infer<typeof assertionApplyPolicySchema>;
 export type AssertionCandidate = z.infer<typeof assertionCandidateSchema>;
 export type ImproveSummary = z.infer<typeof improveSummarySchema>;
+export type ImproveDeterminism = z.infer<typeof improveDeterminismSchema>;
 export type ImproveReport = z.infer<typeof improveReportSchema>;

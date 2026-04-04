@@ -141,6 +141,7 @@ If you see runtime validation errors:
 
 - **Deterministic source**: generates `assertValue` (fill/select), `assertChecked` (check/uncheck), and low-priority coverage fallback `assertVisible` candidates for click/press/hover interactions.
 - **Snapshot source**: `assertVisible` is policy-driven (`reliable`: stable-structural only; `balanced`/`aggressive`: runtime-validated). `assertText` can be inserted after runtime validation.
+- **Determinism guard**: runtime-derived apply stays report-only when the test has no `baseUrl`, replay targets another host, or replay drifts cross-origin. Check report `determinism` and diagnostics such as `determinism_missing_base_url` / `determinism_cross_origin_drift`.
 - **Assertion cap**: apply cap is policy-driven (`reliable=1`, `balanced=2`, `aggressive=3`) per source step; extras show as `skipped_policy`.
 - **Legacy YAML**: `optional: true` is no longer supported on steps. Remove this field from existing tests.
 - **Version mismatch?** Run `ui-test doctor` to check invocation/version details.

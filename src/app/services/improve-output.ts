@@ -3,6 +3,9 @@ import type {
   AssertionApplyStatus,
   AssertionCandidate,
   AssertionCandidateSource,
+  ImproveDeterminism,
+  ImproveDeterminismReason,
+  ImproveMutationType,
 } from "../../core/improve/report-schema.js";
 import {
   classifyInvocationPath,
@@ -23,6 +26,21 @@ const ASSERTION_SOURCE_ORDER: AssertionCandidateSource[] = [
   "deterministic",
   "snapshot_native",
 ];
+
+const DETERMINISM_REASON_LABELS: Record<ImproveDeterminismReason, string> = {
+  missing_base_url: "missing baseUrl",
+  replay_host_mismatch: "host mismatch",
+  cross_origin_drift: "cross-origin drift",
+};
+
+const SUPPRESSED_MUTATION_LABELS: Record<ImproveMutationType, string | undefined> = {
+  selector_update: "runtime selector apply blocked",
+  assertion_insert: "runtime assertion apply blocked",
+  runtime_step_removal: "runtime removals blocked",
+  runtime_step_retention: undefined,
+  stale_assertion_removal: undefined,
+  none: undefined,
+};
 
 export function formatAssertionApplyStatusCounts(candidates: AssertionCandidate[]): string | undefined {
   const counts = new Map<AssertionApplyStatus, number>();
@@ -111,6 +129,51 @@ export function buildExternalCliInvocationWarning(
   }
 
   return `ui-test binary path (${invocation.resolvedInvocationPath ?? argv1}) is outside this workspace (${workspaceRoot}). Behavior may differ from local source. Re-run with: ${recommendedCommand}`;
+}
+
+export function formatDeterminismVerdict(
+  determinism: ImproveDeterminism | undefined
+): { level: "info" | "warn"; message: string } | undefined {
+  if (!determinism) return undefined;
+  return buildDeterminismVerdict("Determinism", determinism);
+}
+
+export function formatDeterminismVerdictWithPrefix(
+  prefix: string,
+  determinism: ImproveDeterminism | undefined
+): { level: "info" | "warn"; message: string } | undefined {
+  if (!determinism) return undefined;
+  return buildDeterminismVerdict(prefix, determinism);
+}
+
+function buildDeterminismVerdict(
+  prefix: string,
+  determinism: ImproveDeterminism
+): { level: "info" | "warn"; message: string } {
+  if (determinism.status === "safe") {
+    return {
+      level: "info",
+      message: `${prefix}: safe — runtime-derived auto-apply allowed.`,
+    };
+  }
+
+  const reasons = determinism.reasons.map((reason) => DETERMINISM_REASON_LABELS[reason]);
+  const suppressed = (determinism.suppressedMutationTypes ?? [])
+    .map((mutationType) => SUPPRESSED_MUTATION_LABELS[mutationType])
+    .filter((label): label is string => label !== undefined);
+
+  const parts = [`Determinism: unsafe (${reasons.join(", ")})`];
+  parts[0] = `${prefix}: unsafe (${reasons.join(", ")})`;
+  if (suppressed.length > 0) {
+    parts.push(`${suppressed.join(", ")}; recommendations kept report-only`);
+  } else {
+    parts.push("runtime-derived recommendations kept report-only");
+  }
+
+  return {
+    level: "warn",
+    message: parts.join(" — "),
+  };
 }
 
 function collapseWhitespace(value: string): string {

@@ -33,7 +33,14 @@ Auto-start only applies to `e2e/example.yaml`.
 |---------|---------|
 | `--output-dir <dir>` | `e2e` |
 | `--browser <browser>` | chromium |
+| `--improve-mode <mode>` | `report` |
 | `--no-improve` | off (auto-improve enabled) |
+
+Recorded auto-improve uses a review-first deterministic profile by default:
+- mode: `report`
+- assertions: `candidates`
+- assertion source: `deterministic`
+- assertion policy: `reliable`
 
 ## Improve Defaults
 

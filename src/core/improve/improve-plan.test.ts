@@ -32,6 +32,11 @@ describe("improvePlan", () => {
         applySelectors: true,
         applyAssertions: true,
       },
+      determinism: {
+        status: "unsafe",
+        reasons: ["missing_base_url"],
+        suppressedMutationTypes: ["selector_update"],
+      },
       summary: {
         runtimeFailingStepsRetained: 1,
         runtimeFailingStepsRemoved: 0,
@@ -74,6 +79,44 @@ describe("improvePlan", () => {
       throw new Error("Expected version 2 plan payload");
     }
     expect(parsed.summary.skippedAssertions).toBe(2);
+    expect(parsed.determinism.status).toBe("unsafe");
+  });
+
+  it("keeps backward compatibility with version 2 plans that predate determinism metadata", () => {
+    const parsed = improvePlanSchema.parse({
+      version: 2,
+      generatedAt: new Date().toISOString(),
+      testFile: "../tests/sample.yaml",
+      testFileLocator: "relative_to_plan",
+      testFileSha256: hashImprovePlanSource("name: sample\nsteps:\n  - action: navigate\n    url: /\n"),
+      sourceReportPath: "../tests/sample.improve-report.json",
+      sourceReportPathLocator: "relative_to_plan",
+      appliedBy: "plan_preview",
+      profile: {
+        assertions: "candidates",
+        assertionSource: "snapshot-native",
+        assertionPolicy: "balanced",
+        applySelectors: true,
+        applyAssertions: true,
+      },
+      summary: {
+        runtimeFailingStepsRetained: 1,
+        runtimeFailingStepsRemoved: 0,
+        skippedAssertions: 2,
+      },
+      diagnostics: [],
+      assertionCandidates: [],
+      test: {
+        name: "sample",
+        steps: [{ action: "navigate", url: "/" }],
+      },
+    });
+
+    expect(parsed.version).toBe(2);
+    if (parsed.version !== 2) {
+      throw new Error("Expected version 2 plan payload");
+    }
+    expect(parsed.determinism).toBeUndefined();
   });
 
   it("keeps backward compatibility with version 1 plans", () => {

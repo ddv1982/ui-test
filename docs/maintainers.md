@@ -58,14 +58,9 @@ Optional soak workflow:
 
 - `.github/workflows/flake-soak.yml`: scheduled/manual multi-iteration integration soak; uploads JSON failure-rate report artifact.
 
-## Recorder Stability Override
+## Recorder Architecture Note
 
-Recorder default path is JSONL with fallback to playwright-test parsing.
-To force fallback mode:
-
-```bash
-UI_TEST_DISABLE_JSONL=1 ui-test record
-```
+The current recorder is Playwright-codegen-first. Chrome DevTools Recorder JSON remains supported as an import path, and legacy YAML may still contain older `codegen-jsonl` / `codegen-fallback` source tags.
 
 ## Coverage Thresholds
 

@@ -13,14 +13,12 @@ import {
 } from "./improve-helpers.js";
 import { runImproveAssertionPass } from "./improve-assertion-pass.js";
 import { runImproveSelectorPass } from "./improve-selector-pass.js";
-import { classifyRuntimeFailingStep } from "./runtime-failure-classifier.js";
 import {
   type ImproveAssertionPolicy,
   type ImproveAssertionSource,
   type ImproveAppliedBy,
   type ImproveOptions,
   type ImproveResult,
-  RUNTIME_STEP_REMOVE_MIN_CONFIDENCE,
 } from "./improve-types.js";
 import { DEFAULT_IMPROVE_ASSERTION_POLICY } from "./assertion-policy.js";
 import {
@@ -28,6 +26,17 @@ import {
   buildAssertionFallbackApplySummary,
 } from "./improve-runner-metrics.js";
 import { launchImproveBrowser } from "./improve-browser.js";
+import {
+  appendDeterminismDiagnostics,
+  appendDeterminismSuppressionDiagnostic,
+  applyDeterminismGuardToSelectorPass,
+  applyFailedStepRemovals,
+  buildTestDocument,
+  buildYamlOptionsFromTest,
+  resolveImproveDeterminismCapabilities,
+  resolveImproveExecutionPlan,
+  resolveRuntimeFailingSteps,
+} from "./improve-runner-support.js";
 import {
   improveReportSchema,
   type ImproveDiagnostic,
@@ -108,9 +117,18 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     }
   }
 
-  const launched = await launchImproveBrowser();
-  const browser = launched.browser;
-  const page = launched.page;
+  const executionPlan = resolveImproveExecutionPlan({
+    applySelectors: effectiveOptions.applySelectors,
+    applyAssertions: effectiveOptions.applyAssertions,
+    assertions: effectiveOptions.assertions,
+    assertionSource,
+  });
+
+  const launched = executionPlan.needsBrowser
+    ? await launchImproveBrowser()
+    : undefined;
+  const browser = launched?.browser;
+  const page = launched?.page;
 
   try {
     const initialOutputSteps: Step[] = shouldRemoveStaleAssertions
@@ -123,16 +141,15 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       shouldRemoveStaleAssertions
     );
 
-    const wantsNativeSnapshots =
-      effectiveOptions.assertions === "candidates" && assertionSource === "snapshot-native";
+    const wantsNativeSnapshots = executionPlan.wantsNativeSnapshots;
 
     const selectorPassInput = {
       steps: initialOutputSteps,
       outputStepOriginalIndexes,
-      page,
       applySelectors: effectiveOptions.applySelectors,
       wantsNativeSnapshots,
       diagnostics,
+      ...(page !== undefined ? { page } : {}),
     };
     const selectorPass = await runImproveSelectorPass(
       test.baseUrl === undefined
@@ -140,111 +157,113 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
         : { ...selectorPassInput, testBaseUrl: test.baseUrl }
     );
 
-    const failedIndexesToRemove = new Set<number>();
-    const failedIndexesToRetain = new Set<number>();
-    if (wantsWrite) {
-      for (const index of selectorPass.failedStepIndexes) {
-        const step = selectorPass.outputSteps[index];
-        if (!step || step.action === "navigate") continue;
+    const suppressedMutationTypes = new Set<
+      "selector_update" | "assertion_insert" | "runtime_step_removal"
+    >();
+    const determinismBase = resolveImproveDeterminismCapabilities({
+      steps: initialOutputSteps,
+      observedUrls: selectorPass.runtimeObservedUrls,
+      ...(test.baseUrl !== undefined ? { baseUrl: test.baseUrl } : {}),
+    });
 
-        const classification = classifyRuntimeFailingStep(step);
-        const originalIndex = outputStepOriginalIndexes[index] ?? index;
-        const safeToAutoRemove =
-          classification.disposition === "remove" &&
-          classification.mutationSafety === "safe" &&
-          classification.decisionConfidence >= RUNTIME_STEP_REMOVE_MIN_CONFIDENCE;
+    let selectorDiagnostics = diagnostics;
+    let selectorOutputSteps = selectorPass.outputSteps;
+    let selectorRepairsApplied = selectorPass.selectorRepairsApplied ?? 0;
+    let selectorRepairsAdoptedOnTie = selectorPass.selectorRepairsAdoptedOnTie ?? 0;
+    let selectorRepairsAppliedFromPlaywrightRuntime =
+      selectorPass.selectorRepairsAppliedFromPlaywrightRuntime ?? 0;
 
-        if (safeToAutoRemove) {
-          failedIndexesToRemove.add(index);
-          diagnostics.push({
-            code: "runtime_failing_step_removed",
-            level: "info",
-            message:
-              `Step ${originalIndex + 1}: removed because it failed at runtime (${classification.reason}).`,
-            decisionConfidence: classification.decisionConfidence,
-            mutationType: "runtime_step_removal",
-            mutationSafety: classification.mutationSafety,
-            evidenceRefs: classification.evidenceRefs,
-            appliedBy,
-          });
-          continue;
-        }
-
-        failedIndexesToRetain.add(index);
-        const safetySuffix =
-          classification.disposition === "remove"
-            ? " Auto-removal blocked by safety guard."
-            : "";
-        diagnostics.push({
-          code: "runtime_failing_step_retained",
-          level: "info",
-          message:
-            `Step ${originalIndex + 1}: retained as required step after runtime failure (${classification.reason}).${safetySuffix}`,
-          decisionConfidence: classification.decisionConfidence,
-          mutationType: "runtime_step_retention",
-          mutationSafety: classification.mutationSafety,
-          evidenceRefs: classification.evidenceRefs,
-          appliedBy,
-        });
+    if (!determinismBase.allowRuntimeSelectorRepairApply) {
+      const selectorGuarded = applyDeterminismGuardToSelectorPass({
+        selectorPass,
+        initialOutputSteps,
+        outputStepOriginalIndexes,
+        diagnostics,
+        appliedBy,
+      });
+      selectorDiagnostics = selectorGuarded.diagnostics;
+      selectorOutputSteps = selectorGuarded.outputSteps;
+      selectorRepairsApplied = selectorGuarded.selectorRepairsApplied;
+      selectorRepairsAdoptedOnTie = selectorGuarded.selectorRepairsAdoptedOnTie;
+      selectorRepairsAppliedFromPlaywrightRuntime =
+        selectorGuarded.selectorRepairsAppliedFromPlaywrightRuntime;
+      if (selectorGuarded.suppressedRuntimeSelectorRepairs > 0) {
+        suppressedMutationTypes.add("selector_update");
       }
     }
 
-    let postRemovalOutputSteps = selectorPass.outputSteps;
-    let postRemovalOriginalIndexes = outputStepOriginalIndexes;
-    let postRemovalSnapshots = selectorPass.nativeStepSnapshots;
-
-    if (wantsWrite) {
-      if (failedIndexesToRemove.size > 0) {
-        // Splice steps in reverse order to preserve earlier indexes
-        const sortedRemoveIndexes = [...failedIndexesToRemove].sort((a, b) => b - a);
-        postRemovalOutputSteps = [...selectorPass.outputSteps];
-        for (const idx of sortedRemoveIndexes) {
-          postRemovalOutputSteps.splice(idx, 1);
-        }
-
-        // Rebuild original-index mapping
-        postRemovalOriginalIndexes = outputStepOriginalIndexes.filter(
-          (_, i) => !failedIndexesToRemove.has(i)
-        );
-
-        // Remap snapshot indexes
-        postRemovalSnapshots = selectorPass.nativeStepSnapshots
-          .filter((s) => !failedIndexesToRemove.has(s.index))
-          .map((s) => {
-            const offset = [...failedIndexesToRemove].filter((r) => r < s.index).length;
-            return { ...s, index: s.index - offset };
-          });
-      }
+    const { failedIndexesToRemove, failedIndexesToRetain } = resolveRuntimeFailingSteps({
+      wantsWrite,
+      allowRuntimeDerivedApply: determinismBase.allowRuntimeDerivedApply,
+      failedStepIndexes: selectorPass.failedStepIndexes,
+      outputSteps: selectorOutputSteps,
+      outputStepOriginalIndexes,
+      diagnostics: selectorDiagnostics,
+      appliedBy,
+    });
+    if (!determinismBase.allowRuntimeDerivedApply && failedIndexesToRetain.size > 0) {
+      suppressedMutationTypes.add("runtime_step_removal");
     }
 
-    const removedOriginalIndexes = new Set(
-      [...failedIndexesToRemove].map((i) => outputStepOriginalIndexes[i] ?? i)
-    );
-    const postRemovalFindings =
-      wantsWrite && removedOriginalIndexes.size > 0
-        ? selectorPass.findings.filter((f) => !removedOriginalIndexes.has(f.index))
-        : selectorPass.findings;
+    const postRemovalState = applyFailedStepRemovals({
+      wantsWrite,
+      failedIndexesToRemove,
+      outputSteps: selectorOutputSteps,
+      outputStepOriginalIndexes,
+      nativeStepSnapshots: selectorPass.nativeStepSnapshots,
+      findings: selectorPass.findings,
+    });
 
     const assertionPassInput = {
       assertions: effectiveOptions.assertions,
       assertionSource,
       assertionPolicy,
       applyAssertions: effectiveOptions.applyAssertions,
-      page,
-      outputSteps: postRemovalOutputSteps,
-      findings: postRemovalFindings,
-      outputStepOriginalIndexes: postRemovalOriginalIndexes,
-      nativeStepSnapshots: postRemovalSnapshots,
-      diagnostics,
+      allowRuntimeAssertionApply: determinismBase.allowRuntimeAssertionApply,
+      outputSteps: postRemovalState.outputSteps,
+      findings: postRemovalState.findings,
+      outputStepOriginalIndexes: postRemovalState.outputStepOriginalIndexes,
+      nativeStepSnapshots: postRemovalState.nativeStepSnapshots,
+      diagnostics: selectorDiagnostics,
+      ...(page !== undefined ? { page } : {}),
     };
     const assertionPass = await runImproveAssertionPass(
       test.baseUrl === undefined
         ? assertionPassInput
         : { ...assertionPassInput, testBaseUrl: test.baseUrl }
     );
+    if (
+      !determinismBase.allowRuntimeAssertionApply &&
+      effectiveOptions.applyAssertions &&
+      assertionPass.assertionCandidates.some(
+        (candidate) => candidate.candidateSource === "snapshot_native"
+      )
+    ) {
+      suppressedMutationTypes.add("assertion_insert");
+    }
+    const determinism = resolveImproveDeterminismCapabilities({
+      steps: initialOutputSteps,
+      observedUrls: selectorPass.runtimeObservedUrls,
+      suppressedMutationTypes: [...suppressedMutationTypes],
+      ...(test.baseUrl !== undefined ? { baseUrl: test.baseUrl } : {}),
+    });
+    if (determinism.emitDeterminismDiagnostics) {
+      appendDeterminismDiagnostics({
+        diagnostics: selectorDiagnostics,
+        determinism: determinism.determinism,
+        appliedBy,
+      });
+      for (const mutationType of determinism.determinism.suppressedMutationTypes ?? []) {
+        appendDeterminismSuppressionDiagnostic({
+          diagnostics: selectorDiagnostics,
+          mutationType,
+          appliedBy,
+        });
+      }
+    }
     const assertionCoverage = buildAssertionCoverageSummary(
-      postRemovalOutputSteps,
-      postRemovalOriginalIndexes,
+      postRemovalState.outputSteps,
+      postRemovalState.outputStepOriginalIndexes,
       assertionPass.assertionCandidates
     );
     const assertionFallback = buildAssertionFallbackApplySummary(
@@ -252,12 +271,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
     );
     const outputValidationIssues: string[] = [];
     if (wantsWrite) {
-      const candidateOutput = {
-        name: test.name,
-        ...(test.description !== undefined ? { description: test.description } : {}),
-        ...(test.baseUrl !== undefined ? { baseUrl: test.baseUrl } : {}),
-        steps: assertionPass.outputSteps,
-      };
+      const candidateOutput = buildTestDocument(test, assertionPass.outputSteps);
       const validatedOutput = testSchema.safeParse(candidateOutput);
       if (!validatedOutput.success) {
         outputValidationIssues.push(
@@ -266,7 +280,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
             return `${issuePath}: ${issue.message}`;
           })
         );
-        diagnostics.push({
+        selectorDiagnostics.push({
           code: "apply_write_blocked_invalid_output",
           level: "error",
           message:
@@ -282,7 +296,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       ? path.resolve(effectiveOptions.reportPath)
       : defaultReportPath(absoluteTestPath);
 
-    diagnostics.push({
+    selectorDiagnostics.push({
       code: "reproducibility_hint",
       level: "info",
       message: `Reproduce runtime behavior with: ui-test play ${absoluteTestPath}`,
@@ -291,7 +305,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       evidenceRefs: ["repro:play"],
       appliedBy,
     });
-    diagnostics.push({
+    selectorDiagnostics.push({
       code: "reproducibility_hint",
       level: "info",
       message:
@@ -307,23 +321,23 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
       appliedBy,
+      determinism: determinism.determinism,
       summary: {
-        unchanged: postRemovalFindings.filter((item) => !item.changed).length,
-        improved: postRemovalFindings.filter((item) => item.changed).length,
-        fallback: postRemovalFindings.filter((item) => isFallbackTarget(item.recommendedTarget))
-          .length,
-        warnings: diagnostics.filter((item) => item.level !== "info").length,
+        unchanged: postRemovalState.findings.filter((item) => !item.changed).length,
+        improved: postRemovalState.findings.filter((item) => item.changed).length,
+        fallback: postRemovalState.findings.filter((item) =>
+          isFallbackTarget(item.recommendedTarget)
+        ).length,
+        warnings: selectorDiagnostics.filter((item) => item.level !== "info").length,
         assertionCandidates: assertionPass.assertionCandidates.length,
         appliedAssertions: assertionPass.appliedAssertions,
         skippedAssertions: assertionPass.skippedAssertions,
         selectorRepairCandidates: selectorPass.selectorRepairCandidates ?? 0,
-        selectorRepairsApplied: selectorPass.selectorRepairsApplied ?? 0,
-        selectorRepairsAdoptedOnTie:
-          selectorPass.selectorRepairsAdoptedOnTie ?? 0,
+        selectorRepairsApplied: selectorRepairsApplied,
+        selectorRepairsAdoptedOnTie: selectorRepairsAdoptedOnTie,
         selectorRepairsGeneratedByPlaywrightRuntime:
           selectorPass.selectorRepairsGeneratedByPlaywrightRuntime ?? 0,
-        selectorRepairsAppliedFromPlaywrightRuntime:
-          selectorPass.selectorRepairsAppliedFromPlaywrightRuntime ?? 0,
+        selectorRepairsAppliedFromPlaywrightRuntime: selectorRepairsAppliedFromPlaywrightRuntime,
         deterministicAssertionsSkippedNavigationLikeClick:
           assertionPass.deterministicAssertionsSkippedNavigationLikeClick ?? 0,
         runtimeFailingStepsRetained: failedIndexesToRetain.size,
@@ -353,9 +367,9 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
           assertionPass.assertionCandidates
         ),
       },
-      stepFindings: postRemovalFindings,
+      stepFindings: postRemovalState.findings,
       assertionCandidates: assertionPass.assertionCandidates,
-      diagnostics,
+      diagnostics: selectorDiagnostics,
     };
 
     const validatedReport = improveReportSchema.parse(report);
@@ -375,13 +389,7 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       const absoluteOutputPath = effectiveOptions.outputPath
         ? path.resolve(effectiveOptions.outputPath)
         : absoluteTestPath;
-      const yamlOptions: { description?: string; baseUrl?: string } = {};
-      if (test.description !== undefined) {
-        yamlOptions.description = test.description;
-      }
-      if (test.baseUrl !== undefined) {
-        yamlOptions.baseUrl = test.baseUrl;
-      }
+      const yamlOptions = buildYamlOptionsFromTest(test);
       const yamlOut = stepsToYaml(test.name, assertionPass.outputSteps, yamlOptions);
       await fs.mkdir(path.dirname(absoluteOutputPath), { recursive: true });
       await fs.writeFile(absoluteOutputPath, yamlOut, "utf-8");
@@ -396,15 +404,10 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
       improveResult.outputPath = outputPath;
     }
     if (options.includeProposedTest) {
-      improveResult.proposedTest = {
-        name: test.name,
-        ...(test.description !== undefined ? { description: test.description } : {}),
-        ...(test.baseUrl !== undefined ? { baseUrl: test.baseUrl } : {}),
-        steps: assertionPass.outputSteps,
-      };
+      improveResult.proposedTest = buildTestDocument(test, assertionPass.outputSteps);
     }
     return improveResult;
   } finally {
-    await browser.close();
+    await browser?.close();
   }
 }

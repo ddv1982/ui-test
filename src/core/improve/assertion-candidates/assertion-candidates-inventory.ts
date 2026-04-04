@@ -1,32 +1,29 @@
-import type { Target } from "../../yaml-schema.js";
-import { quote } from "../candidate-generator.js";
 import {
   parseSnapshotNodes,
   type StepSnapshot,
 } from "./assertion-candidates-snapshot.js";
 import type { AssertionCandidate } from "../report-schema.js";
-
-const INVENTORY_TEXT_ROLES = new Set([
-  "heading",
-  "status",
-  "alert",
-  "link",
-  "tab",
-]);
-
-const INVENTORY_VISIBLE_ROLES = new Set([
-  "main",
-  "dialog",
-  "status",
-  "alert",
-]);
-
-const MAX_INVENTORY_CANDIDATES_PER_STEP = 2;
-const INVENTORY_TEXT_CONFIDENCE = 0.79;
-const INVENTORY_VISIBLE_CONFIDENCE = 0.77;
+import {
+  buildRoleTarget,
+  buildTextTarget,
+  extractActedTargetHint,
+  isNoisyText,
+  matchesActedTarget,
+  normalizeForCompare,
+} from "./assertion-candidates-snapshot-shared.js";
+import {
+  buildExcludedTargetKeys,
+  candidatesForStep,
+  INVENTORY_TEXT_CONFIDENCE,
+  INVENTORY_TEXT_ROLES,
+  INVENTORY_VISIBLE_CONFIDENCE,
+  INVENTORY_VISIBLE_ROLES,
+  MAX_INVENTORY_CANDIDATES_PER_STEP,
+  textRolePriority,
+  visibleRolePriority,
+} from "./assertion-candidates-inventory-support.js";
 
 type SnapshotInventoryNode = ReturnType<typeof parseSnapshotNodes>[number];
-type AssertionTargetStep = Extract<AssertionCandidate["candidate"], { target: unknown }>;
 
 export function buildSnapshotInventoryAssertionCandidates(
   snapshots: StepSnapshot[]
@@ -61,12 +58,7 @@ export function buildSnapshotInventoryAssertionCandidates(
       postNodes,
       actedTargetHint,
       framePath,
-      new Set(
-        textCandidates
-          .map((candidate) => candidate.candidate)
-          .filter(isAssertionTargetStep)
-          .map((candidateStep) => normalizeForCompare(candidateStep.target.value))
-      )
+      buildExcludedTargetKeys(textCandidates, normalizeForCompare)
     );
 
     for (const candidate of textCandidates) {
@@ -85,14 +77,6 @@ export function buildSnapshotInventoryAssertionCandidates(
   }
 
   return candidates;
-}
-
-function candidatesForStep(candidates: AssertionCandidate[], stepIndex: number): number {
-  let count = 0;
-  for (const candidate of candidates) {
-    if (candidate.index === stepIndex) count += 1;
-  }
-  return count;
 }
 
 function buildInventoryTextCandidates(
@@ -180,111 +164,4 @@ function buildInventoryVisibleCandidates(
     });
   }
   return out;
-}
-
-function buildRoleTarget(
-  role: string,
-  name: string,
-  framePath: string[] | undefined
-): Target {
-  return {
-    value: "getByRole(" + quote(role) + ", { name: " + quote(name) + " })",
-    kind: "locatorExpression",
-    source: "codegen-fallback",
-    ...(framePath && framePath.length > 0 ? { framePath } : {}),
-  };
-}
-
-function buildTextTarget(
-  node: SnapshotInventoryNode,
-  text: string,
-  framePath: string[] | undefined
-): Target {
-  const value = node.name
-    ? "getByRole(" + quote(node.role) + ", { name: " + quote(node.name) + " })"
-    : "getByText(" + quote(text) + ")";
-
-  return {
-    value,
-    kind: "locatorExpression",
-    source: "codegen-fallback",
-    ...(framePath && framePath.length > 0 ? { framePath } : {}),
-  };
-}
-
-function extractActedTargetHint(
-  step: StepSnapshot["step"]
-): string {
-  if (step.action === "navigate") return step.url;
-  if (step.action === "assertUrl") return step.url;
-  if (step.action === "assertTitle") return step.title;
-  if ("target" in step && step.target) return step.target.value;
-  return "";
-}
-
-function matchesActedTarget(value: string, actedTargetHint: string): boolean {
-  const normalizedValue = normalizeForCompare(value);
-  const normalizedTarget = normalizeForCompare(actedTargetHint);
-  if (!normalizedValue || !normalizedTarget) return false;
-  return (
-    normalizedTarget.includes(normalizedValue) ||
-    normalizedValue.includes(normalizedTarget)
-  );
-}
-
-function normalizeForCompare(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function isNoisyText(value: string): boolean {
-  const text = value.trim();
-  if (text.length < 2 || text.length > 120) return true;
-  if (/^\d+(?:[.,]\d+)?$/.test(text)) return true;
-  if (/^https?:\/\//i.test(text)) return true;
-  if (!/[a-zA-Z]/.test(text)) return true;
-  return false;
-}
-
-function textRolePriority(role: string): number {
-  switch (role) {
-    case "heading":
-      return 0;
-    case "status":
-      return 1;
-    case "alert":
-      return 2;
-    case "link":
-      return 3;
-    case "tab":
-      return 4;
-    default:
-      return 5;
-  }
-}
-
-function visibleRolePriority(role: string): number {
-  switch (role) {
-    case "navigation":
-      return 0;
-    case "banner":
-      return 1;
-    case "main":
-      return 2;
-    case "contentinfo":
-      return 3;
-    case "dialog":
-      return 4;
-    case "status":
-      return 5;
-    case "alert":
-      return 6;
-    default:
-      return 7;
-  }
-}
-
-function isAssertionTargetStep(
-  step: AssertionCandidate["candidate"]
-): step is AssertionTargetStep {
-  return "target" in step && Boolean(step.target);
 }

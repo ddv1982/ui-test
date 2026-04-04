@@ -2,8 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { playwrightCodeToSteps } from "./transform/playwright-ast-transform.js";
-import { stepsToYaml } from "./transform/yaml-io.js";
-import type { Step } from "./yaml-schema.js";
 import { ui } from "../utils/ui.js";
 import { UserError } from "../utils/errors.js";
 import type {
@@ -16,9 +14,10 @@ import {
   type CodegenRunOptions,
 } from "./recorder-codegen.js";
 import {
-  canonicalEventsToSteps,
-  stepsToCanonicalEvents,
-} from "./recording/canonical-events.js";
+  normalizeFirstNavigate,
+  saveRecordedYaml,
+  slugify,
+} from "./recording/recording-output.js";
 
 export type RecordBrowser = CodegenBrowser;
 
@@ -108,44 +107,19 @@ export async function record(
     ui.warn(`Recorder exited unexpectedly (${codegenError.message}), but captured steps were recovered.`);
   }
 
-  const normalizedSteps = normalizeFirstNavigate(steps, options.url);
-  const canonicalizedSteps = canonicalEventsToSteps(
-    stepsToCanonicalEvents(normalizedSteps)
-  );
-  const outputPath = await saveRecordingYaml(options, canonicalizedSteps);
+  const saved = await saveRecordedYaml({
+    name: options.name,
+    outputDir: options.outputDir,
+    steps,
+    startingUrl: options.url,
+    ...(options.description !== undefined ? { description: options.description } : {}),
+  });
 
   return {
-    outputPath,
-    stepCount: canonicalizedSteps.length,
+    outputPath: saved.outputPath,
+    stepCount: saved.steps.length,
     recordingMode: "codegen",
   };
-}
-
-async function saveRecordingYaml(options: RecordOptions, steps: Step[]): Promise<string> {
-  let baseUrl: string | undefined;
-  try {
-    const parsed = new URL(options.url);
-    baseUrl = `${parsed.protocol}//${parsed.host}`;
-  } catch {
-    // ignore
-  }
-
-  const yamlOptions: { description?: string; baseUrl?: string } = {};
-  if (options.description !== undefined) {
-    yamlOptions.description = options.description;
-  }
-  if (baseUrl !== undefined) {
-    yamlOptions.baseUrl = baseUrl;
-  }
-
-  const yamlContent = stepsToYaml(options.name, steps, yamlOptions);
-
-  const slug = slugify(options.name) || `test-${Date.now()}`;
-  const filename = `${slug}.yaml`;
-  const outputPath = path.join(options.outputDir, filename);
-  await fs.mkdir(options.outputDir, { recursive: true });
-  await fs.writeFile(outputPath, yamlContent, "utf-8");
-  return outputPath;
 }
 
 async function findPlaywrightCli(): Promise<string> {
@@ -163,31 +137,5 @@ async function findPlaywrightCli(): Promise<string> {
   return "npx";
 }
 
-export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-export function normalizeFirstNavigate(steps: Step[], startingUrl: string): Step[] {
-  let startPath: string;
-  try {
-    const parsed = new URL(startingUrl);
-    startPath = parsed.pathname + parsed.search + parsed.hash;
-  } catch {
-    return steps;
-  }
-
-  if (steps.length === 0) return steps;
-
-  const firstStep = steps[0];
-  if (firstStep?.action === "navigate") {
-    return [{ ...firstStep, url: startPath }, ...steps.slice(1)];
-  }
-
-  // No navigate as first step — inject one
-  return [{ action: "navigate" as const, url: startPath }, ...steps];
-}
-
 export { runCodegen, resolvePlaywrightCliPath };
+export { normalizeFirstNavigate, slugify };

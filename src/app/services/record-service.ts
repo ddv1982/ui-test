@@ -20,12 +20,13 @@ import { UserError } from "../../utils/errors.js";
 import { ui } from "../../utils/ui.js";
 import { defaultRunInteractiveCommand } from "../../infra/process/process-runner-adapter.js";
 import { importRecordFromFile } from "./record-devtools-import.js";
+import { formatDeterminismVerdict } from "./improve-output.js";
 
 function resolveRecordAutoImproveProfile(improveMode: RecordImproveMode): ResolvedImproveProfile {
   const improveProfileInput: ImproveProfileInput = {
     apply: improveMode === "apply",
     assertions: "candidates",
-    assertionSource: "snapshot-native",
+    assertionSource: "deterministic",
     assertionPolicy: "reliable",
   };
   return resolveImproveProfile(improveProfileInput);
@@ -200,6 +201,16 @@ async function runAutoImprove(
     assertionPolicy: improveProfile.assertionPolicy,
     appliedBy,
   });
+  const determinismVerdict = formatDeterminismVerdict(improveResult.report.determinism);
+  if (determinismVerdict) {
+    const autoImproveMessage =
+      determinismVerdict.message.charAt(0).toLowerCase() + determinismVerdict.message.slice(1);
+    if (determinismVerdict.level === "warn") {
+      ui.warn(`Auto-improve ${autoImproveMessage}`);
+    } else {
+      ui.info(`Auto-improve ${autoImproveMessage}`);
+    }
+  }
 
   const summary = improveResult.report.summary;
   if (!applyMutations) {

@@ -97,7 +97,7 @@ The `target` object identifies the element:
 
 - **`value`** — the selector string or locator expression
 - **`kind`** — selector type (`css`, `xpath`, `locatorExpression`, `playwrightSelector`, etc.)
-- **`source`** — how the selector was created (`manual`, `codegen-jsonl`, `codegen-fallback`)
+- **`source`** — how the selector was created (`manual`, `codegen`, `devtools-import`; legacy files may still contain `codegen-jsonl` or `codegen-fallback`)
 
 `optional: true` is no longer supported for steps. Remove this field from existing YAML tests. Steps can include `timeout: <ms>` to override the global step timeout.
 
@@ -124,7 +124,7 @@ ui-test play
 
 This opens a browser. Interact with your app, then close the browser to save the recording as a YAML file in the `e2e/` directory.
 
-After recording, `ui-test` automatically improves selectors, adds assertion candidates, and classifies runtime-failing interactions (aggressively removes transient dismissal/control `click`/`press` failures, retains non-transient and safeguarded content/business interactions as required steps). Use `--no-improve` to skip this.
+After recording, `ui-test` runs a review-first auto-improve pass by default. The recorded YAML stays unchanged, and the improve report uses deterministic assertion candidates with the reliable policy. Use `--improve-mode apply` if you want an improved copy written automatically, or `--no-improve` to skip post-processing entirely.
 
 On dynamic content pages (for example news homepages), recorder/improve use stability-first defaults:
 - Reliable selector normalization avoids brittle `exact: true` headline locators when headline text appears dynamic.

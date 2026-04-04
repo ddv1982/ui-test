@@ -30,7 +30,7 @@ export function resolveRecordProfile(
   const profile: ResolvedRecordProfile = {
     browser: parseRecordBrowser(input.browser) ?? "chromium",
     outputDir: input.outputDir ?? PLAY_DEFAULT_TEST_DIR,
-    improveMode: parseRecordImproveMode(input.improveMode) ?? "apply",
+    improveMode: parseRecordImproveMode(input.improveMode) ?? "report",
   };
 
   const device = cleanOptional(input.device);

@@ -41,6 +41,7 @@ ui-test record --name "Login flow" --url http://localhost:3000/login
 After the browser is closed, `ui-test` automatically runs `improve` on the new test file.
 
 Default mode is review-first (`--improve-mode report`), which writes only the improve report and leaves the recorded YAML unchanged.
+Default auto-improve uses deterministic assertion candidates with the `reliable` policy so post-record suggestions remain stable and reviewable.
 Use `--improve-mode apply` to write an improved copy (`<recorded>.improved.yaml`) while preserving the original recording.
 
 Auto-improve can:
@@ -67,10 +68,10 @@ Selector steps use:
 target:
   value: "..."
   kind: locatorExpression | playwrightSelector | css | xpath | internal | unknown
-  source: manual | codegen-jsonl | codegen-fallback
+  source: manual | codegen | devtools-import
 ```
 
-The `source` field records how the selector was produced: `codegen-jsonl` from the primary recorder, `codegen-fallback` from the backup recorder, or `manual` if you wrote it by hand.
+The `source` field records how the selector was produced: `codegen` for Playwright codegen recordings, `devtools-import` for Chrome DevTools Recorder JSON imports, or `manual` if you wrote it by hand. Legacy YAML may still contain `codegen-jsonl` / `codegen-fallback`.
 
 ## Common Tips
 

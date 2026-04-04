@@ -17,5 +17,31 @@ export function stepsToYaml(
 }
 
 export function yamlToTest(yamlContent: string): unknown {
-  return yaml.load(yamlContent);
+  return normalizeLegacyTargetSources(yaml.load(yamlContent));
+}
+
+function normalizeLegacyTargetSources(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeLegacyTargetSources(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  const normalized: Record<string, unknown> = {};
+
+  for (const [key, entry] of Object.entries(record)) {
+    if (
+      key === "source" &&
+      (entry === "codegen-jsonl" || entry === "codegen-fallback")
+    ) {
+      normalized[key] = "codegen";
+      continue;
+    }
+    normalized[key] = normalizeLegacyTargetSources(entry);
+  }
+
+  return normalized;
 }

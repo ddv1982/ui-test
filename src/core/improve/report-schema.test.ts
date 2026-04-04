@@ -8,6 +8,11 @@ describe("improveReportSchema", () => {
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
       appliedBy: "report_only",
+      determinism: {
+        status: "unsafe",
+        reasons: ["missing_base_url"],
+        suppressedMutationTypes: ["assertion_insert"],
+      },
       summary: {
         unchanged: 1,
         improved: 1,
@@ -94,6 +99,9 @@ describe("improveReportSchema", () => {
     });
 
     expect(parsed.summary.appliedAssertions).toBe(1);
+    expect(parsed.determinism.status).toBe("unsafe");
+    expect(parsed.determinism.reasons).toEqual(["missing_base_url"]);
+    expect(parsed.determinism.suppressedMutationTypes).toEqual(["assertion_insert"]);
     expect(parsed.summary.assertionApplyPolicy).toBe("balanced");
     expect(parsed.summary.selectorRepairCandidates).toBe(3);
     expect(parsed.summary.selectorRepairsAdoptedOnTie).toBe(1);

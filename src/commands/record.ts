@@ -19,7 +19,7 @@ export function registerRecord(program: Command) {
     .option("--from-file <path>", "Import a Chrome DevTools Recorder JSON export instead of recording")
     .option(
       "--improve-mode <mode>",
-      "Auto-improve mode after recording: apply (default), report, or off"
+      "Auto-improve mode after recording: report (default), apply, or off"
     )
     .option("--no-improve", "Skip automatic improvement after recording")
     .action(async (opts: unknown) => {
