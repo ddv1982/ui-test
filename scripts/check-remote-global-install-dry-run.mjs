@@ -6,15 +6,28 @@ import { fileURLToPath } from "node:url";
 import { extractTarballName, removeTarball } from "./check-pack-silent.mjs";
 
 const DEFAULT_REMOTE_PACKAGE_SPEC = "github:ddv1982/ui-test";
+const DEFAULT_REMOTE_PACKAGE_FALLBACK_SPEC = "git+https://github.com/ddv1982/ui-test.git";
+
+function packRemotePackageSilent(remotePackageSpec) {
+  return spawnSync("npm", ["pack", remotePackageSpec, "--silent"], {
+    encoding: "utf-8",
+  });
+}
 
 export function runRemoteGlobalInstallDryRun() {
   const remotePackageSpec =
     process.env.UI_TEST_REMOTE_PACKAGE_SPEC?.trim() ||
     DEFAULT_REMOTE_PACKAGE_SPEC;
 
-  const packResult = spawnSync("npm", ["pack", remotePackageSpec, "--silent"], {
-    encoding: "utf-8",
-  });
+  let packResult = packRemotePackageSilent(remotePackageSpec);
+  if (
+    !process.env.UI_TEST_REMOTE_PACKAGE_SPEC &&
+    packResult.status !== 0 &&
+    remotePackageSpec === DEFAULT_REMOTE_PACKAGE_SPEC
+  ) {
+    packResult = packRemotePackageSilent(DEFAULT_REMOTE_PACKAGE_FALLBACK_SPEC);
+  }
+
   if (packResult.status !== 0) {
     if (packResult.stdout) process.stdout.write(packResult.stdout);
     if (packResult.stderr) process.stderr.write(packResult.stderr);

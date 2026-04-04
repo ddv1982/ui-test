@@ -67,7 +67,68 @@ describe("check-remote-global-install-dry-run", () => {
     );
   });
 
+  it("falls back to the https git spec when the default github shorthand pack fails", () => {
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 128,
+        stdout: "",
+        stderr: "fatal: could not read from remote repository",
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: "ui-test-0.1.0.tgz\n",
+        stderr: "",
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: "",
+        stderr: "",
+      });
+
+    runRemoteGlobalInstallDryRun();
+
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(
+      1,
+      "npm",
+      ["pack", "github:ddv1982/ui-test", "--silent"],
+      expect.objectContaining({ encoding: "utf-8" })
+    );
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(
+      2,
+      "npm",
+      ["pack", "git+https://github.com/ddv1982/ui-test.git", "--silent"],
+      expect.objectContaining({ encoding: "utf-8" })
+    );
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(
+      3,
+      "npm",
+      ["i", "-g", expect.any(String), "--dry-run"],
+      expect.objectContaining({ encoding: "utf-8" })
+    );
+  });
+
   it("fails early when remote pack command fails", () => {
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: "",
+        stderr: "npm ERR!",
+      })
+      .mockReturnValueOnce({
+        status: 128,
+        stdout: "",
+        stderr: "fatal: could not read from remote repository",
+      });
+
+    expect(() => runRemoteGlobalInstallDryRun()).toThrow(
+      /npm pack github:ddv1982\/ui-test --silent failed/
+    );
+    expect(mockRemoveTarball).not.toHaveBeenCalled();
+    expect(mockRmSync).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back when a custom remote package spec override fails", () => {
+    process.env.UI_TEST_REMOTE_PACKAGE_SPEC = "github:owner/repo#abc123";
     mockSpawnSync.mockReturnValueOnce({
       status: 1,
       stdout: "",
@@ -75,10 +136,9 @@ describe("check-remote-global-install-dry-run", () => {
     });
 
     expect(() => runRemoteGlobalInstallDryRun()).toThrow(
-      /npm pack github:ddv1982\/ui-test --silent failed/
+      /npm pack github:owner\/repo#abc123 --silent failed/
     );
-    expect(mockRemoveTarball).not.toHaveBeenCalled();
-    expect(mockRmSync).not.toHaveBeenCalled();
+    expect(mockSpawnSync).toHaveBeenCalledTimes(1);
   });
 
   it("cleans up tarball and temp prefix when install dry-run fails", () => {
