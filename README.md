@@ -10,18 +10,20 @@ Record flows, replay them, and improve selector/assertion quality with a review-
 npm run setup
 ```
 
-**Global install:**
+**Published global install:**
 ```bash
-npm i -g "git+https://github.com/ddv1982/ui-test.git"
+npm i -g ui-test
 ui-test setup --browsers chromium
 ```
 
-**One-off run (no install):**
+**One-off run (no global install):**
 ```bash
-npx -y "git+https://github.com/ddv1982/ui-test.git" setup --browsers chromium
+npx ui-test setup --browsers chromium
 ```
 
-All command examples below use global `ui-test`.
+For pre-publish/local development, use the repository checkout path above instead of a raw git global install.
+
+All command examples below assume the published global `ui-test` command is available.
 
 ## Core Commands
 

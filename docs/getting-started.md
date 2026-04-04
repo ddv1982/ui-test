@@ -18,14 +18,19 @@ npm run setup
 ### Global install
 
 ```bash
+npm i -g ui-test
 ui-test setup --browsers chromium
 ```
 
-Use the global install command from `README.md`, then run the setup command above.
+This is the recommended install path for the published package.
 
 ### One-off run (no install)
 
-See `README.md` for the one-off command.
+```bash
+npx ui-test setup --browsers chromium
+```
+
+For unreleased/local development builds, use the repository checkout flow from `README.md` instead of a raw git global install.
 
 All command examples below use global `ui-test`.
 
