@@ -17,7 +17,7 @@
   "scripts": {
     "setup": "node ./scripts/setup.mjs --browsers chromium",
     "setup:play": "node ./scripts/setup.mjs --browsers chromium --run-play",
-    "preinstall": "node ./scripts/enforce-standalone-install.mjs",
+    "preinstall": "node -e \"const path=require('node:path');const env=process.env;const isTrue=v=>String(v??'').toLowerCase()==='true';const isExec=String(env.npm_command??'').trim()==='exec';const isRepoRoot=env.INIT_CWD&&path.resolve(env.INIT_CWD)===path.resolve(process.cwd());if(!(isExec||isTrue(env.npm_config_global)||isRepoRoot)){console.error(['[ui-test] Standalone install policy: project-local installs are not supported.','','Install/run ui-test in standalone mode instead:','  Install ui-test globally (see README.md)','  ui-test setup','  For one-off usage, see README.md','','If ui-test is already installed in this project, clean it up:','  1) Remove ui-test from dependencies/devDependencies in package.json','  2) Run: npm uninstall ui-test','  3) Install ui-test globally (see README.md)','  4) Re-run: ui-test setup'].join('\\n'));process.exit(1)}\"",
     "build": "node ./scripts/clean-dist.mjs && node ./scripts/run-tsc.mjs -p tsconfig.build.json && node ./scripts/fix-bin-perms.mjs",
     "help": "node ./scripts/help.mjs",
     "prepare": "node ./scripts/prepare-build.mjs",
