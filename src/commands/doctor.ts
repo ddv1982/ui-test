@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { Command } from "commander";
-import { collectRuntimeInfo } from "../utils/runtime-info.js";
+import { buildRecommendedCliCommand, collectRuntimeInfo } from "../utils/runtime-info.js";
 import { ui } from "../utils/ui.js";
 import { handleError } from "../utils/errors.js";
 
@@ -25,7 +25,7 @@ export async function runDoctor(): Promise<void> {
     : undefined;
   const recommendedDoctorCommand = localEntrypoint
     ? `node ${localEntrypoint} doctor`
-    : 'npx -y "git+https://github.com/ddv1982/ui-test.git" doctor';
+    : buildRecommendedCliCommand(["doctor"]);
 
   ui.heading("ui-test doctor");
   console.log();

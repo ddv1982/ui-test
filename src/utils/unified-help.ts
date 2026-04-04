@@ -101,9 +101,7 @@ export function buildUnifiedHelp(cmd: Command, helper: Help): string {
   output.push("  ui-test doctor");
   output.push("");
   output.push(helper.styleTitle("Tip:"));
-  output.push(
-    '  If not globally installed, use: npx -y "git+https://github.com/ddv1982/ui-test.git" doctor'
-  );
+  output.push("  See README.md for standalone install and one-off usage.");
   output.push("");
 
   return output.join("\n");

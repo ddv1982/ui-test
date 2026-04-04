@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Command } from "commander";
 
-const { collectRuntimeInfoMock } = vi.hoisted(() => ({
+const { buildRecommendedCliCommandMock, collectRuntimeInfoMock } = vi.hoisted(() => ({
+  buildRecommendedCliCommandMock: vi.fn(() => "node /tmp/_npx/cli.js doctor"),
   collectRuntimeInfoMock: vi.fn(),
 }));
 
 vi.mock("../utils/runtime-info.js", () => ({
+  buildRecommendedCliCommand: buildRecommendedCliCommandMock,
   collectRuntimeInfo: collectRuntimeInfoMock,
 }));
 
@@ -13,6 +15,7 @@ import { registerDoctor, runDoctor } from "./doctor.js";
 
 describe("doctor command", () => {
   beforeEach(() => {
+    buildRecommendedCliCommandMock.mockClear();
     collectRuntimeInfoMock.mockReset();
   });
 
@@ -120,7 +123,7 @@ describe("doctor command", () => {
     const output = logSpy.mock.calls.flat().join("\n");
     expect(output).toContain("Local ui-test package version (workspace): (not found)");
     expect(output).not.toContain("Version mismatch detected");
-    expect(output).toContain('npx -y "git+https://github.com/ddv1982/ui-test.git" doctor');
+    expect(output).toContain("node /tmp/_npx/cli.js doctor");
     logSpy.mockRestore();
   });
 });

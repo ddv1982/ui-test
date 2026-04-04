@@ -3,14 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  buildRecommendedCliCommand,
   classifyInvocationPath,
   collectRuntimeInfo,
   getCliVersion,
-  isLikelyNpxCacheInvocation,
   isPathInside,
   isProjectLocalUiTestInvocation,
-  REMOTE_ONE_OFF_PREFIX,
-  resolveCommandPrefix,
   resolveLocalUiTestPackageRoot,
   resolveInvocationPath,
   resolveWorkspaceRoot,
@@ -48,6 +46,23 @@ describe("runtime-info", () => {
 
   it("returns undefined for unverifiable bare command invocation", () => {
     expect(resolveInvocationPath("ui-test", "/repo/project")).toBeUndefined();
+  });
+
+  it("builds recommended command from resolved invocation path", () => {
+    expect(
+      buildRecommendedCliCommand(
+        ["doctor"],
+        "/repo/project",
+        "/tmp/_npx/abcd/node_modules/ui-test/dist/bin/ui-test.js",
+        "/usr/local/bin/node"
+      )
+    ).toBe("/usr/local/bin/node /tmp/_npx/abcd/node_modules/ui-test/dist/bin/ui-test.js doctor");
+  });
+
+  it("falls back to bare ui-test when invocation path is unverifiable", () => {
+    expect(buildRecommendedCliCommand(["doctor"], "/repo/project", "ui-test")).toBe(
+      "ui-test doctor"
+    );
   });
 
   it("classifies invocation paths relative to workspace", () => {
@@ -161,87 +176,4 @@ describe("runtime-info", () => {
     expect(isProjectLocalUiTestInvocation(cwd, invocation)).toBe(false);
   });
 
-  it("detects likely npx cache invocations", () => {
-    expect(isLikelyNpxCacheInvocation("/tmp/_npx/abcd/node_modules/ui-test/dist/bin/ui-test.js"))
-      .toBe(true);
-    expect(isLikelyNpxCacheInvocation("/usr/local/lib/node_modules/ui-test/dist/bin/ui-test.js"))
-      .toBe(false);
-  });
-
-  it("resolves command prefix based on invocation context", () => {
-    expect(resolveCommandPrefix("/usr/local/lib/node_modules/ui-test/dist/bin/ui-test.js"))
-      .toBe("ui-test");
-  });
-
-  it("uses remote one-off prefix when npx cache dependency spec points at repo", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-runtime-prefix-github-"));
-    tempDirs.push(root);
-    const cacheRoot = path.join(root, "_npx", "abcd1234");
-    const invocation = path.join(cacheRoot, "node_modules", "ui-test", "dist", "bin", "ui-test.js");
-    await fs.mkdir(path.dirname(invocation), { recursive: true });
-    await fs.writeFile(invocation, "", "utf-8");
-    await fs.writeFile(
-      path.join(cacheRoot, "package-lock.json"),
-      JSON.stringify({
-        packages: {
-          "": {
-            dependencies: {
-              "ui-test": "github:ddv1982/ui-test",
-            },
-          },
-        },
-      }),
-      "utf-8"
-    );
-
-    expect(resolveCommandPrefix(invocation)).toBe(REMOTE_ONE_OFF_PREFIX);
-  });
-
-  it("uses remote one-off prefix for git+https dependency specs", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-runtime-prefix-https-"));
-    tempDirs.push(root);
-    const cacheRoot = path.join(root, "_npx", "ijkl9012");
-    const invocation = path.join(cacheRoot, "node_modules", "ui-test", "dist", "bin", "ui-test.js");
-    await fs.mkdir(path.dirname(invocation), { recursive: true });
-    await fs.writeFile(invocation, "", "utf-8");
-    await fs.writeFile(
-      path.join(cacheRoot, "package-lock.json"),
-      JSON.stringify({
-        packages: {
-          "": {
-            dependencies: {
-              "ui-test": "git+https://github.com/ddv1982/ui-test.git",
-            },
-          },
-        },
-      }),
-      "utf-8"
-    );
-
-    expect(resolveCommandPrefix(invocation)).toBe(REMOTE_ONE_OFF_PREFIX);
-  });
-
-  it("does not force GitHub one-off prefix for generic npx cache paths", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-runtime-prefix-generic-"));
-    tempDirs.push(root);
-    const cacheRoot = path.join(root, "_npx", "efgh5678");
-    const invocation = path.join(cacheRoot, "node_modules", "ui-test", "dist", "bin", "ui-test.js");
-    await fs.mkdir(path.dirname(invocation), { recursive: true });
-    await fs.writeFile(invocation, "", "utf-8");
-    await fs.writeFile(
-      path.join(cacheRoot, "package-lock.json"),
-      JSON.stringify({
-        packages: {
-          "": {
-            dependencies: {
-              "ui-test": "^0.1.0",
-            },
-          },
-        },
-      }),
-      "utf-8"
-    );
-
-    expect(resolveCommandPrefix(invocation)).toBe("ui-test");
-  });
 });

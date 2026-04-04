@@ -8,6 +8,7 @@ import type {
   ImproveMutationType,
 } from "../../core/improve/report-schema.js";
 import {
+  buildRecommendedCliCommand,
   classifyInvocationPath,
   resolveLocalUiTestPackageRoot,
   resolveWorkspaceRoot,
@@ -118,7 +119,7 @@ export function buildExternalCliInvocationWarning(
     : path.resolve(resolvedCwd, testFile);
   const recommendedCommand = localEntrypoint
     ? `node ${localEntrypoint} improve ${resolvedTestFile}`
-    : `npx -y "git+https://github.com/ddv1982/ui-test.git" improve ${resolvedTestFile}`;
+    : buildRecommendedCliCommand(["improve", resolvedTestFile], resolvedCwd, argv1);
 
   const invocation = classifyInvocationPath(workspaceRoot, argv1);
   if (invocation.classification === "inside-workspace") return undefined;

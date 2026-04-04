@@ -49,10 +49,8 @@ describe("enforce-standalone-install", () => {
       "/Users/dev/.npm/_cacache/tmp/git-clone"
     );
     expect(message).toContain("project-local installs are not supported");
-    expect(message).toContain('npm i -g "git+https://github.com/ddv1982/ui-test.git"');
-    expect(message).toContain(
-      'npx -y "git+https://github.com/ddv1982/ui-test.git" setup --browsers chromium'
-    );
+    expect(message).toContain("Install ui-test globally (see README.md)");
+    expect(message).toContain("For one-off usage, see README.md");
     expect(message).toContain("npm uninstall ui-test");
   });
 });
