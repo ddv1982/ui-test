@@ -26,7 +26,8 @@ used by the project.
 - Source: https://github.com/microsoft/playwright
 - License text: https://github.com/microsoft/playwright/blob/main/LICENSE
 
-This project uses Playwright libraries and Playwright CLI functionality for:
+This project uses Playwright libraries and the Playwright CLI entry points
+shipped with the installed `playwright` package for:
 
 - Browser automation and playback
 - Test recording via `codegen`
