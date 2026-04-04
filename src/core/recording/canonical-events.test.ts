@@ -225,8 +225,9 @@ describe("canonical events", () => {
       },
     ]);
 
-    steps[0].target.framePath?.push("iframe[name='detail']");
-    steps[0].target.fallbacks?.push({ value: "text=Item", kind: "text", source: "manual" });
+    const firstTargetStep = steps[0] as Extract<Step, { target: unknown }>;
+    firstTargetStep.target.framePath?.push("iframe[name='detail']");
+    firstTargetStep.target.fallbacks?.push({ value: "[data-testid='item']", kind: "css", source: "manual" });
 
     expect(canonical[0]).toEqual({
       kind: "dblclick",

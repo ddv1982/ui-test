@@ -79,7 +79,7 @@ describe("improvePlan", () => {
       throw new Error("Expected version 2 plan payload");
     }
     expect(parsed.summary.skippedAssertions).toBe(2);
-    expect(parsed.determinism.status).toBe("unsafe");
+    expect(parsed.determinism?.status).toBe("unsafe");
   });
 
   it("keeps backward compatibility with version 2 plans that predate determinism metadata", () => {

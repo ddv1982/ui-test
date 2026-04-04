@@ -12,3 +12,5 @@ e2e/
 
 .claude/
 .worktrees/
+.flow/
+.omx/

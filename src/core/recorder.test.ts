@@ -181,6 +181,9 @@ describe("record", () => {
 
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("No interactions were recorded");
+    await expect(run).rejects.toMatchObject({
+      hint: expect.stringContaining("frames or iframes"),
+    });
     expect(spawn).toHaveBeenCalledTimes(1);
 
     await fs.rm(outputDir, { recursive: true, force: true });
@@ -206,6 +209,50 @@ describe("record", () => {
 
     await expect(run).rejects.toBeInstanceOf(UserError);
     await expect(run).rejects.toThrow("No interactions were recorded");
+    await expect(run).rejects.toMatchObject({
+      hint: expect.stringContaining("Pick Locator"),
+    });
+
+    await fs.rm(outputDir, { recursive: true, force: true });
+  });
+
+  it("records frame-aware targets with normalized framePath metadata", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(717171);
+
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+
+    const tmpCodePath = path.join(os.tmpdir(), "ui-test-recording-717171.spec.ts");
+    await fs.writeFile(
+      tmpCodePath,
+      [
+        "import { test } from '@playwright/test';",
+        "test('x', async ({ page }) => {",
+        "  await page.frameLocator('iframe[title=\"Checkout\"]').getByRole('button', { name: 'Pay now' }).click();",
+        "});",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-recorder-test-"));
+    const run = record({
+      name: "Frame Recording",
+      url: "http://127.0.0.1:5173",
+      outputDir,
+    }, { runInteractiveCommand: defaultRunInteractiveCommand });
+
+    await vi.waitFor(() => {
+      expect(spawn).toHaveBeenCalledTimes(1);
+    });
+    child.emit("close", 0, null);
+
+    const result = await run;
+    const saved = await fs.readFile(result.outputPath, "utf-8");
+
+    expect(saved).toContain("framePath:");
+    expect(saved).toContain("- iframe[title=\"Checkout\"]");
+    expect(saved).toContain('value: "getByRole(\'button\', { name: \'Pay now\' })"');
+    expect(saved).toContain('raw: "page.frameLocator(\'iframe[title=\\\"Checkout\\\"]\').getByRole(\'button\', { name: \'Pay now\' })"');
 
     await fs.rm(outputDir, { recursive: true, force: true });
   });

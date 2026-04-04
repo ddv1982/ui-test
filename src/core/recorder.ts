@@ -43,6 +43,8 @@ export interface RecorderDependencies {
   runInteractiveCommand?: RunInteractiveCommand;
 }
 
+export const RECORDER_NO_INTERACTIONS_ERROR_CODE = "recorder_no_interactions";
+
 export async function record(
   options: RecordOptions,
   dependencies: RecorderDependencies = {}
@@ -99,7 +101,8 @@ export async function record(
       : "Parser found no supported interactions.";
     throw new UserError(
       "No interactions were recorded.",
-      `${reason} Try again and make sure to click, type, or interact with elements on the page.`
+      `${reason} If the page uses frames or iframes, Playwright codegen may miss framed interactions on some sites. Try Chromium first, use the inspector's Pick Locator flow for elements inside the frame, or record a simpler path and add the framed locator manually.`,
+      RECORDER_NO_INTERACTIONS_ERROR_CODE
     );
   }
 

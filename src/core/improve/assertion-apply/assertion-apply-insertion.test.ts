@@ -121,11 +121,11 @@ describe("assertion-apply-insertion", () => {
   it("uses default true values when comparing assertChecked and assertEnabled steps", () => {
     const checkedSteps: Step[] = [
       { action: "click", target: cssTarget("#save") },
-      { action: "assertChecked", target: cssTarget("#agree") },
+      { action: "assertChecked", target: cssTarget("#agree"), checked: true },
     ];
     const enabledSteps: Step[] = [
       { action: "click", target: cssTarget("#save") },
-      { action: "assertEnabled", target: cssTarget("#submit") },
+      { action: "assertEnabled", target: cssTarget("#submit"), enabled: true },
     ];
 
     expect(

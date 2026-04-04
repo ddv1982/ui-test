@@ -32,11 +32,13 @@ vi.mock("../../utils/ui.js", () => ({
 import { confirm } from "@inquirer/prompts";
 import fs from "node:fs/promises";
 import { improveTestFile } from "../../core/improve/improve.js";
+import type { ImproveReport } from "../../core/improve/report-schema.js";
 import { hashImprovePlanSource } from "../../core/improve/improve-plan.js";
 import { ui } from "../../utils/ui.js";
 import { runImprove } from "./improve-service.js";
 
 const SAMPLE_YAML = "name: sample\nsteps:\n  - action: navigate\n    url: /\n";
+const SAFE_DETERMINISM: ImproveReport["determinism"] = { status: "safe", reasons: [] };
 
 describe("runImprove chromium handling", () => {
   beforeEach(() => {
@@ -53,6 +55,7 @@ describe("runImprove chromium handling", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "report_only",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 1,
           improved: 0,
@@ -110,6 +113,7 @@ describe("runImprove confirm prompt", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "report_only",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 1,
           improved: 0,
@@ -220,6 +224,7 @@ describe("runImprove confirm prompt", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "report_only",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 1,
           improved: 0,
@@ -252,6 +257,7 @@ describe("runImprove confirm prompt", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "report_only",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 1,
           improved: 0,

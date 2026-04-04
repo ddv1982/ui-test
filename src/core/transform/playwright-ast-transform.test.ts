@@ -91,4 +91,75 @@ describe("playwrightCodeToSteps", () => {
       "assertVisible", "assertText", "assertValue", "assertChecked",
     ]);
   });
+
+  it("normalizes frameLocator chains into framePath metadata", () => {
+    const code = `
+      import { test } from '@playwright/test';
+      test('x', async ({ page }) => {
+        await page.frameLocator('iframe[title="Checkout"]').getByRole('button', { name: 'Pay now' }).click();
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value: "getByRole('button', { name: 'Pay now' })",
+          kind: "locatorExpression",
+          source: "codegen",
+          framePath: ["iframe[title=\"Checkout\"]"],
+          raw: "page.frameLocator('iframe[title=\"Checkout\"]').getByRole('button', { name: 'Pay now' })",
+          confidence: 0.9,
+        },
+      },
+    ]);
+  });
+
+  it("normalizes nested contentFrame chains into framePath metadata", () => {
+    const code = `
+      import { test } from '@playwright/test';
+      test('x', async ({ page }) => {
+        await page.locator('#outer').contentFrame().locator('iframe[name="inner"]').contentFrame().getByLabel('Email').fill('user@example.com');
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps).toEqual([
+      {
+        action: "fill",
+        target: {
+          value: "getByLabel('Email')",
+          kind: "locatorExpression",
+          source: "codegen",
+          framePath: ["#outer", 'iframe[name="inner"]'],
+          raw: "page.locator('#outer').contentFrame().locator('iframe[name=\"inner\"]').contentFrame().getByLabel('Email')",
+          confidence: 0.8,
+        },
+        text: "user@example.com",
+      },
+    ]);
+  });
+
+  it("falls back to raw locator expressions when frame chains are not terminalized", () => {
+    const code = `
+      import { test } from '@playwright/test';
+      test('x', async ({ page }) => {
+        await page.frameLocator('iframe[name="app"]').click();
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value: "frameLocator('iframe[name=\"app\"]')",
+          kind: "locatorExpression",
+          source: "codegen",
+          confidence: 0.5,
+        },
+      },
+    ]);
+  });
 });

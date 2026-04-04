@@ -3,7 +3,8 @@ import { ui } from "./ui.js";
 export class UserError extends Error {
   constructor(
     message: string,
-    public hint?: string
+    public hint?: string,
+    public code?: string
   ) {
     super(message);
     this.name = "UserError";

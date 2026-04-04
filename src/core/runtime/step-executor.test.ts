@@ -223,7 +223,7 @@ describe("executeRuntimeStep assertions", () => {
 
   it("throws a descriptive error when assertText does not match", async () => {
     const { page, textContentMock } = createMockPage();
-    textContentMock.mockResolvedValue(null);
+    textContentMock.mockImplementation(async () => null as unknown as string);
 
     await expect(
       executeRuntimeStep(

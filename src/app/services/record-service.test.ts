@@ -10,6 +10,11 @@ vi.mock("node:fs/promises", () => ({
   },
 }));
 
+vi.mock("@inquirer/prompts", () => ({
+  input: vi.fn(),
+  confirm: vi.fn(),
+}));
+
 vi.mock("../../utils/chromium-runtime.js", () => ({
   ensureChromiumAvailable: vi.fn(),
 }));
@@ -39,11 +44,15 @@ vi.mock("../../utils/ui.js", () => ({
 }));
 
 import fs from "node:fs/promises";
+import { confirm, input } from "@inquirer/prompts";
 import { ensureChromiumAvailable } from "../../utils/chromium-runtime.js";
-import { record } from "../../core/recorder.js";
+import { record, RECORDER_NO_INTERACTIONS_ERROR_CODE } from "../../core/recorder.js";
 import { improveTestFile } from "../../core/improve/improve.js";
+import type { ImproveReport } from "../../core/improve/report-schema.js";
 import { ui } from "../../utils/ui.js";
 import { runRecord } from "./record-service.js";
+
+const SAFE_DETERMINISM: ImproveReport["determinism"] = { status: "safe", reasons: [] };
 
 function mockRecordDefaults() {
   vi.mocked(record).mockResolvedValue({
@@ -57,6 +66,7 @@ function mockRecordDefaults() {
       generatedAt: new Date().toISOString(),
       providerUsed: "playwright",
       appliedBy: "report_only",
+      determinism: SAFE_DETERMINISM,
       summary: {
         unchanged: 1,
         improved: 0,
@@ -77,6 +87,8 @@ function mockRecordDefaults() {
 describe("runRecord browser preflight", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
     mockRecordDefaults();
   });
 
@@ -243,6 +255,70 @@ describe("runRecord auto-improve", () => {
     expect(improveTestFile).not.toHaveBeenCalled();
   });
 
+  it("offers a manual locator fallback when codegen records no interactions", async () => {
+    vi.mocked(record).mockRejectedValueOnce(
+      new UserError("No interactions were recorded.", "iframe hint", RECORDER_NO_INTERACTIONS_ERROR_CODE)
+    );
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    vi.mocked(input)
+      .mockResolvedValueOnce("getByRole('button', { name: 'Pay now' })")
+      .mockResolvedValueOnce("iframe[title=\"Checkout\"], iframe[name=\"payment\"]")
+      .mockResolvedValueOnce("click");
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173/checkout",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      improve: false,
+    });
+
+    expect(confirm).toHaveBeenCalledWith({
+      message: "Create a starter test from a picked locator instead?",
+      default: true,
+    });
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("sample.yaml"),
+      expect.stringContaining("framePath:"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("sample.yaml"),
+      expect.stringContaining("- iframe[title=\"Checkout\"]"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("sample.yaml"),
+      expect.stringContaining("- iframe[name=\"payment\"]"),
+      "utf-8"
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("sample.yaml"),
+      expect.stringContaining("value: \"getByRole('button', { name: 'Pay now' })\""),
+      "utf-8"
+    );
+    expect(ui.success).toHaveBeenCalledWith(expect.stringContaining("Starter test saved to"));
+  });
+
+  it("rethrows the original recorder error when manual fallback is declined", async () => {
+    vi.mocked(record).mockRejectedValueOnce(
+      new UserError("No interactions were recorded.", "iframe hint", RECORDER_NO_INTERACTIONS_ERROR_CODE)
+    );
+    vi.mocked(confirm).mockResolvedValueOnce(false);
+
+    await expect(
+      runRecord({
+        name: "sample",
+        url: "http://127.0.0.1:5173/checkout",
+        description: "demo",
+        outputDir: "e2e",
+        browser: "firefox",
+        improve: false,
+      })
+    ).rejects.toThrow("No interactions were recorded.");
+  });
+
   it("skips auto-improve when improve mode is off", async () => {
     await runRecord({
       name: "sample",
@@ -263,6 +339,7 @@ describe("runRecord auto-improve", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "auto_apply",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 0,
           improved: 2,
@@ -349,6 +426,7 @@ describe("runRecord auto-improve", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "report_only",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 0,
           improved: 1,
@@ -387,6 +465,7 @@ describe("runRecord auto-improve", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "report_only",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 0,
           improved: 1,
@@ -513,6 +592,7 @@ describe("runRecordFromFile", () => {
         generatedAt: new Date().toISOString(),
         providerUsed: "playwright",
         appliedBy: "report_only",
+        determinism: SAFE_DETERMINISM,
         summary: {
           unchanged: 1,
           improved: 0,
