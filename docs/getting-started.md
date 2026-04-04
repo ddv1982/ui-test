@@ -17,16 +17,7 @@ npm run setup
 
 ### Global install
 
-```bash
-npm i -g ui-test
-ui-test setup --browsers chromium
-```
-
-This is the recommended install path for the published package.
-
-### GitHub Release tarball install
-
-Before npm publication, install from a GitHub Release tarball:
+Install from a GitHub Release tarball:
 
 ```bash
 npm i -g https://github.com/ddv1982/ui-test/releases/download/v0.1.0/ui-test-0.1.0.tgz
@@ -36,10 +27,10 @@ ui-test setup --browsers chromium
 ### One-off run (no install)
 
 ```bash
-npx ui-test setup --browsers chromium
+npx -y github:ddv1982/ui-test setup --browsers chromium
 ```
 
-For unreleased/local development builds, use the repository checkout flow from `README.md` instead of a raw git global install.
+For local development builds, use the repository checkout flow from `README.md` instead of a raw git global install.
 
 All command examples below use global `ui-test`.
 
