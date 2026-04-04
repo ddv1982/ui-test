@@ -32,7 +32,7 @@ describe("check-remote-global-install-dry-run", () => {
     runRemoteGlobalInstallDryRun();
 
     expect(mockSpawnSync).toHaveBeenCalledTimes(1);
-    expect(mockMkdirSync).toHaveBeenCalledTimes(3);
+    expect(mockMkdirSync).toHaveBeenCalledTimes(4);
     expect(mockRmSync).toHaveBeenCalledTimes(1);
   });
 
@@ -46,6 +46,7 @@ describe("check-remote-global-install-dry-run", () => {
       "npm",
       ["i", "-g", "github:owner/repo#abc123", "--dry-run"],
       expect.objectContaining({
+        cwd: expect.any(String),
         encoding: "utf-8",
         env: expect.objectContaining({
           npm_config_prefix: expect.any(String),
@@ -79,6 +80,7 @@ describe("check-remote-global-install-dry-run", () => {
       "npm",
       ["i", "-g", "github:ddv1982/ui-test", "--dry-run"],
       expect.objectContaining({
+        cwd: expect.any(String),
         encoding: "utf-8",
         env: expect.objectContaining({
           npm_config_prefix: expect.any(String),
@@ -90,10 +92,23 @@ describe("check-remote-global-install-dry-run", () => {
       "npm",
       ["i", "-g", "git+https://github.com/ddv1982/ui-test.git", "--dry-run"],
       expect.objectContaining({
+        cwd: expect.any(String),
         encoding: "utf-8",
         env: expect.objectContaining({
           npm_config_prefix: expect.any(String),
         }),
+      })
+    );
+  });
+
+  it("runs remote install checks from an isolated temp cwd", () => {
+    runRemoteGlobalInstallDryRun();
+
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      "npm",
+      ["i", "-g", "github:ddv1982/ui-test", "--dry-run"],
+      expect.objectContaining({
+        cwd: expect.stringMatching(/ui-test-remote-global-install-.*\/cwd$/),
       })
     );
   });

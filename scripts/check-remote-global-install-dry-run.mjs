@@ -7,8 +7,13 @@ import { fileURLToPath } from "node:url";
 const DEFAULT_REMOTE_PACKAGE_SPEC = "github:ddv1982/ui-test";
 const DEFAULT_REMOTE_PACKAGE_FALLBACK_SPEC = "git+https://github.com/ddv1982/ui-test.git";
 
-function runRemoteGlobalInstallDryRunCommand(remotePackageSpec, globalPrefix) {
+function runRemoteGlobalInstallDryRunCommand(
+  remotePackageSpec,
+  globalPrefix,
+  installWorkdir
+) {
   return spawnSync("npm", ["i", "-g", remotePackageSpec, "--dry-run"], {
+    cwd: installWorkdir,
     encoding: "utf-8",
     env: {
       ...process.env,
@@ -26,15 +31,18 @@ export function runRemoteGlobalInstallDryRun() {
     os.tmpdir(),
     `ui-test-remote-global-install-${process.pid}-${Date.now()}`
   );
+  const installWorkdir = path.join(globalPrefix, "cwd");
 
   try {
     mkdirSync(globalPrefix, { recursive: true });
     mkdirSync(path.join(globalPrefix, "lib"), { recursive: true });
     mkdirSync(path.join(globalPrefix, "bin"), { recursive: true });
+    mkdirSync(installWorkdir, { recursive: true });
 
     let installResult = runRemoteGlobalInstallDryRunCommand(
       remotePackageSpec,
-      globalPrefix
+      globalPrefix,
+      installWorkdir
     );
     if (
       !process.env.UI_TEST_REMOTE_PACKAGE_SPEC &&
@@ -43,7 +51,8 @@ export function runRemoteGlobalInstallDryRun() {
     ) {
       installResult = runRemoteGlobalInstallDryRunCommand(
         DEFAULT_REMOTE_PACKAGE_FALLBACK_SPEC,
-        globalPrefix
+        globalPrefix,
+        installWorkdir
       );
     }
 
