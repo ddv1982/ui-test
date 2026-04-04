@@ -120,7 +120,7 @@ describe("doctor command", () => {
     const output = logSpy.mock.calls.flat().join("\n");
     expect(output).toContain("Local ui-test package version (workspace): (not found)");
     expect(output).not.toContain("Version mismatch detected");
-    expect(output).toContain("npx -y github:ddv1982/ui-test doctor");
+    expect(output).toContain('npx -y "git+https://github.com/ddv1982/ui-test.git" doctor');
     logSpy.mockRestore();
   });
 });

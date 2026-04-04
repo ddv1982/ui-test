@@ -27,7 +27,7 @@ const lines = [
   "  npm run test:coverage                  Coverage run",
   "",
   "One-off fallback",
-  "  npx -y github:ddv1982/ui-test <command>",
+  '  npx -y "git+https://github.com/ddv1982/ui-test.git" <command>',
   "",
   "More help",
   "  ui-test --help",

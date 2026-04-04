@@ -25,7 +25,7 @@ export async function runDoctor(): Promise<void> {
     : undefined;
   const recommendedDoctorCommand = localEntrypoint
     ? `node ${localEntrypoint} doctor`
-    : "npx -y github:ddv1982/ui-test doctor";
+    : 'npx -y "git+https://github.com/ddv1982/ui-test.git" doctor';
 
   ui.heading("ui-test doctor");
   console.log();

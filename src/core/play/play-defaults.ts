@@ -13,4 +13,4 @@ export const PLAY_DEFAULT_TEST_DIR = "e2e";
 export const PLAY_DEFAULT_EXAMPLE_TEST_FILE = `${PLAY_DEFAULT_TEST_DIR}/example.yaml`;
 export const PLAY_DEFAULT_BASE_URL = "http://127.0.0.1:5173";
 export const PLAY_DEFAULT_START_COMMAND =
-  "ui-test example-app --host 127.0.0.1 --port 5173 || npx -y github:ddv1982/ui-test example-app --host 127.0.0.1 --port 5173";
+  'ui-test example-app --host 127.0.0.1 --port 5173 || npx -y "git+https://github.com/ddv1982/ui-test.git" example-app --host 127.0.0.1 --port 5173';

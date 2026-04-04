@@ -5,11 +5,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   classifyInvocationPath,
   collectRuntimeInfo,
-  GITHUB_ONE_OFF_PREFIX,
   getCliVersion,
   isLikelyNpxCacheInvocation,
   isPathInside,
   isProjectLocalUiTestInvocation,
+  REMOTE_ONE_OFF_PREFIX,
   resolveCommandPrefix,
   resolveLocalUiTestPackageRoot,
   resolveInvocationPath,
@@ -173,7 +173,7 @@ describe("runtime-info", () => {
       .toBe("ui-test");
   });
 
-  it("uses GitHub one-off prefix only when npx cache dependency spec points at repo", async () => {
+  it("uses remote one-off prefix when npx cache dependency spec points at repo", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-runtime-prefix-github-"));
     tempDirs.push(root);
     const cacheRoot = path.join(root, "_npx", "abcd1234");
@@ -194,7 +194,31 @@ describe("runtime-info", () => {
       "utf-8"
     );
 
-    expect(resolveCommandPrefix(invocation)).toBe(GITHUB_ONE_OFF_PREFIX);
+    expect(resolveCommandPrefix(invocation)).toBe(REMOTE_ONE_OFF_PREFIX);
+  });
+
+  it("uses remote one-off prefix for git+https dependency specs", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-runtime-prefix-https-"));
+    tempDirs.push(root);
+    const cacheRoot = path.join(root, "_npx", "ijkl9012");
+    const invocation = path.join(cacheRoot, "node_modules", "ui-test", "dist", "bin", "ui-test.js");
+    await fs.mkdir(path.dirname(invocation), { recursive: true });
+    await fs.writeFile(invocation, "", "utf-8");
+    await fs.writeFile(
+      path.join(cacheRoot, "package-lock.json"),
+      JSON.stringify({
+        packages: {
+          "": {
+            dependencies: {
+              "ui-test": "git+https://github.com/ddv1982/ui-test.git",
+            },
+          },
+        },
+      }),
+      "utf-8"
+    );
+
+    expect(resolveCommandPrefix(invocation)).toBe(REMOTE_ONE_OFF_PREFIX);
   });
 
   it("does not force GitHub one-off prefix for generic npx cache paths", async () => {

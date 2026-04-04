@@ -55,40 +55,11 @@ describe("check-remote-global-install-dry-run", () => {
     );
   });
 
-  it("falls back to the https git spec when the default github shorthand pack fails", () => {
-    mockSpawnSync
-      .mockReturnValueOnce({
-        status: 128,
-        stdout: "",
-        stderr: "fatal: could not read from remote repository",
-      })
-      .mockReturnValueOnce({
-        status: 0,
-        stdout: "ui-test-0.1.0.tgz\n",
-        stderr: "",
-      })
-      .mockReturnValueOnce({
-        status: 0,
-        stdout: "",
-        stderr: "",
-      });
-
+  it("uses the https git spec by default", () => {
     runRemoteGlobalInstallDryRun();
 
     expect(mockSpawnSync).toHaveBeenNthCalledWith(
       1,
-      "npm",
-      ["i", "-g", "github:ddv1982/ui-test"],
-      expect.objectContaining({
-        cwd: expect.any(String),
-        encoding: "utf-8",
-        env: expect.objectContaining({
-          npm_config_prefix: expect.any(String),
-        }),
-      })
-    );
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(
-      2,
       "npm",
       ["i", "-g", "git+https://github.com/ddv1982/ui-test.git"],
       expect.objectContaining({
@@ -106,28 +77,22 @@ describe("check-remote-global-install-dry-run", () => {
 
     expect(mockSpawnSync).toHaveBeenCalledWith(
       "npm",
-      ["i", "-g", "github:ddv1982/ui-test"],
-      expect.objectContaining({
-        cwd: expect.stringMatching(/ui-test-remote-global-install-.*\/cwd$/),
-      })
+        ["i", "-g", "git+https://github.com/ddv1982/ui-test.git"],
+        expect.objectContaining({
+          cwd: expect.stringMatching(/ui-test-remote-global-install-.*\/cwd$/),
+        })
     );
   });
 
   it("fails early when remote pack command fails", () => {
-    mockSpawnSync
-      .mockReturnValueOnce({
-        status: 1,
-        stdout: "",
-        stderr: "npm ERR!",
-      })
-      .mockReturnValueOnce({
-        status: 128,
-        stdout: "",
-        stderr: "fatal: could not read from remote repository",
-      });
+    mockSpawnSync.mockReturnValueOnce({
+      status: 1,
+      stdout: "",
+      stderr: "npm ERR!",
+    });
 
     expect(() => runRemoteGlobalInstallDryRun()).toThrow(
-      /npm i -g github:ddv1982\/ui-test failed/
+      /npm i -g git\+https:\/\/github.com\/ddv1982\/ui-test.git failed/
     );
     expect(mockRmSync).toHaveBeenCalledTimes(1);
   });
@@ -147,20 +112,14 @@ describe("check-remote-global-install-dry-run", () => {
   });
 
   it("cleans up temp prefix when install dry-run fails", () => {
-    mockSpawnSync
-      .mockReturnValueOnce({
-        status: 3,
-        stdout: "",
-        stderr: "npm ERR!",
-      })
-      .mockReturnValueOnce({
-        status: 3,
-        stdout: "",
-        stderr: "npm ERR!",
-      });
+    mockSpawnSync.mockReturnValueOnce({
+      status: 3,
+      stdout: "",
+      stderr: "npm ERR!",
+    });
 
     expect(() => runRemoteGlobalInstallDryRun()).toThrow(
-      /npm i -g github:ddv1982\/ui-test failed with status 3/
+      /npm i -g git\+https:\/\/github.com\/ddv1982\/ui-test.git failed with status 3/
     );
     expect(mockRmSync).toHaveBeenCalledTimes(1);
   });

@@ -12,14 +12,14 @@ import { buildUnifiedHelp } from "./utils/unified-help.js";
 
 const STANDALONE_POLICY_HINT = [
   "Run ui-test in standalone mode instead:",
-  "  npm i -g ui-test",
+  '  npm i -g "git+https://github.com/ddv1982/ui-test.git"',
   "  ui-test setup",
-  "  npx -y github:ddv1982/ui-test setup --browsers chromium",
+  '  npx -y "git+https://github.com/ddv1982/ui-test.git" setup --browsers chromium',
   "",
   "If ui-test is installed locally in this project:",
   "  1) Remove ui-test from dependencies/devDependencies in package.json",
   "  2) Run: npm uninstall ui-test",
-  "  3) Run: npm i -g ui-test",
+  '  3) Run: npm i -g "git+https://github.com/ddv1982/ui-test.git"',
 ].join("\n");
 
 export function createProgram(): Command {

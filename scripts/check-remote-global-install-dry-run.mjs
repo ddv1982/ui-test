@@ -4,8 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_REMOTE_PACKAGE_SPEC = "github:ddv1982/ui-test";
-const DEFAULT_REMOTE_PACKAGE_FALLBACK_SPEC = "git+https://github.com/ddv1982/ui-test.git";
+const DEFAULT_REMOTE_PACKAGE_SPEC = "git+https://github.com/ddv1982/ui-test.git";
 
 function runRemoteGlobalInstallDryRunCommand(
   remotePackageSpec,
@@ -39,22 +38,11 @@ export function runRemoteGlobalInstallDryRun() {
     mkdirSync(path.join(globalPrefix, "bin"), { recursive: true });
     mkdirSync(installWorkdir, { recursive: true });
 
-    let installResult = runRemoteGlobalInstallDryRunCommand(
+    const installResult = runRemoteGlobalInstallDryRunCommand(
       remotePackageSpec,
       globalPrefix,
       installWorkdir
     );
-    if (
-      !process.env.UI_TEST_REMOTE_PACKAGE_SPEC &&
-      installResult.status !== 0 &&
-      remotePackageSpec === DEFAULT_REMOTE_PACKAGE_SPEC
-    ) {
-      installResult = runRemoteGlobalInstallDryRunCommand(
-        DEFAULT_REMOTE_PACKAGE_FALLBACK_SPEC,
-        globalPrefix,
-        installWorkdir
-      );
-    }
 
     if (installResult.status !== 0) {
       if (installResult.stdout) process.stdout.write(installResult.stdout);

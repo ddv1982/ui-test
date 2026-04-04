@@ -24,9 +24,10 @@ export interface RuntimeInfo {
 }
 
 const VERSION_FALLBACK = "0.1.0";
-export const GITHUB_ONE_OFF_PREFIX = "npx -y github:ddv1982/ui-test";
+export const REMOTE_ONE_OFF_PREFIX = 'npx -y "git+https://github.com/ddv1982/ui-test.git"';
 const GITHUB_ONE_OFF_SPEC_PREFIX = "github:ddv1982/ui-test";
-const GITHUB_ONE_OFF_SPEC_REPO_FRAGMENT = "github.com/ddv1982/ui-test";
+const REMOTE_ONE_OFF_SPEC_PREFIX = "git+https://github.com/ddv1982/ui-test.git";
+const REMOTE_ONE_OFF_SPEC_REPO_FRAGMENT = "github.com/ddv1982/ui-test";
 const NPM_CACHE_SEGMENT = "/_npx/";
 
 export function isLikelyNpxCacheInvocation(argv1 = process.argv[1]): boolean {
@@ -38,8 +39,8 @@ export function resolveCommandPrefix(argv1 = process.argv[1]): string {
   if (!isLikelyNpxCacheInvocation(argv1)) return "ui-test";
 
   const dependencySpec = readUiTestNpxDependencySpec(argv1);
-  if (dependencySpec && isGitHubOneOffDependencySpec(dependencySpec)) {
-    return GITHUB_ONE_OFF_PREFIX;
+  if (dependencySpec && isRemoteOneOffDependencySpec(dependencySpec)) {
+    return REMOTE_ONE_OFF_PREFIX;
   }
 
   return "ui-test";
@@ -283,10 +284,11 @@ function resolveNpxCacheRoot(argv1: string | undefined): string | undefined {
   return path.resolve(rootNormalized);
 }
 
-function isGitHubOneOffDependencySpec(spec: string): boolean {
+function isRemoteOneOffDependencySpec(spec: string): boolean {
   const normalized = spec.trim().toLowerCase();
   return (
     normalized.startsWith(GITHUB_ONE_OFF_SPEC_PREFIX) ||
-    normalized.includes(GITHUB_ONE_OFF_SPEC_REPO_FRAGMENT)
+    normalized.startsWith(REMOTE_ONE_OFF_SPEC_PREFIX) ||
+    normalized.includes(REMOTE_ONE_OFF_SPEC_REPO_FRAGMENT)
   );
 }
