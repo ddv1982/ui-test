@@ -33,6 +33,7 @@
     "test:smoke": "node ./scripts/smoke-consumer.mjs",
     "pack:check:silent": "node ./scripts/check-pack-silent.mjs",
     "global-install:dry-run": "node ./scripts/check-global-install-dry-run.mjs",
+    "global-install:smoke": "node ./scripts/check-global-install-smoke.mjs",
     "remote-global-install:dry-run": "node ./scripts/check-remote-global-install-dry-run.mjs",
     "test:watch": "vitest",
     "test:unit": "vitest run --exclude '**/*.integration.test.ts'",

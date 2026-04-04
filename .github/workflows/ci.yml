@@ -90,10 +90,8 @@ jobs:
       - name: Verify global install dry run
         run: npm run -s global-install:dry-run
 
-      - name: Verify remote package global install dry run
-        env:
-          UI_TEST_REMOTE_PACKAGE_SPEC: ${{ github.event_name == 'pull_request' && format('git+{0}#{1}', github.event.pull_request.head.repo.clone_url, github.event.pull_request.head.sha) || format('git+https://github.com/{0}.git#{1}', github.repository, github.sha) }}
-        run: npm run -s remote-global-install:dry-run
+      - name: Verify packaged global install smoke
+        run: npm run -s global-install:smoke
 
   consumer-smoke:
     needs: [build, quality-ci, headed-parity]
