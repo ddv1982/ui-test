@@ -1,6 +1,7 @@
 import type { Target } from "../yaml-schema.js";
 import type { TargetCandidate } from "./candidate-generator.js";
 import { roundScore } from "./score-math.js";
+import { scoreLocatorConfidence } from "../transform/locator-confidence.js";
 
 export interface CandidateScoreComponents {
   baseScore: number;
@@ -171,9 +172,13 @@ function clamp01(value: number): number {
 }
 
 function selectorKindScoreByKind(target: Target): number {
+  if (typeof target.confidence === "number") {
+    return target.confidence;
+  }
+
   switch (target.kind) {
     case "locatorExpression":
-      return 1;
+      return scoreLocatorConfidence(target.value);
     case "playwrightSelector":
       return 0.75;
     case "css":

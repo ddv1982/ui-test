@@ -2,10 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 import { generateAriaTargetCandidates } from "./candidate-generator-aria.js";
 import type { Target } from "../yaml-schema.js";
 
-function mockPage(snapshotYaml: string, placeholder?: string) {
+function mockPage(
+  snapshotYaml: string,
+  options?: {
+    placeholder?: string;
+    evaluateResult?: Record<string, unknown>;
+  }
+) {
   const locator = {
     ariaSnapshot: vi.fn().mockResolvedValue(snapshotYaml),
-    getAttribute: vi.fn().mockResolvedValue(placeholder ?? null),
+    getAttribute: vi.fn().mockResolvedValue(options?.placeholder ?? null),
+    evaluate: vi.fn().mockResolvedValue(options?.evaluateResult ?? {}),
   };
   return {
     page: {
@@ -15,6 +22,7 @@ function mockPage(snapshotYaml: string, placeholder?: string) {
       getByText: vi.fn().mockReturnValue(locator),
       getByLabel: vi.fn().mockReturnValue(locator),
       getByPlaceholder: vi.fn().mockReturnValue(locator),
+      getByTitle: vi.fn().mockReturnValue(locator),
       frameLocator: vi.fn().mockReturnValue({
         locator: vi.fn().mockReturnValue(locator),
       }),
@@ -27,7 +35,7 @@ describe("generateAriaTargetCandidates", () => {
   const cssTarget: Target = { value: "#email", kind: "css", source: "manual" };
 
   it("generates getByRole candidate from textbox with name", async () => {
-    const { page } = mockPage('- textbox "Email"');
+    const { page, locator } = mockPage('- textbox "Email"');
     const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
 
     expect(result.candidates.length).toBeGreaterThanOrEqual(1);
@@ -36,6 +44,7 @@ describe("generateAriaTargetCandidates", () => {
     expect(roleCandidate!.target.value).toBe("getByRole('textbox', { name: 'Email' })");
     expect(roleCandidate!.target.kind).toBe("locatorExpression");
     expect(roleCandidate!.source).toBe("derived");
+    expect(locator.evaluate).not.toHaveBeenCalled();
   });
 
   it("generates getByLabel candidate for form control roles", async () => {
@@ -48,7 +57,7 @@ describe("generateAriaTargetCandidates", () => {
   });
 
   it("generates getByPlaceholder candidate when placeholder attribute exists", async () => {
-    const { page } = mockPage('- textbox "Email"', "Enter your email");
+    const { page } = mockPage('- textbox "Email"', { placeholder: "Enter your email" });
     const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
 
     const placeholderCandidate = result.candidates.find((c) =>
@@ -98,6 +107,7 @@ describe("generateAriaTargetCandidates", () => {
     const page = {
       locator: vi.fn().mockReturnValue({
         ariaSnapshot: vi.fn().mockRejectedValue(new Error("Element not found")),
+        evaluate: vi.fn().mockResolvedValue({}),
       }),
     } as any;
 
@@ -106,6 +116,37 @@ describe("generateAriaTargetCandidates", () => {
     expect(result.candidates).toHaveLength(0);
     expect(result.diagnostics).toHaveLength(1);
     expect(result.diagnostics[0]!.code).toBe("aria_snapshot_failed");
+  });
+
+  it("falls back to runtime attributes when ariaSnapshot is unavailable", async () => {
+    const page = {
+      locator: vi.fn().mockReturnValue({
+        ariaSnapshot: vi.fn().mockRejectedValue(new Error("Snapshot not supported")),
+        evaluate: vi.fn().mockResolvedValue({
+          tagName: "input",
+          roleAttr: "textbox",
+          inputType: "text",
+          dataTestId: "customer-email",
+          nameAttr: "customer_email",
+          idAttr: "customer-email",
+          titleAttr: "Customer email",
+          rowText: "Primary contact email",
+        }),
+      }),
+    } as any;
+
+    const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
+
+    expect(result.diagnostics[0]!.code).toBe("aria_snapshot_failed");
+    expect(result.candidates.map((candidate) => candidate.reasonCodes[0])).toEqual(
+      expect.arrayContaining([
+        "runtime_attr_testid",
+        "runtime_attr_name",
+        "runtime_attr_id",
+        "runtime_attr_title",
+        "runtime_row_context",
+      ])
+    );
   });
 
   it("preserves framePath from target", async () => {
@@ -118,6 +159,7 @@ describe("generateAriaTargetCandidates", () => {
     const locator = {
       ariaSnapshot: vi.fn().mockResolvedValue('- textbox "Email"'),
       getAttribute: vi.fn().mockResolvedValue(null),
+      evaluate: vi.fn().mockResolvedValue({}),
     };
     const page = {
       frameLocator: vi.fn().mockReturnValue({
@@ -156,5 +198,80 @@ describe("generateAriaTargetCandidates", () => {
     const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
 
     expect(result.candidates).toHaveLength(0);
+  });
+
+  it("generates getByTestId candidate from runtime attributes", async () => {
+    const { page } = mockPage("- textbox", {
+      evaluateResult: { tagName: "input", dataTestId: "email-field" },
+    });
+
+    const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
+
+    const candidate = result.candidates.find((c) =>
+      c.reasonCodes.includes("runtime_attr_testid")
+    );
+    expect(candidate).toBeDefined();
+    expect(candidate!.target.value).toBe("getByTestId('email-field')");
+    expect(candidate!.target.confidence).toBe(0.9);
+  });
+
+  it("generates attribute-based locator candidates for unlabeled controls", async () => {
+    const { page } = mockPage("- textbox", {
+      evaluateResult: {
+        tagName: "input",
+        nameAttr: "customer_email",
+        idAttr: "customer-email",
+        titleAttr: "Customer email",
+      },
+    });
+
+    const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
+
+    expect(
+      result.candidates.find((c) => c.reasonCodes.includes("runtime_attr_name"))?.target.value
+    ).toBe(
+      `locator('input[name="customer_email"]')`
+    );
+    expect(
+      result.candidates.find((c) => c.reasonCodes.includes("runtime_attr_id"))?.target.value
+    ).toBe(`locator('[id="customer-email"]')`);
+    expect(
+      result.candidates.find((c) => c.reasonCodes.includes("runtime_attr_title"))?.target.value
+    ).toBe(`getByTitle('Customer email')`);
+  });
+
+  it("generates row-context candidates for unlabeled repeated form controls", async () => {
+    const { page } = mockPage("- textbox", {
+      evaluateResult: {
+        tagName: "input",
+        rowText: "Primary contact email",
+      },
+    });
+
+    const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
+
+    const candidate = result.candidates.find((c) =>
+      c.reasonCodes.includes("runtime_row_context")
+    );
+    expect(candidate).toBeDefined();
+    expect(candidate!.target.value).toBe(
+      `getByRole('row', { name: 'Primary contact email' }).getByRole('textbox')`
+    );
+    expect(candidate!.target.confidence).toBe(0.68);
+  });
+
+  it("skips row-context candidates for noisy volatile row text", async () => {
+    const { page } = mockPage("- textbox", {
+      evaluateResult: {
+        tagName: "input",
+        rowText: "Invoice 482910 2025-03-01 12:30 Paid",
+      },
+    });
+
+    const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
+
+    expect(
+      result.candidates.find((c) => c.reasonCodes.includes("runtime_row_context"))
+    ).toBeUndefined();
   });
 });

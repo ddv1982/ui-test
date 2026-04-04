@@ -61,6 +61,32 @@ describe("candidate-scorer", () => {
     expect(scored[1]?.reasonCodes).toContain("dynamic_target");
   });
 
+  it("uses locator confidence to rank named/label-based locators over generic textbox roles", async () => {
+    const scored = await scoreTargetCandidates(undefined, [
+      candidate({
+        id: "generic-textbox",
+        target: {
+          value: "getByRole('textbox')",
+          kind: "locatorExpression",
+          source: "manual",
+        },
+      }),
+      candidate({
+        id: "label",
+        source: "derived",
+        target: {
+          value: "getByLabel('Email')",
+          kind: "locatorExpression",
+          source: "manual",
+        },
+      }),
+    ]);
+
+    expect(scored[0]?.candidate.id).toBe("label");
+    expect(scored[0]?.baseScore).toBe(0.8);
+    expect(scored[1]?.baseScore).toBe(0.55);
+  });
+
   it("only adopts candidates when threshold is met", () => {
     const current = {
       candidate: candidate({

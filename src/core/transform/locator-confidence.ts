@@ -6,7 +6,6 @@
  */
 
 const METHOD_SCORES: Record<string, number> = {
-  getByRole: 0.9,
   getByTestId: 0.9,
   getByLabel: 0.8,
   getByPlaceholder: 0.8,
@@ -27,6 +26,10 @@ export function scoreLocatorConfidence(locatorExpression: string): number {
 }
 
 function getBaseScore(expression: string): number {
+  if (expression.startsWith("getByRole(")) {
+    return scoreRoleLocator(expression);
+  }
+
   for (const [method, score] of Object.entries(METHOD_SCORES)) {
     if (expression.startsWith(`${method}(`)) {
       return score;
@@ -55,6 +58,39 @@ function getPenalty(expression: string): number {
   }
 
   return penalty;
+}
+
+function scoreRoleLocator(expression: string): number {
+  const stripped = stripQuotedStrings(expression);
+  const role = readFirstQuotedArgument(expression)?.toLowerCase();
+  const hasAccessibleName = /(?:^|[,{]\s*)name\s*:/u.test(stripped);
+
+  if (hasAccessibleName) {
+    return 0.9;
+  }
+
+  if (role && AMBIGUOUS_INTERACTIVE_ROLES.has(role)) {
+    return 0.55;
+  }
+
+  return 0.75;
+}
+
+const AMBIGUOUS_INTERACTIVE_ROLES = new Set([
+  "button",
+  "link",
+  "textbox",
+  "checkbox",
+  "radio",
+  "combobox",
+  "searchbox",
+  "menuitem",
+  "tab",
+]);
+
+function readFirstQuotedArgument(expression: string): string | undefined {
+  const match = /^\w+\(\s*(['"])(.*?)\1/u.exec(expression);
+  return match?.[2];
 }
 
 function stripQuotedStrings(expr: string): string {

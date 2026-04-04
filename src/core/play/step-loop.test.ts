@@ -338,4 +338,50 @@ describe("runPlayStepLoop warning behavior", () => {
     expect(result.stepResults[0]?.passed).toBe(false);
     expect(executeRuntimeStepMock).toHaveBeenCalledTimes(1);
   });
+
+  it("adds an improve suggestion when a locator-style step fails", async () => {
+    executeRuntimeStepMock.mockRejectedValueOnce(
+      new Error("strict mode violation: locator resolved to 3 elements")
+    );
+
+    const result = await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [makeClickStep(1)],
+      timeout: 1_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-improve-hint",
+      absoluteFilePath: "/tmp/failing-test.yaml",
+      testName: "Improve Hint Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings: [],
+    });
+
+    expect(result.stepResults[0]?.passed).toBe(false);
+    expect(result.stepResults[0]?.error).toContain(
+      "Suggestion: run ui-test improve /tmp/failing-test.yaml --apply"
+    );
+  });
+
+  it("does not add an improve suggestion for non-locator failures", async () => {
+    executeRuntimeStepMock.mockRejectedValueOnce(new Error("navigation readiness failed"));
+
+    const result = await runPlayStepLoop({
+      page: {} as Page,
+      context: {} as BrowserContext,
+      steps: [makeClickStep(1)],
+      timeout: 1_000,
+      delayMs: 0,
+      waitForNetworkIdle: false,
+      runId: "run-no-improve-hint",
+      absoluteFilePath: "/tmp/non-locator-failure.yaml",
+      testName: "No Improve Hint Test",
+      traceState: { tracingStarted: false, tracingStopped: false },
+      artifactWarnings: [],
+    });
+
+    expect(result.stepResults[0]?.passed).toBe(false);
+    expect(result.stepResults[0]?.error).toBe("navigation readiness failed");
+  });
 });

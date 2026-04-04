@@ -147,7 +147,15 @@ By default, `improve` prompts you to confirm before writing an improved copy (`<
 
 Apply-mode runs can mark candidates as `skipped_policy` when policy caps/filters are enforced. Report-only runs (`--no-apply`) keep candidate status as `not_requested`.
 
+Selector auto-apply stays intentionally conservative:
+- candidates must be a meaningful improvement over the current selector
+- candidates must resolve uniquely at runtime
+- runtime-derived repairs must pass determinism guards
+- low-confidence recommendations stay report-only so you can review them with `ui-test improve`
+- for ugly enterprise UIs, improve now also harvests runtime hints such as `data-testid`, `name`, `id`, `title`, and row context to synthesize better fallback candidates without requiring UI changes
+
 When replaying in headed mode, `play` registers targeted Playwright locator handlers for consent/non-cookie overlays, keeps targeted pre-step dismissal as fallback, and retries once after a verified overlay dismissal when click interception is detected.
+When replay still hits an ambiguous/broken locator, the run stops clearly and points you back to `ui-test improve <file> --apply` instead of silently guessing.
 
 Control assertion generation with `--assertions`:
 

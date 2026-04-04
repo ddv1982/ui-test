@@ -1,4 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
+import path from "node:path";
 import type { BrowserContext, Page } from "playwright";
 import { ui } from "../../utils/ui.js";
 import { executeRuntimeStep } from "../runtime/step-executor.js";
@@ -150,7 +151,11 @@ export async function runPlayStepLoop(input: {
           }
         }
 
-        const errorMessage = err instanceof Error ? err.message : String(err);
+        const errorMessage = formatStepFailureMessage({
+          error: err,
+          step,
+          absoluteFilePath: input.absoluteFilePath,
+        });
 
         const result: StepResult = {
           step,
@@ -193,4 +198,30 @@ export async function runPlayStepLoop(input: {
   return failureArtifacts === undefined
     ? { stepResults }
     : { stepResults, failureArtifacts };
+}
+
+function formatStepFailureMessage(input: {
+  error: unknown;
+  step: Step;
+  absoluteFilePath: string;
+}): string {
+  const baseMessage =
+    input.error instanceof Error ? input.error.message : String(input.error);
+
+  if (!shouldSuggestImprove(input.step, baseMessage)) {
+    return baseMessage;
+  }
+
+  const improveCommand = `ui-test improve ${path.resolve(input.absoluteFilePath)} --apply`;
+  return `${baseMessage} Suggestion: run ${improveCommand} to review stronger selectors before replaying again.`;
+}
+
+function shouldSuggestImprove(step: Step, message: string): boolean {
+  if (step.action === "navigate") return false;
+
+  return (
+    /strict mode violation/iu.test(message) ||
+    /Locator expression did not resolve to a locator/iu.test(message) ||
+    /waiting for locator/iu.test(message)
+  );
 }

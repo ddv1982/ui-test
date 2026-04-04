@@ -2,8 +2,16 @@ import { describe, it, expect } from "vitest";
 import { scoreLocatorConfidence } from "./locator-confidence.js";
 
 describe("scoreLocatorConfidence", () => {
-  it("scores getByRole as 0.9", () => {
+  it("scores named getByRole as 0.9", () => {
     expect(scoreLocatorConfidence("getByRole('button', { name: 'Save' })")).toBe(0.9);
+  });
+
+  it("penalizes ambiguous getByRole locators without an accessible name", () => {
+    expect(scoreLocatorConfidence("getByRole('textbox')")).toBe(0.55);
+  });
+
+  it("keeps structural roles without a name above generic locator confidence", () => {
+    expect(scoreLocatorConfidence("getByRole('listitem')")).toBe(0.75);
   });
 
   it("scores getByTestId as 0.9", () => {
@@ -39,23 +47,23 @@ describe("scoreLocatorConfidence", () => {
   });
 
   it("penalizes nth() chain by -0.15", () => {
-    expect(scoreLocatorConfidence("getByRole('button').nth(0)")).toBe(0.75);
+    expect(scoreLocatorConfidence("getByRole('button').nth(0)")).toBe(0.4);
   });
 
   it("penalizes first() chain by -0.15", () => {
-    expect(scoreLocatorConfidence("getByRole('listitem').first()")).toBe(0.75);
+    expect(scoreLocatorConfidence("getByRole('listitem').first()")).toBe(0.6);
   });
 
   it("penalizes last() chain by -0.15", () => {
-    expect(scoreLocatorConfidence("getByRole('listitem').last()")).toBe(0.75);
+    expect(scoreLocatorConfidence("getByRole('listitem').last()")).toBe(0.6);
   });
 
   it("penalizes filter() chain by -0.05", () => {
-    expect(scoreLocatorConfidence("getByRole('row').filter({ hasText: 'Active' })")).toBe(0.85);
+    expect(scoreLocatorConfidence("getByRole('row').filter({ hasText: 'Active' })")).toBe(0.7);
   });
 
   it("applies multiple penalties cumulatively", () => {
-    expect(scoreLocatorConfidence("getByRole('row').filter({ hasText: 'Active' }).first()")).toBe(0.7);
+    expect(scoreLocatorConfidence("getByRole('row').filter({ hasText: 'Active' }).first()")).toBe(0.55);
   });
 
   it("clamps to minimum 0", () => {

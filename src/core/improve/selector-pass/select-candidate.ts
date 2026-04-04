@@ -6,6 +6,7 @@ import {
 import { chooseDeterministicSelection, roundScore } from "../improve-helpers.js";
 
 const SCORE_TIE_EPSILON = 0.001;
+export const HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD = 0.8;
 
 export interface SelectorSelectionOutcome {
   current: TargetCandidateScore;
@@ -14,6 +15,8 @@ export interface SelectorSelectionOutcome {
   improveOpportunity: boolean;
   tieRepairRecommendation: boolean;
   adopt: boolean;
+  highConfidence: boolean;
+  runtimeValidatedSelection: boolean;
   recommendedTarget: Target;
   confidenceDelta: number;
   reasonCodes: string[];
@@ -57,10 +60,16 @@ export function selectBestCandidateForStep(input: {
   const effectiveSelected = tieRuntimeRepairCandidate ?? selected;
   const tieRepairRecommendation = tieRuntimeRepairCandidate !== undefined;
   const runtimeValidatedSelection = effectiveSelected.matchCount === 1;
+  const highConfidence =
+    effectiveSelected.score >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
   const adopt =
     (improveOpportunity || tieRepairRecommendation) &&
+    highConfidence &&
     (!input.applySelectors || runtimeValidatedSelection);
-  const recommendedTarget = adopt ? effectiveSelected.candidate.target : input.step.target;
+  const recommendedTarget =
+    improveOpportunity || tieRepairRecommendation
+      ? effectiveSelected.candidate.target
+      : input.step.target;
   const confidenceDelta = roundScore(effectiveSelected.score - current.score);
   const reasonCodes = [
     ...new Set([...current.reasonCodes, ...effectiveSelected.reasonCodes]),
@@ -73,6 +82,8 @@ export function selectBestCandidateForStep(input: {
     improveOpportunity,
     tieRepairRecommendation,
     adopt,
+    highConfidence,
+    runtimeValidatedSelection,
     recommendedTarget,
     confidenceDelta,
     reasonCodes,

@@ -200,8 +200,11 @@ When a browser is available, improve uses Playwright's `ariaSnapshot()` API to i
 - `getByLabel(name)` — for form controls (textbox, combobox, listbox, searchbox, spinbutton)
 - `getByPlaceholder(text)` — for form controls with a placeholder attribute
 - `getByText(text)` — for text-bearing roles (headings, links, alerts, status elements)
+- `getByTestId(id)` — when runtime attributes expose `data-testid` / `data-test-id`
+- `locator('tag[name="..."]')` / `locator('[id="..."]')` — for unlabeled controls with stable runtime attributes
+- `getByRole('row', { name: ... }).getByRole('textbox')` — as a lower-confidence fallback for repeated unlabeled controls that only become distinguishable through row context
 
-These candidates are scored alongside syntactic candidates and adopted when they score significantly higher than the current selector (delta >= 0.15). This happens automatically — no extra flags needed.
+These candidates are scored alongside syntactic candidates. Auto-apply is intentionally bounded: candidates must score significantly higher than the current selector (delta >= 0.15), meet the high-confidence threshold, and resolve uniquely at runtime before YAML is mutated. Lower-confidence recommendations remain in the report for review instead of being applied silently.
 
 ### Playwright Runtime Selector Regeneration
 
@@ -212,6 +215,8 @@ For dynamic-flagged/brittle targets (for example long exact headline link names)
 - Converts supported `internal` / selector-engine targets into locator expressions using deterministic public selector parsing.
 - Falls back safely to existing repair heuristics when conversion is unavailable or the selector shape is unsupported.
 - Set `UI_TEST_DISABLE_PLAYWRIGHT_RUNTIME_REGEN=1` to disable runtime regeneration/conversion and use heuristic repairs only.
+
+If replay later encounters a broken locator and no high-confidence unique repair is available, `play` stops and points you back to `ui-test improve <file> --apply` rather than continuing with ambiguous selector guesses.
 
 Runtime regeneration diagnostics:
 

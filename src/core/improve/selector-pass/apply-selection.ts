@@ -2,6 +2,7 @@ import type { FallbackTarget, Step, Target } from "../../yaml-schema.js";
 import type { ImproveDiagnostic } from "../report-schema.js";
 import type { TargetCandidateScore } from "../candidate-scorer.js";
 import type { SelectorSelectionOutcome } from "./select-candidate.js";
+import { HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD } from "./select-candidate.js";
 import { selectorTargetKey } from "./selector-target-key.js";
 
 type StepWithTarget = Step & { target: Target };
@@ -23,8 +24,32 @@ export function applySelectionAndRecordFinding(input: {
   let selectorRepairsApplied = 0;
   let selectorRepairsAdoptedOnTie = 0;
   let selectorRepairsAppliedFromPlaywrightRuntime = 0;
+  const hasRecommendation =
+    input.selection.improveOpportunity || input.selection.tieRepairRecommendation;
 
-  if (!input.selection.adopt && input.selection.improveOpportunity) {
+  if (
+    !input.selection.adopt &&
+    hasRecommendation &&
+    !input.selection.highConfidence
+  ) {
+    input.diagnostics.push({
+      code: "apply_skipped_low_confidence",
+      level: "info",
+      message:
+        `Step ${input.originalIndex + 1}: kept recommendation report-only because candidate score ${input.selection.effectiveSelected.score.toFixed(2)} is below high-confidence auto-apply threshold ${HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD.toFixed(2)}.`,
+    });
+    return {
+      selectorRepairsApplied,
+      selectorRepairsAdoptedOnTie,
+      selectorRepairsAppliedFromPlaywrightRuntime,
+    };
+  }
+
+  if (
+    !input.selection.adopt &&
+    hasRecommendation &&
+    !input.selection.runtimeValidatedSelection
+  ) {
     input.diagnostics.push({
       code: "apply_requires_runtime_unique_match",
       level: "warn",
