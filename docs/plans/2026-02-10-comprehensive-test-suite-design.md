@@ -221,7 +221,7 @@ export default defineConfig({
 
 ```json
 {
-  "@playwright/test": "^1.58.2",
+  "@playwright/test": "^1.59.1",
   "@vitest/coverage-v8": "^4.0.18"
 }
 ```

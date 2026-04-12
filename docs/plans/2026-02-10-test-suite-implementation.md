@@ -22,7 +22,7 @@
 
 Run:
 ```bash
-npm install --save-dev @vitest/coverage-v8@4.0.18 @playwright/test@1.58.2
+npm install --save-dev @vitest/coverage-v8@4.0.18 @playwright/test@1.59.1
 ```
 
 Expected: Dependencies installed successfully
