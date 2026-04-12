@@ -36,7 +36,7 @@
     "global-install:smoke": "node ./scripts/check-global-install-smoke.mjs",
     "test:watch": "vitest",
     "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
-    "test:integration": "vitest run src/**/*.integration.test.ts",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:parity:headed": "node ./scripts/run-headed-parity.mjs",
     "test:flake:soak": "node ./scripts/run-flake-soak.mjs",
     "test:coverage": "vitest run --coverage"
@@ -68,12 +68,12 @@
     "globby": "^16.1.0",
     "js-yaml": "^4.1.1",
     "ora": "^9.3.0",
-    "playwright": "^1.58.2",
+    "playwright": "^1.59.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.59.1",
     "@types/estree": "^1.0.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.2",
