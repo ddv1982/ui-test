@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import path from "node:path";
+import type * as FsPromises from "node:fs/promises";
 import { UserError } from "../../utils/errors.js";
 
+type FsPromisesModule = typeof FsPromises & {
+  default: typeof FsPromises;
+};
+
 vi.mock("node:fs/promises", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("node:fs/promises") & {
-    default: typeof import("node:fs/promises");
-  };
+  const actual = (await importOriginal()) as FsPromisesModule;
   return {
     ...actual,
     default: {
