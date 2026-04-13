@@ -66,6 +66,7 @@ export async function runPlay(
       autoStart: shouldStartApp,
       saveFailureArtifacts: profile.saveFailureArtifacts,
       artifactsDir: profile.artifactsDir,
+      ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
       browser: profile.browser,
     })
   );
@@ -97,6 +98,7 @@ export async function runPlay(
         saveFailureArtifacts: profile.saveFailureArtifacts,
         artifactsDir: profile.artifactsDir,
         runId,
+        ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
         browser: profile.browser,
       }, {
         browserLaunchers: defaultBrowserLaunchers,

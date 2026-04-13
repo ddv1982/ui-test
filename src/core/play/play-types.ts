@@ -9,6 +9,7 @@ export interface PlayOptions {
   waitForNetworkIdle?: boolean;
   saveFailureArtifacts?: boolean;
   artifactsDir?: string;
+  loadStorage?: string;
   runId?: string;
   browser?: PlaywrightBrowser;
 }

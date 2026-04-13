@@ -4,6 +4,7 @@ import { resolveLocator } from "../runtime/locator-runtime.js";
 import { quote, type TargetCandidate } from "./candidate-generator.js";
 import { parseSnapshotNodes } from "./assertion-candidates/assertion-candidates-snapshot.js";
 import type { ImproveDiagnostic } from "./report-schema.js";
+import { captureAriaSnapshot } from "./aria-snapshot-support.js";
 
 const USELESS_ROLES = new Set(["generic", "none", "presentation"]);
 
@@ -144,7 +145,10 @@ async function readPrimaryAriaSnapshotNode(
   locator: ReturnType<typeof resolveLocator>,
   timeoutMs: number
 ) {
-  const snapshotYaml = await locator.ariaSnapshot({ timeout: timeoutMs });
+  const snapshotYaml = await captureAriaSnapshot(locator, {
+    timeout: timeoutMs,
+    depth: 0,
+  });
   const nodes = parseSnapshotNodes(snapshotYaml);
   return nodes[0];
 }

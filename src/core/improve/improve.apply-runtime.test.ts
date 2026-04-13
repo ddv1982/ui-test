@@ -507,6 +507,104 @@ describe("improve apply runtime replay", () => {
     expect(result.report.summary.selectorRepairsApplied).toBe(1);
   });
 
+  it("tracks normalize-sourced runtime-generated selector repairs when applied", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-normalize-runtime-repair-"));
+    tempDirs.push(dir);
+
+    const yamlPath = path.join(dir, "sample.yaml");
+    await fs.writeFile(
+      yamlPath,
+      [
+        "name: sample",
+        "baseUrl: https://example.com",
+        "steps:",
+        "  - action: navigate",
+        "    url: https://example.com",
+        "  - action: click",
+        "    target:",
+        "      value: \"getByRole('link', { name: 'Winterweer update Schiphol 12:30', exact: true })\"",
+        "      kind: locatorExpression",
+        "      source: manual",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    generateRuntimeRepairCandidatesMock.mockResolvedValueOnce({
+      candidates: [
+        {
+          id: "repair-playwright-runtime",
+          source: "derived",
+          target: {
+            value: "getByRole('link', { name: 'Winterweer update Schiphol' })",
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          reasonCodes: ["locator_repair_playwright_runtime"],
+        },
+      ],
+      diagnostics: [
+        {
+          code: "selector_repair_generated_via_playwright_runtime",
+          level: "info",
+          message: "generated",
+        },
+      ],
+      dynamicSignals: ["contains_weather_or_news_fragment"],
+      runtimeUnique: true,
+      sourceMarkers: [
+        {
+          candidateId: "repair-playwright-runtime",
+          source: "normalize",
+        },
+      ],
+    });
+
+    vi.mocked(scoreTargetCandidates).mockImplementationOnce(async (_page, candidates) => {
+      const current = candidates.find((candidate) => candidate.source === "current");
+      const runtimeRepair = candidates.find((candidate) =>
+        candidate.reasonCodes.includes("locator_repair_playwright_runtime")
+      );
+      if (!current || !runtimeRepair) {
+        throw new Error("Expected current and runtime repair candidates");
+      }
+
+      return [
+        {
+          candidate: runtimeRepair,
+          score: 0.91,
+          baseScore: 0.91,
+          uniquenessScore: 1,
+          visibilityScore: 1,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: ["locator_repair_playwright_runtime", "unique_match"],
+        },
+        {
+          candidate: current,
+          score: 0.5,
+          baseScore: 0.5,
+          uniquenessScore: 1,
+          visibilityScore: 1,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: ["existing_target", "dynamic_target"],
+        },
+      ];
+    });
+    vi.mocked(shouldAdoptCandidate).mockReturnValueOnce(true);
+
+    const result = await improveTestFile({
+      testFile: yamlPath,
+      applySelectors: true,
+      applyAssertions: false,
+      assertions: "none",
+    });
+
+    expect(result.report.summary.selectorRepairsGeneratedByPlaywrightRuntime).toBe(1);
+    expect(result.report.summary.selectorRepairsAppliedFromPlaywrightRuntime).toBe(1);
+    expect(result.report.summary.selectorRepairsApplied).toBe(1);
+  });
+
   it("applies high-confidence assertion candidates with --apply", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ui-test-improve-apply-assertions-"));
     tempDirs.push(dir);

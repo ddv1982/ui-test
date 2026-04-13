@@ -36,12 +36,14 @@ describe("profile summary formatting", () => {
       assertions: "candidates",
       assertionSource: "snapshot-native",
       assertionPolicy: "balanced",
+      loadStorage: ".auth/state.json",
     });
 
     expect(out).toContain("applySelectors=no");
     expect(out).toContain("applyAssertions=yes");
     expect(out).toContain("assertionSource=snapshot-native");
     expect(out).toContain("assertionPolicy=balanced");
+    expect(out).toContain("loadStorage=.auth/state.json");
   });
 
   it("formats play summary", () => {
@@ -54,11 +56,13 @@ describe("profile summary formatting", () => {
       autoStart: true,
       saveFailureArtifacts: true,
       artifactsDir: ".ui-test-artifacts",
+      loadStorage: ".auth/state.json",
     });
 
     expect(out).toContain("timeout=10000ms");
     expect(out).toContain("autoStart=yes");
     expect(out).toContain("saveFailureArtifacts=yes");
     expect(out).toContain("artifactsDir=.ui-test-artifacts");
+    expect(out).toContain("loadStorage=.auth/state.json");
   });
 });

@@ -85,7 +85,7 @@ export async function collectCandidatesForStep(input: {
         runtimeRepairCandidateKeys.add(key);
         candidates.push(candidate);
         selectorRepairCandidatesAdded += 1;
-        if (markerByCandidateId.get(candidate.id) === "public_conversion") {
+        if (markerByCandidateId.has(candidate.id)) {
           selectorRepairsGeneratedByPlaywrightRuntime += 1;
         }
       }

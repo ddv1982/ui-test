@@ -27,6 +27,7 @@ import { ui } from "../../utils/ui.js";
 import { defaultRunInteractiveCommand } from "../../infra/process/process-runner-adapter.js";
 import { importRecordFromFile } from "./record-devtools-import.js";
 import { formatDeterminismVerdict } from "./improve-output.js";
+import { pickLocatorInteractively } from "./record-pick-locator.js";
 import type { Step, Target } from "../../core/yaml-schema.js";
 
 function resolveRecordAutoImproveProfile(improveMode: RecordImproveMode): ResolvedImproveProfile {
@@ -168,12 +169,26 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
     });
   } catch (err) {
     if (isNoInteractionsError(err)) {
-      const fallback = await maybeCreateManualFallback({
-        name,
-        url,
-        outputDir: profile.outputDir,
-        ...(cleanedDescription !== undefined ? { description: cleanedDescription } : {}),
-      });
+      const fallback =
+        (await maybeCreateInteractivePickFallback({
+          name,
+          url,
+          outputDir: profile.outputDir,
+          browser: profile.browser,
+          ...(profile.device !== undefined ? { device: profile.device } : {}),
+          ...(profile.testIdAttribute !== undefined
+            ? { testIdAttribute: profile.testIdAttribute }
+            : {}),
+          ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
+          ...(profile.saveStorage !== undefined ? { saveStorage: profile.saveStorage } : {}),
+          ...(cleanedDescription !== undefined ? { description: cleanedDescription } : {}),
+        })) ??
+        (await maybeCreateManualFallback({
+          name,
+          url,
+          outputDir: profile.outputDir,
+          ...(cleanedDescription !== undefined ? { description: cleanedDescription } : {}),
+        }));
       if (fallback) {
         if (opts.improve !== false) {
           try {
@@ -212,15 +227,62 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
   }
 }
 
+async function maybeCreateInteractivePickFallback(options: {
+  name: string;
+  url: string;
+  description?: string;
+  outputDir: string;
+  browser: RecordOptions["browser"];
+  device?: string;
+  testIdAttribute?: string;
+  loadStorage?: string;
+  saveStorage?: string;
+}): Promise<{ outputPath: string } | null> {
+  ui.warn("Playwright codegen did not capture any supported interactions.");
+  ui.info(
+    "Trying Playwright Pick Locator fallback. Click the target element in the browser, or close it to enter a locator manually."
+  );
+
+  try {
+    const locator = await pickLocatorInteractively({
+      url: options.url,
+      browser: options.browser ?? "chromium",
+      ...(options.device !== undefined ? { device: options.device } : {}),
+      ...(options.testIdAttribute !== undefined
+        ? { testIdAttribute: options.testIdAttribute }
+        : {}),
+      ...(options.loadStorage !== undefined ? { loadStorage: options.loadStorage } : {}),
+      ...(options.saveStorage !== undefined ? { saveStorage: options.saveStorage } : {}),
+    });
+
+    const target = buildFallbackTarget(locator, {
+      warning: "interactive pick locator fallback starter",
+    });
+
+    return await saveFallbackStarterTest({
+      name: options.name,
+      url: options.url,
+      outputDir: options.outputDir,
+      target,
+      modeLabel: "Interactive Pick Locator fallback",
+      editHint: "Edit the saved YAML to add more interactions as needed.",
+      ...(options.description !== undefined ? { description: options.description } : {}),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    ui.warn(`Interactive Pick Locator fallback did not complete: ${message}`);
+    return null;
+  }
+}
+
 async function maybeCreateManualFallback(options: {
   name: string;
   url: string;
   description?: string;
   outputDir: string;
 }): Promise<{ outputPath: string } | null> {
-  ui.warn("Playwright codegen did not capture any supported interactions.");
   const shouldCreate = await confirm({
-    message: "Create a starter test from a picked locator instead?",
+    message: "Create a starter test from a pasted locator instead?",
     default: true,
   });
 
@@ -239,21 +301,55 @@ async function maybeCreateManualFallback(options: {
     message: "Frame selectors outer->inner (optional, comma-separated):",
   });
 
-  const action = (await input({
-    message: "Starter action [assertVisible/click/fill]:",
-    default: "assertVisible",
-    validate: (value) => {
-      const normalized = value.trim();
-      return normalized === "assertVisible" || normalized === "click" || normalized === "fill"
-        ? true
-        : "Enter assertVisible, click, or fill";
-    },
-  })).trim() as "assertVisible" | "click" | "fill";
-
   const target = buildManualFallbackTarget(locator, framePathRaw);
+  return await saveFallbackStarterTest({
+    name: options.name,
+    url: options.url,
+    outputDir: options.outputDir,
+    target,
+    modeLabel: "Manual fallback",
+    editHint: "Edit the saved YAML to add more framed interactions if needed.",
+    ...(options.description !== undefined ? { description: options.description } : {}),
+  });
+}
+
+function buildManualFallbackTarget(locator: string, framePathRaw: string): Target {
+  const framePath = framePathRaw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  return buildFallbackTarget(locator, {
+    ...(framePath.length > 0 ? { framePath } : {}),
+    warning: "manual iframe fallback starter",
+  });
+}
+
+function buildFallbackTarget(
+  locator: string,
+  overrides: Partial<Pick<Target, "framePath" | "warning">> = {}
+): Target {
+  return {
+    value: locator,
+    kind: classifySelector(locator).kind,
+    source: "manual",
+    ...overrides,
+  };
+}
+
+async function saveFallbackStarterTest(options: {
+  name: string;
+  url: string;
+  description?: string;
+  outputDir: string;
+  target: Target;
+  modeLabel: string;
+  editHint: string;
+}): Promise<{ outputPath: string }> {
+  const action = await promptForFallbackAction();
   const steps: Step[] = [
     { action: "navigate", url: options.url },
-    await buildManualFallbackStep(action, target),
+    await buildManualFallbackStep(action, options.target),
   ];
 
   const saved = await saveRecordedYaml({
@@ -266,26 +362,24 @@ async function maybeCreateManualFallback(options: {
 
   console.log();
   ui.success(`Starter test saved to ${saved.outputPath}`);
-  ui.info(`Manual fallback created (${saved.steps.length} steps)`);
-  ui.step("Edit the saved YAML to add more framed interactions if needed.");
+  ui.info(`${options.modeLabel} created (${saved.steps.length} steps)`);
+  ui.step(options.editHint);
   ui.info("Run it with: ui-test play " + saved.outputPath);
 
   return { outputPath: saved.outputPath };
 }
 
-function buildManualFallbackTarget(locator: string, framePathRaw: string): Target {
-  const framePath = framePathRaw
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-
-  return {
-    value: locator,
-    kind: classifySelector(locator).kind,
-    source: "manual",
-    ...(framePath.length > 0 ? { framePath } : {}),
-    warning: "manual iframe fallback starter",
-  };
+async function promptForFallbackAction(): Promise<"assertVisible" | "click" | "fill"> {
+  return (await input({
+    message: "Starter action [assertVisible/click/fill]:",
+    default: "assertVisible",
+    validate: (value) => {
+      const normalized = value.trim();
+      return normalized === "assertVisible" || normalized === "click" || normalized === "fill"
+        ? true
+        : "Enter assertVisible, click, or fill";
+    },
+  })).trim() as "assertVisible" | "click" | "fill";
 }
 
 async function buildManualFallbackStep(

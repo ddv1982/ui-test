@@ -149,7 +149,7 @@ describe("runPlay startup behavior", () => {
   });
 
   it("does not auto-start for non-example test files", async () => {
-    await runPlay("e2e/nu-nl.yaml", {});
+    await runPlay("e2e/nu-nl.yaml", { loadStorage: ".auth/state.json" });
 
     expect(spawn).not.toHaveBeenCalled();
     expect(play).toHaveBeenCalledTimes(1);
@@ -164,6 +164,7 @@ describe("runPlay startup behavior", () => {
         saveFailureArtifacts: PLAY_DEFAULT_SAVE_FAILURE_ARTIFACTS,
         artifactsDir: PLAY_DEFAULT_ARTIFACTS_DIR,
         runId: "run-test-id",
+        loadStorage: ".auth/state.json",
         browser: "chromium",
       },
       expect.objectContaining({
@@ -292,6 +293,18 @@ describe("runPlay startup behavior", () => {
 });
 
 describe("play CLI option parsing", () => {
+  it("parses --load-storage and shows it in help", () => {
+    const program = new Command();
+    registerPlay(program);
+    const playCommand = program.commands.find((command) => command.name() === "play");
+    expect(playCommand).toBeDefined();
+
+    playCommand?.parseOptions(["--load-storage", ".auth/state.json", "e2e/sample.yaml"]);
+
+    expect(playCommand?.opts().loadStorage).toBe(".auth/state.json");
+    expect(playCommand?.helpInformation()).toContain("--load-storage <path>");
+  });
+
   it("uses the last network idle flag when both are present", () => {
     const program1 = new Command();
     registerPlay(program1);

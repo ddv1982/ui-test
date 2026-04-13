@@ -205,6 +205,98 @@ describe("runImproveSelectorPass", () => {
     });
   });
 
+  it("counts normalize-sourced runtime repair candidates as Playwright-generated when applied", async () => {
+    const runtimeCandidateValue =
+      "getByRole('link', { name: 'Winterweer liveblog Schiphol', exact: true })";
+    generateRuntimeRepairCandidatesMock.mockResolvedValueOnce({
+      candidates: [
+        {
+          id: "repair-playwright-runtime-1",
+          source: "derived",
+          target: {
+            value: runtimeCandidateValue,
+            kind: "locatorExpression",
+            source: "manual",
+          },
+          reasonCodes: ["locator_repair_playwright_runtime"],
+          dynamicSignals: ["contains_weather_or_news_fragment"],
+        },
+      ],
+      diagnostics: [],
+      dynamicSignals: ["contains_weather_or_news_fragment"],
+      runtimeUnique: true,
+      sourceMarkers: [
+        {
+          candidateId: "repair-playwright-runtime-1",
+          source: "normalize",
+        },
+      ],
+    });
+
+    scoreTargetCandidatesMock.mockImplementationOnce(async (_page, candidates) => {
+      const current = candidates.find((candidate) => candidate.source === "current");
+      const runtime = candidates.find((candidate) =>
+        candidate.reasonCodes.includes("locator_repair_playwright_runtime")
+      );
+      if (!current || !runtime) {
+        throw new Error("Expected both current and runtime repair candidates");
+      }
+      return [
+        {
+          candidate: runtime,
+          score: 0.93,
+          baseScore: 0.93,
+          uniquenessScore: 1,
+          visibilityScore: 1,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: ["locator_repair_playwright_runtime", "unique_match"],
+        },
+        {
+          candidate: current,
+          score: 0.2,
+          baseScore: 0.2,
+          uniquenessScore: 1,
+          visibilityScore: 0,
+          matchCount: 1,
+          runtimeChecked: true,
+          reasonCodes: ["existing_target", "dynamic_target"],
+        },
+      ];
+    });
+    shouldAdoptCandidateMock.mockReturnValueOnce(true);
+
+    const steps: Step[] = [
+      {
+        action: "click",
+        target: {
+          value:
+            "getByRole('link', { name: 'Winterweer liveblog: Schiphol geannuleerd', exact: true })",
+          kind: "locatorExpression",
+          source: "manual",
+        },
+      },
+    ];
+
+    const result = await runImproveSelectorPass({
+      steps,
+      outputStepOriginalIndexes: [0],
+      page: pageStub(),
+      applySelectors: true,
+      wantsNativeSnapshots: false,
+      diagnostics: [],
+    });
+
+    expect(result.selectorRepairsGeneratedByPlaywrightRuntime).toBe(1);
+    expect(result.selectorRepairsAppliedFromPlaywrightRuntime).toBe(1);
+    expect(result.outputSteps[0]).toMatchObject({
+      action: "click",
+      target: {
+        value: runtimeCandidateValue,
+      },
+    });
+  });
+
   it("runs runtime repair for dynamic internal selectors", async () => {
     generateRuntimeRepairCandidatesMock.mockResolvedValueOnce({
       candidates: [

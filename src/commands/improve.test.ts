@@ -25,6 +25,8 @@ describe("improve command options", () => {
       "sample.improve-plan.json",
       "--report",
       "report.json",
+      "--load-storage",
+      ".auth/state.json",
       "e2e/sample.yaml",
     ]);
 
@@ -38,6 +40,7 @@ describe("improve command options", () => {
     expect(opts.plan).toBe(true);
     expect(opts.applyPlan).toBe("sample.improve-plan.json");
     expect(opts.report).toBe("report.json");
+    expect(opts.loadStorage).toBe(".auth/state.json");
   });
 
   it("--no-apply sets apply to false", () => {

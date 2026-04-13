@@ -112,6 +112,14 @@ ui-test play --no-start
 
 Auto-start launches the built-in example app for `e2e/example.yaml` only.
 
+If replay needs an existing signed-in session, preload a Playwright storage state JSON file:
+
+```bash
+ui-test play e2e/account.yaml --load-storage .auth/state.json
+```
+
+The same `--load-storage <path>` flag is available on `ui-test improve`.
+
 ## Record and Replay
 
 ```bash
@@ -138,6 +146,7 @@ On dynamic content pages (for example news homepages), recorder/improve use stab
 ui-test improve e2e/login.yaml                  # prompts to write e2e/login.improved.yaml
 ui-test improve e2e/login.yaml --apply          # writes e2e/login.improved.yaml (no prompt)
 ui-test improve e2e/login.yaml --apply --in-place
+ui-test improve e2e/login.yaml --apply --load-storage .auth/state.json
 ui-test improve e2e/login.yaml --no-apply
 ```
 

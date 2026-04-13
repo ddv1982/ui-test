@@ -1,4 +1,5 @@
 import type { Locator, Page } from "playwright";
+import { looksLikeLocatorExpression } from "../locator-expression.js";
 import { resolveLocator } from "../runtime/locator-runtime.js";
 import type { Target } from "../yaml-schema.js";
 import type { TargetCandidate } from "./candidate-generator.js";
@@ -13,7 +14,7 @@ import {
   toLocatorExpressionFromSelector,
 } from "./playwright-runtime-selector-adapter.js";
 
-export type RuntimeRepairSource = "public_conversion";
+export type RuntimeRepairSource = "normalize" | "public_conversion";
 
 export interface RuntimeRepairSourceMarker {
   candidateId: string;
@@ -141,6 +142,16 @@ export async function generateRuntimeRepairCandidates(
     });
   };
 
+  const normalizedCandidate = await tryNormalizedConversion(
+    locator,
+    input.page,
+    input.target,
+    resolveLocatorFn
+  );
+  if (normalizedCandidate) {
+    pushCandidate(normalizedCandidate, "normalize");
+  }
+
   const publicCandidate = tryPublicConversion(
     input.target,
     toLocatorExpressionFromSelectorFn
@@ -176,6 +187,35 @@ function tryPublicConversion(
       ? {}
       : { convertSelectorFn: toLocatorExpressionFromSelectorFn };
   return convertRuntimeTargetToLocatorExpression(target, adapterDependencies);
+}
+
+async function tryNormalizedConversion(
+  locator: Locator,
+  page: Page,
+  target: Target,
+  resolveLocatorFn: typeof resolveLocator
+): Promise<string | undefined> {
+  if (typeof locator.normalize !== "function") return undefined;
+
+  try {
+    const normalized = await locator.normalize();
+    const locatorExpression = normalized.toString().trim();
+    if (!looksLikeLocatorExpression(locatorExpression)) return undefined;
+
+    const normalizedTarget: Target = {
+      value: locatorExpression,
+      kind: "locatorExpression",
+      source: "manual",
+      ...(shouldRetainFramePath(locatorExpression, target.framePath)
+        ? { framePath: target.framePath }
+        : {}),
+    };
+
+    resolveLocatorFn(page, normalizedTarget);
+    return locatorExpression;
+  } catch {
+    return undefined;
+  }
 }
 
 function targetKey(target: Target): string {

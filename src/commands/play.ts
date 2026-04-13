@@ -21,6 +21,7 @@ export function registerPlay(program: Command) {
     .option("--save-failure-artifacts", "Save JSON/trace/screenshot artifacts on test failure")
     .option("--no-save-failure-artifacts", "Disable failure artifact capture")
     .option("--artifacts-dir <path>", "Directory for play failure artifacts")
+    .option("--load-storage <path>", "Apply Playwright storage state JSON to replay contexts")
     .option("--browser <name>", "Browser to use: chromium, firefox, or webkit (default: chromium)")
     .option("--no-start", "Do not auto-start app before running tests")
     .action(async (testArg: unknown, opts: unknown) => {
@@ -42,6 +43,7 @@ function parsePlayProfileInput(value: unknown): PlayProfileInput {
   const waitNetworkIdle = asOptionalBoolean(value.waitNetworkIdle);
   const saveFailureArtifacts = asOptionalBoolean(value.saveFailureArtifacts);
   const artifactsDir = asOptionalString(value.artifactsDir);
+  const loadStorage = asOptionalString(value.loadStorage);
   const start = asOptionalBoolean(value.start);
   const browser = asOptionalString(value.browser);
 
@@ -51,6 +53,7 @@ function parsePlayProfileInput(value: unknown): PlayProfileInput {
   if (waitNetworkIdle !== undefined) out.waitNetworkIdle = waitNetworkIdle;
   if (saveFailureArtifacts !== undefined) out.saveFailureArtifacts = saveFailureArtifacts;
   if (artifactsDir !== undefined) out.artifactsDir = artifactsDir;
+  if (loadStorage !== undefined) out.loadStorage = loadStorage;
   if (start !== undefined) out.start = start;
   if (browser !== undefined) out.browser = browser;
 
@@ -66,6 +69,7 @@ interface RawPlayProfileOptions {
   waitNetworkIdle?: unknown;
   saveFailureArtifacts?: unknown;
   artifactsDir?: unknown;
+  loadStorage?: unknown;
   start?: unknown;
   browser?: unknown;
 }

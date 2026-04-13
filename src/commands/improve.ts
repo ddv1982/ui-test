@@ -31,6 +31,7 @@ export function registerImprove(program: Command) {
     .option("--plan", "Generate a reviewable improve plan without writing YAML")
     .option("--apply-plan <path>", "Apply a previously generated improve plan JSON")
     .option("--report <path>", "Write JSON report to a custom path")
+    .option("--load-storage <path>", "Apply Playwright storage state JSON to improve browser contexts")
     .action(async (testFile: unknown, opts: unknown) => {
       try {
         await runImprove(
@@ -55,6 +56,7 @@ function parseImproveCliOptions(value: unknown): ImproveCliOptions {
   const plan = asOptionalBoolean(value.plan);
   const applyPlan = asOptionalString(value.applyPlan);
   const report = asOptionalString(value.report);
+  const loadStorage = asOptionalString(value.loadStorage);
 
   if (apply !== undefined) out.apply = apply;
   if (output !== undefined) out.output = output;
@@ -65,6 +67,7 @@ function parseImproveCliOptions(value: unknown): ImproveCliOptions {
   if (plan !== undefined) out.plan = plan;
   if (applyPlan !== undefined) out.applyPlan = applyPlan;
   if (report !== undefined) out.report = report;
+  if (loadStorage !== undefined) out.loadStorage = loadStorage;
 
   return out;
 }
@@ -79,6 +82,7 @@ interface RawImproveCliOptions {
   plan?: unknown;
   applyPlan?: unknown;
   report?: unknown;
+  loadStorage?: unknown;
 }
 
 function isRawImproveCliOptions(value: unknown): value is RawImproveCliOptions {

@@ -26,6 +26,8 @@ ui-test improve e2e/login.yaml --apply
 
 `--apply` writes both improved selectors and high-confidence assertion candidates to `e2e/login.improved.yaml` without prompting.
 
+If improve needs an existing signed-in session, add `--load-storage <path>` to apply a Playwright storage state JSON file to improve browser contexts.
+
 To overwrite the input file instead:
 
 ```bash
@@ -36,6 +38,7 @@ To write to a custom destination:
 
 ```bash
 ui-test improve e2e/login.yaml --apply --output e2e/login.latest.yaml
+ui-test improve e2e/login.yaml --apply --load-storage .auth/state.json
 ```
 
 ### Report Only (CI)

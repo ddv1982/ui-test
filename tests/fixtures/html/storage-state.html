@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Storage State Fixture</title>
+</head>
+<body>
+  <div id="status">signed-out</div>
+  <script>
+    const user = window.localStorage.getItem("authUser");
+    if (user) {
+      document.getElementById("status").textContent = `signed-in:${user}`;
+    }
+  </script>
+</body>
+</html>

@@ -3,10 +3,13 @@ import type { BrowserContext, Page } from "playwright";
 import type { Step } from "../yaml-schema.js";
 import {
   buildPlayFailureReport,
+  type PlayFailureDiagnostics,
   writePlayFailureReport,
   type PlayFailureArtifactPaths,
 } from "../play-failure-report.js";
 import type { PlayFailureArtifacts, StepResult } from "./play-types.js";
+
+const MAX_FAILURE_DIAGNOSTICS = 20;
 
 export interface TraceCaptureState {
   tracingStarted: boolean;
@@ -87,6 +90,7 @@ export async function captureFailureArtifacts(input: {
   let tracePath: string | undefined;
   let screenshotPath: string | undefined;
   let reportPath: string | undefined;
+  const diagnostics = await collectFailureDiagnostics(input.page, input.artifactWarnings);
 
   if (input.traceState.tracingStarted) {
     try {
@@ -141,6 +145,7 @@ export async function captureFailureArtifacts(input: {
         durationMs: stepResult.durationMs,
       })),
       artifacts: reportArtifacts,
+      ...(diagnostics === undefined ? {} : { diagnostics }),
       warnings: [...input.artifactWarnings],
     });
 
@@ -165,4 +170,83 @@ export async function captureFailureArtifacts(input: {
     artifacts.screenshotPath = screenshotPath;
   }
   return artifacts;
+}
+
+async function collectFailureDiagnostics(
+  page: Page,
+  artifactWarnings: string[]
+): Promise<PlayFailureDiagnostics | undefined> {
+  const consoleMessages = await collectConsoleMessages(page, artifactWarnings);
+  const pageErrors = await collectPageErrors(page, artifactWarnings);
+
+  if ((consoleMessages?.length ?? 0) === 0 && (pageErrors?.length ?? 0) === 0) {
+    return undefined;
+  }
+
+  return {
+    ...(consoleMessages === undefined ? {} : { consoleMessages }),
+    ...(pageErrors === undefined ? {} : { pageErrors }),
+  };
+}
+
+async function collectConsoleMessages(
+  page: Page,
+  artifactWarnings: string[]
+): Promise<PlayFailureDiagnostics["consoleMessages"]> {
+  const consoleMessagesMethod = (page as {
+    consoleMessages?: (options?: { filter?: "all" | "since-navigation" }) => Promise<
+      Array<{
+        type(): string;
+        text(): string;
+        location(): { url: string; lineNumber: number; columnNumber: number };
+      }>
+    >;
+  }).consoleMessages;
+
+  if (typeof consoleMessagesMethod !== "function") {
+    return undefined;
+  }
+
+  try {
+    const messages = await consoleMessagesMethod.call(page, { filter: "since-navigation" });
+    return messages.slice(-MAX_FAILURE_DIAGNOSTICS).map((message) => {
+      const location = message.location();
+      return {
+        type: message.type(),
+        text: message.text(),
+        ...((location.url || location.lineNumber > 0 || location.columnNumber > 0)
+          ? { location }
+          : {}),
+      };
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    artifactWarnings.push(`Failed to collect page console messages: ${message}`);
+    return undefined;
+  }
+}
+
+async function collectPageErrors(
+  page: Page,
+  artifactWarnings: string[]
+): Promise<PlayFailureDiagnostics["pageErrors"]> {
+  const pageErrorsMethod = (page as {
+    pageErrors?: (options?: { filter?: "all" | "since-navigation" }) => Promise<Error[]>;
+  }).pageErrors;
+
+  if (typeof pageErrorsMethod !== "function") {
+    return undefined;
+  }
+
+  try {
+    const pageErrors = await pageErrorsMethod.call(page, { filter: "since-navigation" });
+    return pageErrors.slice(-MAX_FAILURE_DIAGNOSTICS).map((error) => ({
+      message: error.message || String(error),
+      ...(error.stack === undefined ? {} : { stack: error.stack }),
+    }));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    artifactWarnings.push(`Failed to collect page errors: ${message}`);
+    return undefined;
+  }
 }

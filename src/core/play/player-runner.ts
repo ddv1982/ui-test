@@ -100,6 +100,9 @@ export async function play(
       dependencies.browserLaunchers ?? DEFAULT_BROWSER_LAUNCHERS
     );
     context = await browser.newContext();
+    if (options.loadStorage !== undefined) {
+      await context.setStorageState(options.loadStorage);
+    }
     await installCookieBannerDismisser(context);
     const page = await context.newPage();
     overlayHandlers = await installOverlayHandlers(page, {

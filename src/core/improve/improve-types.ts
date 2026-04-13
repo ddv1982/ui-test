@@ -24,6 +24,7 @@ export interface ImproveOptions {
   assertionSource?: ImproveAssertionSource;
   assertionPolicy?: ImproveAssertionPolicy;
   reportPath?: string;
+  loadStorage?: string;
   dryRunWrite?: boolean;
   includeProposedTest?: boolean;
   appliedBy?: ImproveAppliedBy;

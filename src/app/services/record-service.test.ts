@@ -2,13 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import path from "node:path";
 import { UserError } from "../../utils/errors.js";
 
-vi.mock("node:fs/promises", () => ({
-  default: {
-    readFile: vi.fn(),
-    writeFile: vi.fn(),
-    mkdir: vi.fn(),
-  },
-}));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("node:fs/promises") & {
+    default: typeof import("node:fs/promises");
+  };
+  return {
+    ...actual,
+    default: {
+      ...actual.default,
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      mkdir: vi.fn(),
+    },
+  };
+});
 
 vi.mock("@inquirer/prompts", () => ({
   input: vi.fn(),
@@ -17,6 +24,10 @@ vi.mock("@inquirer/prompts", () => ({
 
 vi.mock("../../utils/chromium-runtime.js", () => ({
   ensureChromiumAvailable: vi.fn(),
+}));
+
+vi.mock("./record-pick-locator.js", () => ({
+  pickLocatorInteractively: vi.fn(),
 }));
 
 vi.mock("../../core/recorder.js", async (importOriginal) => {
@@ -50,6 +61,7 @@ import { record, RECORDER_NO_INTERACTIONS_ERROR_CODE } from "../../core/recorder
 import { improveTestFile } from "../../core/improve/improve.js";
 import type { ImproveReport } from "../../core/improve/report-schema.js";
 import { ui } from "../../utils/ui.js";
+import { pickLocatorInteractively } from "./record-pick-locator.js";
 import { runRecord } from "./record-service.js";
 
 const SAFE_DETERMINISM: ImproveReport["determinism"] = { status: "safe", reasons: [] };
@@ -259,6 +271,7 @@ describe("runRecord auto-improve", () => {
     vi.mocked(record).mockRejectedValueOnce(
       new UserError("No interactions were recorded.", "iframe hint", RECORDER_NO_INTERACTIONS_ERROR_CODE)
     );
+    vi.mocked(pickLocatorInteractively).mockRejectedValueOnce(new Error("pick cancelled"));
     vi.mocked(confirm).mockResolvedValueOnce(true);
     vi.mocked(input)
       .mockResolvedValueOnce("getByRole('button', { name: 'Pay now' })")
@@ -275,7 +288,7 @@ describe("runRecord auto-improve", () => {
     });
 
     expect(confirm).toHaveBeenCalledWith({
-      message: "Create a starter test from a picked locator instead?",
+      message: "Create a starter test from a pasted locator instead?",
       default: true,
     });
     expect(fs.writeFile).toHaveBeenCalledWith(
@@ -301,10 +314,52 @@ describe("runRecord auto-improve", () => {
     expect(ui.success).toHaveBeenCalledWith(expect.stringContaining("Starter test saved to"));
   });
 
+  it("creates a starter test from interactive Pick Locator when codegen records no interactions", async () => {
+    vi.mocked(record).mockRejectedValueOnce(
+      new UserError("No interactions were recorded.", "iframe hint", RECORDER_NO_INTERACTIONS_ERROR_CODE)
+    );
+    vi.mocked(pickLocatorInteractively).mockResolvedValueOnce(
+      "frameLocator('iframe[title=\"Checkout\"]').getByRole('button', { name: 'Pay now' })"
+    );
+    vi.mocked(input).mockResolvedValueOnce("click");
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173/checkout",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      device: "Pixel 5",
+      testIdAttribute: "data-qa",
+      loadStorage: ".auth/in.json",
+      saveStorage: ".auth/out.json",
+      improve: false,
+    });
+
+    expect(pickLocatorInteractively).toHaveBeenCalledWith({
+      url: "http://127.0.0.1:5173/checkout",
+      browser: "firefox",
+      device: "Pixel 5",
+      testIdAttribute: "data-qa",
+      loadStorage: ".auth/in.json",
+      saveStorage: ".auth/out.json",
+    });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining("sample.yaml"),
+      expect.stringContaining(
+        "value: \"frameLocator('iframe[title=\\\"Checkout\\\"]').getByRole('button', { name: 'Pay now' })\""
+      ),
+      "utf-8"
+    );
+    expect(ui.info).toHaveBeenCalledWith("Interactive Pick Locator fallback created (2 steps)");
+  });
+
   it("rethrows the original recorder error when manual fallback is declined", async () => {
     vi.mocked(record).mockRejectedValueOnce(
       new UserError("No interactions were recorded.", "iframe hint", RECORDER_NO_INTERACTIONS_ERROR_CODE)
     );
+    vi.mocked(pickLocatorInteractively).mockRejectedValueOnce(new Error("pick cancelled"));
     vi.mocked(confirm).mockResolvedValueOnce(false);
 
     await expect(

@@ -12,6 +12,7 @@ export interface ImproveProfileInput {
   assertionSource?: string;
   assertionPolicy?: string;
   report?: string;
+  loadStorage?: string;
 }
 
 export interface ResolvedImproveProfile {
@@ -21,6 +22,7 @@ export interface ResolvedImproveProfile {
   applySelectors: boolean;
   applyAssertions: boolean;
   reportPath?: string;
+  loadStorage?: string;
 }
 
 export function resolveImproveProfile(
@@ -41,6 +43,16 @@ export function resolveImproveProfile(
 
   if (input.report !== undefined) {
     profile.reportPath = input.report;
+  }
+  if (input.loadStorage !== undefined) {
+    const loadStorage = input.loadStorage.trim();
+    if (loadStorage.length === 0) {
+      throw new UserError(
+        "Invalid load storage path: empty path",
+        "Use --load-storage <path> with a non-empty path."
+      );
+    }
+    profile.loadStorage = loadStorage;
   }
 
   return profile;

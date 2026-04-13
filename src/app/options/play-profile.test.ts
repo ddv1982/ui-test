@@ -21,6 +21,7 @@ describe("resolvePlayProfile", () => {
       waitNetworkIdle: false,
       saveFailureArtifacts: false,
       artifactsDir: "./tmp-artifacts",
+      loadStorage: "  .auth/state.json  ",
       start: false,
     });
 
@@ -31,6 +32,7 @@ describe("resolvePlayProfile", () => {
     expect(out.shouldAutoStart).toBe(false);
     expect(out.saveFailureArtifacts).toBe(false);
     expect(out.artifactsDir).toBe("./tmp-artifacts");
+    expect(out.loadStorage).toBe(".auth/state.json");
   });
 
   it("uses defaults when values are missing", () => {
@@ -43,11 +45,13 @@ describe("resolvePlayProfile", () => {
     expect(out.testDir).toBe(PLAY_DEFAULT_TEST_DIR);
     expect(out.baseUrl).toBe(PLAY_DEFAULT_BASE_URL);
     expect(out.startCommand).toBe(PLAY_DEFAULT_START_COMMAND);
+    expect(out.loadStorage).toBeUndefined();
   });
 
   it("throws for invalid numeric CLI flags", () => {
     expect(() => resolvePlayProfile({ timeout: "abc" })).toThrow(UserError);
     expect(() => resolvePlayProfile({ delay: "-1" })).toThrow(UserError);
     expect(() => resolvePlayProfile({ artifactsDir: "   " })).toThrow(UserError);
+    expect(() => resolvePlayProfile({ loadStorage: "   " })).toThrow(UserError);
   });
 });

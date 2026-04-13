@@ -42,10 +42,13 @@ All command examples below assume either:
 | `--wait-network-idle` | off |
 | `--save-failure-artifacts` | on |
 | `--artifacts-dir <path>` | `.ui-test-artifacts` |
+| `--load-storage <path>` | none |
 | `--browser <name>` | chromium |
 | `--no-start` | off (auto-start enabled) |
 
 `testDir=e2e`, `baseUrl=http://127.0.0.1:5173`. Auto-start applies to `e2e/example.yaml` only.
+
+Use `--load-storage <path>` with `play` or `improve` to apply a Playwright storage state JSON file when replay or improve needs an existing signed-in session.
 
 See `ui-test <command> --help` or the workflow docs for all flags.
 

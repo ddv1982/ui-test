@@ -15,6 +15,7 @@ describe("resolveImproveProfile", () => {
       assertionSource: "snapshot-native",
       assertionPolicy: "reliable",
       report: "out.json",
+      loadStorage: "  .auth/state.json  ",
     });
 
     expect(out.assertions).toBe("none");
@@ -23,6 +24,7 @@ describe("resolveImproveProfile", () => {
     expect(out.applySelectors).toBe(true);
     expect(out.applyAssertions).toBe(true);
     expect(out.reportPath).toBe("out.json");
+    expect(out.loadStorage).toBe(".auth/state.json");
   });
 
   it("uses defaults when omitted", () => {
@@ -32,6 +34,7 @@ describe("resolveImproveProfile", () => {
     expect(out.assertionPolicy).toBe("balanced");
     expect(out.applySelectors).toBe(false);
     expect(out.applyAssertions).toBe(false);
+    expect(out.loadStorage).toBeUndefined();
   });
 
   it("--apply sets both applySelectors and applyAssertions to true", () => {
@@ -64,5 +67,6 @@ describe("improve-profile parsing", () => {
     expect(() => parseImproveAssertions("all")).toThrow(UserError);
     expect(() => parseImproveAssertionSource("auto")).toThrow(UserError);
     expect(() => parseImproveAssertionPolicy("strict")).toThrow(UserError);
+    expect(() => resolveImproveProfile({ loadStorage: "   " })).toThrow(UserError);
   });
 });

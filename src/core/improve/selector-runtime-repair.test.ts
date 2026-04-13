@@ -12,6 +12,15 @@ function locatorStub(input: { count: number }): Locator {
   } as unknown as Locator;
 }
 
+function normalizedLocatorStub(input: { count: number; normalized: string }): Locator {
+  return {
+    count: async () => input.count,
+    normalize: async () => ({
+      toString: () => input.normalized,
+    }),
+  } as unknown as Locator;
+}
+
 describe("generateRuntimeRepairCandidates", () => {
   it("generates runtime repair via public conversion for dynamic internal selectors", async () => {
     const result = await generateRuntimeRepairCandidates(
@@ -41,6 +50,46 @@ describe("generateRuntimeRepairCandidates", () => {
         candidateId: "repair-playwright-runtime-1",
         source: "public_conversion",
       },
+    ]);
+  });
+
+  it("prefers normalize() output when it resolves to a supported locator expression", async () => {
+    const result = await generateRuntimeRepairCandidates(
+      {
+        page: pageStub(),
+        target: {
+          value: 'internal:role=link[name="Winterweer update"i]',
+          kind: "internal",
+          source: "manual",
+        },
+        stepNumber: 11,
+      },
+      {
+        resolveLocatorFn: (_page, target) => {
+          const resolvedTarget = "action" in target ? target.target : target;
+          if (resolvedTarget.kind === "locatorExpression") {
+            expect(resolvedTarget.value).toBe(
+              "getByRole('link', { name: 'Winterweer update', exact: true })"
+            );
+          }
+          return normalizedLocatorStub({
+            count: 1,
+            normalized: "getByRole('link', { name: 'Winterweer update', exact: true })",
+          });
+        },
+      }
+    );
+
+    expect(result.candidates).toHaveLength(2);
+    expect(result.candidates[0]?.target.value).toBe(
+      "getByRole('link', { name: 'Winterweer update', exact: true })"
+    );
+    expect(result.candidates[1]?.target.value).toBe(
+      "getByRole('link', { name: 'Winterweer update' })"
+    );
+    expect(result.sourceMarkers).toEqual([
+      { candidateId: "repair-playwright-runtime-1", source: "normalize" },
+      { candidateId: "repair-playwright-runtime-2", source: "public_conversion" },
     ]);
   });
 
@@ -186,7 +235,11 @@ describe("generateRuntimeRepairCandidates", () => {
         stepNumber: 9,
       },
       {
-        resolveLocatorFn: () => locatorStub({ count: 1 }),
+        resolveLocatorFn: () =>
+          normalizedLocatorStub({
+            count: 1,
+            normalized: "getByRole('link', { name: 'Winterweer update' })",
+          }),
         toLocatorExpressionFromSelectorFn: () =>
           "getByRole('link', { name: 'Winterweer update' })",
       }
@@ -195,6 +248,36 @@ describe("generateRuntimeRepairCandidates", () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.sourceMarkers).toHaveLength(1);
     expect(result.sourceMarkers[0]?.candidateId).toBe("repair-playwright-runtime-1");
+    expect(result.sourceMarkers[0]?.source).toBe("normalize");
+  });
+
+  it("falls back to public conversion when normalize() does not yield a supported locator expression", async () => {
+    const result = await generateRuntimeRepairCandidates(
+      {
+        page: pageStub(),
+        target: {
+          value: 'internal:role=link[name="Winterweer update"i]',
+          kind: "internal",
+          source: "manual",
+        },
+        stepNumber: 12,
+      },
+      {
+        resolveLocatorFn: () =>
+          normalizedLocatorStub({
+            count: 1,
+            normalized: "internal:role=link[name=Winterweer update i]",
+          }),
+      }
+    );
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.target.value).toBe(
+      "getByRole('link', { name: 'Winterweer update' })"
+    );
+    expect(result.sourceMarkers).toEqual([
+      { candidateId: "repair-playwright-runtime-1", source: "public_conversion" },
+    ]);
   });
 
   it("derives dynamic signals from the target when they are not provided", async () => {

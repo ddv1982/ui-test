@@ -17,8 +17,9 @@ export function formatImproveProfileSummary(profile: {
   assertions: string;
   assertionSource: string;
   assertionPolicy: string;
+  loadStorage?: string;
 }): string {
-  return `Improve profile: applySelectors=${profile.applySelectors ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, assertionSource=${profile.assertionSource}, assertionPolicy=${profile.assertionPolicy}`;
+  return `Improve profile: applySelectors=${profile.applySelectors ? "yes" : "no"}, applyAssertions=${profile.applyAssertions ? "yes" : "no"}, assertions=${profile.assertions}, assertionSource=${profile.assertionSource}, assertionPolicy=${profile.assertionPolicy}, loadStorage=${profile.loadStorage ?? "(none)"}`;
 }
 
 export function formatPlayProfileSummary(profile: {
@@ -29,7 +30,8 @@ export function formatPlayProfileSummary(profile: {
   autoStart: boolean;
   saveFailureArtifacts: boolean;
   artifactsDir: string;
+  loadStorage?: string;
   browser: string;
 }): string {
-  return `Play profile: browser=${profile.browser}, headed=${profile.headed ? "yes" : "no"}, timeout=${profile.timeout}ms, delay=${profile.delayMs}ms, waitNetworkIdle=${profile.waitForNetworkIdle ? "yes" : "no"}, autoStart=${profile.autoStart ? "yes" : "no"}, saveFailureArtifacts=${profile.saveFailureArtifacts ? "yes" : "no"}, artifactsDir=${profile.artifactsDir}`;
+  return `Play profile: browser=${profile.browser}, headed=${profile.headed ? "yes" : "no"}, timeout=${profile.timeout}ms, delay=${profile.delayMs}ms, waitNetworkIdle=${profile.waitForNetworkIdle ? "yes" : "no"}, autoStart=${profile.autoStart ? "yes" : "no"}, saveFailureArtifacts=${profile.saveFailureArtifacts ? "yes" : "no"}, artifactsDir=${profile.artifactsDir}, loadStorage=${profile.loadStorage ?? "(none)"}`;
 }

@@ -24,6 +24,7 @@ export interface PlayProfileInput {
   start?: boolean;
   saveFailureArtifacts?: boolean;
   artifactsDir?: string;
+  loadStorage?: string;
   browser?: string;
 }
 
@@ -35,6 +36,7 @@ export interface ResolvedPlayProfile {
   shouldAutoStart: boolean;
   saveFailureArtifacts: boolean;
   artifactsDir: string;
+  loadStorage?: string;
   baseUrl: string;
   startCommand: string;
   testDir: string;
@@ -67,6 +69,7 @@ export function resolvePlayProfile(
 
   const waitForNetworkIdle = input.waitNetworkIdle ?? PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE;
   const artifactsDir = (input.artifactsDir ?? PLAY_DEFAULT_ARTIFACTS_DIR).trim();
+  const loadStorage = cleanOptionalPath(input.loadStorage, "load storage path", "--load-storage <path>");
   const browser = parseBrowserOption(input.browser);
 
   if (!artifactsDir) {
@@ -84,11 +87,28 @@ export function resolvePlayProfile(
     shouldAutoStart,
     saveFailureArtifacts,
     artifactsDir,
+    ...(loadStorage !== undefined ? { loadStorage } : {}),
     baseUrl: PLAY_DEFAULT_BASE_URL,
     startCommand: PLAY_DEFAULT_START_COMMAND,
     testDir: PLAY_DEFAULT_TEST_DIR,
     browser,
   };
+}
+
+function cleanOptionalPath(
+  input: string | undefined,
+  label: string,
+  hintFlag: string
+): string | undefined {
+  if (input === undefined) return undefined;
+  const value = input.trim();
+  if (value.length === 0) {
+    throw new UserError(
+      `Invalid ${label}: empty path`,
+      `Set a non-empty path with ${hintFlag}.`
+    );
+  }
+  return value;
 }
 
 function parseBrowserOption(input: string | undefined): PlaywrightBrowser {

@@ -13,6 +13,34 @@ const stepResultSchema = z.object({
   durationMs: z.number().int().nonnegative(),
 });
 
+const consoleMessageDiagnosticSchema = z.object({
+  type: z.string().min(1),
+  text: z.string(),
+  location: z
+    .object({
+      url: z.string(),
+      lineNumber: z.number().int().nonnegative(),
+      columnNumber: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+
+const pageErrorDiagnosticSchema = z.object({
+  message: z.string().min(1),
+  stack: z.string().optional(),
+});
+
+const failureDiagnosticsSchema = z
+  .object({
+    consoleMessages: z.array(consoleMessageDiagnosticSchema).optional(),
+    pageErrors: z.array(pageErrorDiagnosticSchema).optional(),
+  })
+  .refine(
+    (value) =>
+      (value.consoleMessages?.length ?? 0) > 0 || (value.pageErrors?.length ?? 0) > 0,
+    "Failure diagnostics must include at least one diagnostic entry"
+  );
+
 const playFailureReportSchema = z.object({
   schemaVersion: z.literal(PLAY_REPORT_SCHEMA_VERSION),
   generatedAt: z.string().datetime(),
@@ -33,6 +61,7 @@ const playFailureReportSchema = z.object({
     tracePath: z.string().min(1).optional(),
     screenshotPath: z.string().min(1).optional(),
   }),
+  diagnostics: failureDiagnosticsSchema.optional(),
   warnings: z.array(z.string()),
 });
 
@@ -69,6 +98,7 @@ const playRunReportSchema = z.object({
 export type PlayFailureReportStep = z.infer<typeof stepResultSchema>;
 export type PlayFailureReport = z.infer<typeof playFailureReportSchema>;
 export type PlayRunReport = z.infer<typeof playRunReportSchema>;
+export type PlayFailureDiagnostics = z.infer<typeof failureDiagnosticsSchema>;
 
 export interface PlayFailureArtifactPaths {
   artifactsRootDir: string;
@@ -141,6 +171,7 @@ export function buildPlayFailureReport(input: {
     tracePath?: string;
     screenshotPath?: string;
   };
+  diagnostics?: PlayFailureDiagnostics;
   warnings: string[];
   generatedAt?: string;
 }): PlayFailureReport {
@@ -156,6 +187,7 @@ export function buildPlayFailureReport(input: {
     failure: input.failure,
     steps: input.steps,
     artifacts: input.artifacts,
+    diagnostics: input.diagnostics,
     warnings: input.warnings,
   });
 }
@@ -182,4 +214,3 @@ async function writeJsonFile(filePath: string, data: unknown): Promise<void> {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 }
-

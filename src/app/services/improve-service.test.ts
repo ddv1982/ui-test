@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserError } from "../../utils/errors.js";
 
-vi.mock("node:fs/promises", () => ({
-  default: {
-    readFile: vi.fn(),
-    writeFile: vi.fn(),
-    mkdir: vi.fn(),
-  },
-}));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("node:fs/promises") & {
+    default: typeof import("node:fs/promises");
+  };
+  return {
+    ...actual,
+    default: {
+      ...actual.default,
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      mkdir: vi.fn(),
+    },
+  };
+});
 
 vi.mock("@inquirer/prompts", () => ({
   confirm: vi.fn(),
@@ -153,7 +160,7 @@ describe("runImprove confirm prompt", () => {
   });
 
   it("does not prompt when apply is true", async () => {
-    await runImprove("e2e/sample.yaml", { apply: true });
+    await runImprove("e2e/sample.yaml", { apply: true, loadStorage: ".auth/state.json" });
 
     expect(confirm).not.toHaveBeenCalled();
     expect(improveTestFile).toHaveBeenCalledWith(
@@ -161,6 +168,7 @@ describe("runImprove confirm prompt", () => {
         outputPath: expect.stringContaining("sample.improved.yaml"),
         applySelectors: true,
         applyAssertions: true,
+        loadStorage: ".auth/state.json",
         appliedBy: "manual_apply",
       })
     );

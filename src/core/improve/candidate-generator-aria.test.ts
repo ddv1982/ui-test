@@ -118,6 +118,28 @@ describe("generateAriaTargetCandidates", () => {
     expect(result.diagnostics[0]!.code).toBe("aria_snapshot_failed");
   });
 
+  it("uses a shallow aria snapshot and falls back to the legacy call shape", async () => {
+    const locator = {
+      ariaSnapshot: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Unsupported options"))
+        .mockResolvedValueOnce('- textbox "Email"'),
+      getAttribute: vi.fn().mockResolvedValue(null),
+      evaluate: vi.fn().mockResolvedValue({}),
+    };
+    const page = {
+      locator: vi.fn().mockReturnValue(locator),
+    } as any;
+
+    const result = await generateAriaTargetCandidates(page, cssTarget, new Set(), 1000);
+
+    expect(result.candidates.find((c) => c.reasonCodes.includes("aria_role_name"))?.target.value).toBe(
+      "getByRole('textbox', { name: 'Email' })"
+    );
+    expect(locator.ariaSnapshot).toHaveBeenNthCalledWith(1, { timeout: 1000, depth: 0 });
+    expect(locator.ariaSnapshot).toHaveBeenNthCalledWith(2, { timeout: 1000 });
+  });
+
   it("falls back to runtime attributes when ariaSnapshot is unavailable", async () => {
     const page = {
       locator: vi.fn().mockReturnValue({

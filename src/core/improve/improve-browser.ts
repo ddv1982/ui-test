@@ -2,11 +2,16 @@ import { chromium, type Browser, type Page } from "playwright";
 import { chromiumNotInstalledError, isLikelyMissingBrowser } from "../../utils/chromium-runtime.js";
 import { installCookieBannerDismisser } from "../runtime/cookie-banner.js";
 
-export async function launchImproveBrowser(): Promise<{ browser: Browser; page: Page }> {
+export async function launchImproveBrowser(options: {
+  loadStorage?: string;
+} = {}): Promise<{ browser: Browser; page: Page }> {
   let browser: Browser | undefined;
   try {
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
+    if (options.loadStorage !== undefined) {
+      await context.setStorageState(options.loadStorage);
+    }
     await installCookieBannerDismisser(context);
     const page = await context.newPage();
     return { browser, page };

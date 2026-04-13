@@ -125,7 +125,11 @@ export async function improveTestFile(options: ImproveOptions): Promise<ImproveR
   });
 
   const launched = executionPlan.needsBrowser
-    ? await launchImproveBrowser()
+    ? await launchImproveBrowser({
+        ...(effectiveOptions.loadStorage !== undefined
+          ? { loadStorage: effectiveOptions.loadStorage }
+          : {}),
+      })
     : undefined;
   const browser = launched?.browser;
   const page = launched?.page;

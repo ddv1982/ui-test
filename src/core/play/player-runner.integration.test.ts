@@ -98,6 +98,12 @@ async function writeInlineFixture(name: string, fixture: Record<string, unknown>
   return targetPath;
 }
 
+async function writeStorageStateFixture(name: string, storageState: Record<string, unknown>): Promise<string> {
+  const targetPath = join(tempDir, name);
+  await writeFile(targetPath, JSON.stringify(storageState), "utf-8");
+  return targetPath;
+}
+
 async function exists(pathToCheck: string): Promise<boolean> {
   try {
     await access(pathToCheck);
@@ -176,8 +182,64 @@ describe("player integration tests", () => {
     expect(failedStep?.error).toBeDefined();
   }, 30000);
 
+  it("applies load storage state to the replay context", async () => {
+    const testFile = await writeInlineFixture("storage-state.yaml", {
+      name: "Storage State Test",
+      baseUrl,
+      steps: [
+        { action: "navigate", url: "/storage-state.html" },
+        {
+          action: "assertText",
+          target: {
+            value: "#status",
+            kind: "css",
+            source: "manual",
+          },
+          text: "signed-in:alice",
+        },
+      ],
+    });
+    const loadStorage = await writeStorageStateFixture("storage-state.json", {
+      cookies: [],
+      origins: [
+        {
+          origin: baseUrl,
+          localStorage: [
+            {
+              name: "authUser",
+              value: "alice",
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await play(testFile, {
+      headed: false,
+      timeout: 5000,
+      loadStorage,
+    });
+
+    expect(result.passed).toBe(true);
+    expect(result.steps.every((step) => step.passed)).toBe(true);
+  }, 30000);
+
   it("saves failure report, trace, and screenshot when artifact capture is enabled", async () => {
-    const testFile = await prepareFixtureYaml("missing-element.yaml");
+    const testFile = await writeInlineFixture("missing-element-artifacts.yaml", {
+      name: "Missing Element Failure Artifacts",
+      baseUrl,
+      steps: [
+        { action: "navigate", url: "/failure-diagnostics.html" },
+        {
+          action: "click",
+          target: {
+            value: "#missing",
+            kind: "css",
+            source: "manual",
+          },
+        },
+      ],
+    });
     const artifactsDir = join(tempDir, "play-artifacts");
     const runId = "run-integration-failure-artifacts";
 
@@ -211,12 +273,31 @@ describe("player integration tests", () => {
       runId: string;
       failure: { stepIndex: number; action: string };
       artifacts: { tracePath?: string; screenshotPath?: string };
+      diagnostics?: {
+        consoleMessages?: Array<{ type: string; text: string }>;
+        pageErrors?: Array<{ message: string }>;
+      };
     };
     expect(parsed.runId).toBe(runId);
-    expect(parsed.failure.stepIndex).toBeGreaterThanOrEqual(0);
+    expect(parsed.failure.stepIndex).toBe(1);
     expect(parsed.failure.action).toBe("click");
     expect(parsed.artifacts.tracePath).toBe(tracePath);
     expect(parsed.artifacts.screenshotPath).toBe(screenshotPath);
+    expect(parsed.diagnostics?.consoleMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "error",
+          text: "integration console failure",
+        }),
+      ])
+    );
+    expect(parsed.diagnostics?.pageErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining("integration page failure"),
+        }),
+      ])
+    );
   }, 30000);
 
   it("does not save failure artifact files for passing runs", async () => {

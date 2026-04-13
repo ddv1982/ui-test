@@ -63,6 +63,20 @@ Open a saved trace:
 npx playwright show-trace .ui-test-artifacts/runs/<runId>/tests/<testSlug>/trace.zip
 ```
 
+## Stored Session Not Applied In `play` Or `improve`
+
+If replay or improve needs an existing signed-in session, pass a Playwright storage state JSON file explicitly:
+
+```bash
+ui-test play e2e/account.yaml --load-storage .auth/state.json
+ui-test improve e2e/account.yaml --apply --load-storage .auth/state.json
+```
+
+If the session still is not present:
+1. Verify the file path is correct and readable.
+2. Regenerate the storage state JSON if it is stale.
+3. Re-run with the same `--load-storage <path>` value on both `play` and `improve`.
+
 ## Recorder Produces No Interactions
 
 - Ensure you actually click/type/interact before closing the recording session.

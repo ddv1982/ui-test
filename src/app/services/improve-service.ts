@@ -29,6 +29,7 @@ export interface ImproveCliOptions {
   plan?: boolean;
   applyPlan?: string;
   report?: string;
+  loadStorage?: string;
   output?: string;
   inPlace?: boolean;
 }
@@ -96,6 +97,7 @@ export async function runImprove(
       assertions: profile.assertions,
       assertionSource: profile.assertionSource,
       assertionPolicy: profile.assertionPolicy,
+      ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
     })
   );
 
@@ -107,6 +109,7 @@ export async function runImprove(
     assertions: profile.assertions,
     assertionSource: profile.assertionSource,
     assertionPolicy: profile.assertionPolicy,
+    ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
     appliedBy: (
       profile.applySelectors || profile.applyAssertions
         ? "manual_apply"

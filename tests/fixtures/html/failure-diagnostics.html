@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      console.error("integration console failure");
+      setTimeout(() => {
+        throw new Error("integration page failure");
+      }, 0);
+    </script>
+    <button id="present">Present</button>
+  </body>
+</html>
