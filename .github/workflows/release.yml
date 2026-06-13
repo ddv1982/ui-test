@@ -46,8 +46,12 @@ jobs:
           set -euo pipefail
           tarball="$(npm pack --silent)"
           shasum -a 256 "$tarball" > "$tarball.sha256"
+          cp "$tarball" ui-test-latest.tgz
+          shasum -a 256 ui-test-latest.tgz > ui-test-latest.tgz.sha256
           printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
           printf 'checksum=%s.sha256\n' "$tarball" >> "$GITHUB_OUTPUT"
+          printf 'latest_tarball=ui-test-latest.tgz\n' >> "$GITHUB_OUTPUT"
+          printf 'latest_checksum=ui-test-latest.tgz.sha256\n' >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifact
         env:
@@ -56,4 +60,6 @@ jobs:
           gh release upload "$GITHUB_REF_NAME" \
             "${{ steps.pack.outputs.tarball }}" \
             "${{ steps.pack.outputs.checksum }}" \
+            "${{ steps.pack.outputs.latest_tarball }}" \
+            "${{ steps.pack.outputs.latest_checksum }}" \
             --clobber

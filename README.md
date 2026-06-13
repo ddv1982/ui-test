@@ -15,11 +15,17 @@ npm run setup
 npx -y github:ddv1982/ui-test setup --browsers chromium
 ```
 
-Until `ui-test` is published to npm, use the one-off GitHub invocation above instead of a raw git global install.
+**Install latest GitHub Release globally:**
+```bash
+tmp="$(mktemp -d)" && curl -fsSL https://github.com/ddv1982/ui-test/releases/latest/download/ui-test-latest.tgz -o "$tmp/ui-test.tgz" && npm install -g "$tmp/ui-test.tgz" && ui-test setup --browsers chromium
+```
+
+Until `ui-test` is published to npm, use the one-off GitHub invocation or the GitHub Release tarball above instead of a raw git global install.
 
 All command examples below assume either:
 - a local repository checkout (`npm run setup`), or
-- the one-off `npx -y github:ddv1982/ui-test ...` invocation.
+- the one-off `npx -y github:ddv1982/ui-test ...` invocation,
+- or a global install from the latest GitHub Release tarball.
 
 ## Core Commands
 
