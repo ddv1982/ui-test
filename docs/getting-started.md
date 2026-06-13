@@ -4,7 +4,7 @@ This guide is for first-time `ui-test` users.
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20.12+
 - npm
 
 ## Pick Your Entry Path
@@ -37,9 +37,11 @@ ui-test setup --browsers chromium
 ui-test setup --browsers chromium --run-play
 ```
 
+`--run-play` replays `e2e/example.yaml` after setup, so create that file first using the sample below.
+
 ## Test File Format
 
-Test files are YAML documents in the `e2e/` directory. Here is `e2e/example.yaml`:
+Test files are YAML documents in the `e2e/` directory. Create `e2e/example.yaml` with this content to use the built-in example app auto-start path:
 
 ```yaml
 name: Example Test
@@ -110,7 +112,7 @@ If your app is already running and you do not want auto-start:
 ui-test play --no-start
 ```
 
-Auto-start launches the built-in example app for `e2e/example.yaml` only.
+Auto-start launches the built-in example app only when you run a user-created `e2e/example.yaml`.
 
 If replay needs an existing signed-in session, preload a Playwright storage state JSON file:
 

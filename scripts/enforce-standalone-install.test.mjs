@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { getStandaloneInstallBlockMessage } from "./enforce-standalone-install.mjs";
+
+const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
 
 describe("enforce-standalone-install", () => {
   it("allows npm exec/npx one-off invocations", () => {
@@ -52,5 +56,17 @@ describe("enforce-standalone-install", () => {
     expect(message).toContain("Install ui-test globally (see README.md)");
     expect(message).toContain("For one-off usage, see README.md");
     expect(message).toContain("npm uninstall ui-test");
+  });
+
+  it("package preinstall uses the tested policy entrypoint", () => {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+    expect(packageJson.scripts.preinstall).toBe(
+      "node ./scripts/enforce-standalone-install.mjs"
+    );
+  });
+
+  it("package is private to prevent accidental npm registry publishing", () => {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+    expect(packageJson.private).toBe(true);
   });
 });

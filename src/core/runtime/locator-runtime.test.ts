@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Page } from "playwright";
 import type { Target } from "../yaml-schema.js";
-import { resolveLocator } from "./locator-runtime.js";
+import { resolveActionLocator, resolveLocator } from "./locator-runtime.js";
 
-function createMockLocator(label?: string) {
+function createMockLocator(label?: string, count = 1) {
   const mockLocator: Record<string, unknown> = {
     click: vi.fn(),
     waitFor: vi.fn(),
     locator: vi.fn(),
     or: vi.fn(),
+    count: vi.fn(async () => count),
     _label: label ?? "primary",
   };
   // .or() returns a new mock locator representing the chained result
@@ -19,10 +20,10 @@ function createMockLocator(label?: string) {
   return mockLocator;
 }
 
-function createMockPage() {
-  const primary = createMockLocator("primary");
-  const fallback1 = createMockLocator("fallback1");
-  const fallback2 = createMockLocator("fallback2");
+function createMockPage(counts: Partial<Record<"primary" | "fallback1" | "fallback2", number>> = {}) {
+  const primary = createMockLocator("primary", counts.primary ?? 1);
+  const fallback1 = createMockLocator("fallback1", counts.fallback1 ?? 1);
+  const fallback2 = createMockLocator("fallback2", counts.fallback2 ?? 1);
 
   const page = {
     locator: vi.fn((selector: string) => {
@@ -70,7 +71,7 @@ describe("resolveLocator", () => {
     expect(result).toBe(primary);
   });
 
-  it("chains a single fallback with .or()", () => {
+  it("resolveLocator ignores fallbacks and returns the primary locator", () => {
     const { page, primary } = createMockPage();
     const target: Target = {
       value: "#primary",
@@ -82,11 +83,11 @@ describe("resolveLocator", () => {
     };
 
     const result = resolveLocator(page, target);
-    expect(primary.or).toHaveBeenCalledOnce();
-    expect(result).not.toBe(primary); // should be the chained result
+    expect(primary.or).not.toHaveBeenCalled();
+    expect(result).toBe(primary);
   });
 
-  it("chains two fallbacks with sequential .or() calls", () => {
+  it("resolveActionLocator returns primary when it has matches", async () => {
     const { page, primary } = createMockPage();
     const target: Target = {
       value: "#primary",
@@ -98,9 +99,41 @@ describe("resolveLocator", () => {
       ],
     };
 
-    resolveLocator(page, target);
-    // primary.or() called once with fallback1, then the chained result.or() called with fallback2
-    expect(primary.or).toHaveBeenCalledOnce();
+    const result = await resolveActionLocator(page, target);
+    expect(result).toBe(primary);
+    expect(primary.or).not.toHaveBeenCalled();
+  });
+
+  it("resolveActionLocator uses the first matching fallback when primary has no matches", async () => {
+    const { page, fallback2 } = createMockPage({ primary: 0, fallback1: 0, fallback2: 1 });
+    const target: Target = {
+      value: "#primary",
+      kind: "css",
+      source: "manual",
+      fallbacks: [
+        { value: "#fallback1", kind: "css", source: "manual" },
+        { value: "#fallback2", kind: "css", source: "manual" },
+      ],
+    };
+
+    const result = await resolveActionLocator(page, target);
+    expect(result).toBe(fallback2);
+  });
+
+  it("resolveActionLocator falls back to primary when no fallback matches", async () => {
+    const { page, primary } = createMockPage({ primary: 0, fallback1: 0, fallback2: 0 });
+    const target: Target = {
+      value: "#primary",
+      kind: "css",
+      source: "manual",
+      fallbacks: [
+        { value: "#fallback1", kind: "css", source: "manual" },
+        { value: "#fallback2", kind: "css", source: "manual" },
+      ],
+    };
+
+    const result = await resolveActionLocator(page, target);
+    expect(result).toBe(primary);
   });
 
   it("skips invalid fallback locator expressions gracefully", () => {
@@ -120,8 +153,8 @@ describe("resolveLocator", () => {
     expect(primary.or).not.toHaveBeenCalled();
   });
 
-  it("chains valid fallback even if another fallback is invalid", () => {
-    const { page, primary } = createMockPage();
+  it("resolveActionLocator skips invalid fallback expressions", async () => {
+    const { page, fallback2 } = createMockPage({ primary: 0, fallback2: 1 });
     const target: Target = {
       value: "#primary",
       kind: "css",
@@ -132,10 +165,8 @@ describe("resolveLocator", () => {
       ],
     };
 
-    const result = resolveLocator(page, target);
-    // First fallback fails silently, second succeeds
-    expect(primary.or).toHaveBeenCalledOnce();
-    expect(result).not.toBe(primary);
+    const result = await resolveActionLocator(page, target);
+    expect(result).toBe(fallback2);
   });
 
   it("resolves locator expressions", () => {

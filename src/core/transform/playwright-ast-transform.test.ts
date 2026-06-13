@@ -56,6 +56,45 @@ describe("playwrightCodeToSteps", () => {
     expect(steps).toEqual([{ action: "navigate", url: "https://example.com" }]);
   });
 
+  it("does not duplicate steps inside test.describe containers", () => {
+    const code = `
+      import { test } from '@playwright/test';
+      test.describe('suite', () => {
+        test('x', async ({ page }) => {
+          await page.goto('https://example.com');
+        });
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps).toEqual([{ action: "navigate", url: "https://example.com" }]);
+  });
+
+  it("skips steps with dynamic string arguments instead of serializing source text", () => {
+    const code = `
+      import { test, expect } from '@playwright/test';
+      test('x', async ({ page }) => {
+        await page.goto(BASE_URL);
+        await page.getByLabel('Email').fill(user.email);
+        await page.getByRole('button', { name: 'Save' }).click();
+        await expect(page.locator('#status')).toContainText(expectedText);
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps).toEqual([
+      {
+        action: "click",
+        target: {
+          value: "getByRole('button', { name: 'Save' })",
+          kind: "locatorExpression",
+          source: "codegen",
+          confidence: 0.9,
+        },
+      },
+    ]);
+  });
+
   it("parses fill, press, check, uncheck, hover, selectOption actions", () => {
     const code = `
       import { test } from '@playwright/test';

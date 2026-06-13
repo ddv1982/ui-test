@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const MIN_NODE_MAJOR = 18;
+const MIN_NODE_MAJOR = 20;
+const MIN_NODE_MINOR = 12;
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 
@@ -20,10 +21,17 @@ function main() {
 }
 
 function ensureNodeVersion() {
-  const major = Number(process.versions.node.split(".")[0] ?? "0");
-  if (!Number.isInteger(major) || major < MIN_NODE_MAJOR) {
+  const [majorRaw, minorRaw] = process.versions.node.split(".");
+  const major = Number(majorRaw ?? "0");
+  const minor = Number(minorRaw ?? "0");
+  if (
+    !Number.isInteger(major) ||
+    !Number.isInteger(minor) ||
+    major < MIN_NODE_MAJOR ||
+    (major === MIN_NODE_MAJOR && minor < MIN_NODE_MINOR)
+  ) {
     throw new Error(
-      `Node.js ${MIN_NODE_MAJOR}+ is required. Current version: ${process.versions.node}`
+      `Node.js ${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}+ is required. Current version: ${process.versions.node}`
     );
   }
 }

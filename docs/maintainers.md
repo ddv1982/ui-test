@@ -16,6 +16,7 @@ npm run test:flake:soak
 npm run test:coverage
 npm run build
 npm run test:smoke
+npm run quality:release
 ```
 
 `npm test` includes architecture boundary checks (see `src/architecture/layer-boundaries.test.ts`).
@@ -26,37 +27,57 @@ Optional strictness ratchet for tests:
 npm run typecheck:test
 ```
 
-`typecheck:test` is currently non-blocking in CI.
+Run `typecheck:test` before release changes that touch tests or test-only helpers.
 
 ## Packaging Validation
 
-Before publishing/consuming from a repo branch:
+Before creating or consuming a packaged release artifact:
 
 ```bash
 npm run build
+npm run pack:check:silent
+npm run global-install:dry-run
+npm run global-install:smoke
 npm run test:smoke
 ```
 
 Release preflight:
 
 ```bash
-npm pack --dry-run
+npm run quality:release
 ```
 
-## CI Runner
+The package is marked `private: true` to prevent accidental publication to the public npm registry. Releases are distributed as GitHub Release `.tgz` assets built with `npm pack`.
 
-Workflows run on GitHub-hosted `ubuntu-latest` runners.
+## Release Process
 
-Primary CI workflow (`.github/workflows/ci.yml`) has these jobs:
+1. Bump `package.json` and `package-lock.json` together in a release PR.
+2. Merge the release PR after CI passes.
+3. Create and publish a GitHub Release from `main` using tag `vX.Y.Z`, where `X.Y.Z` matches `package.json`.
+4. The `Release` workflow validates the tag with `npm run release:assert-tag`, runs `npm run quality:release`, packs the project, generates a SHA-256 checksum, and uploads both files to the GitHub Release.
 
-- `quality-ci`: runs as a Node `20`/`22` matrix, installs Chromium, runs `npm run quality:ci`, then `npm run test:coverage`.
-- `headed-parity`: installs Chromium, runs `xvfb-run -a npm run test:parity:headed`; suite resolution fails fast if configured parity suites resolve to zero files.
-- `build`: runs as a Node `20`/`22` matrix and executes `npm run build`, `npm run typecheck:prod`, and packaging/install dry-run checks.
-- `consumer-smoke`: runs `npm run test:smoke` after `quality-ci`, `headed-parity`, and `build` succeed.
+The release workflow does not run `npm publish` and does not require npm registry credentials. Configure the `github-release` environment in GitHub repository settings if you want required reviewer approval before release assets are built and uploaded.
+
+To check a tag locally before publishing a release:
+
+```bash
+GITHUB_REF_NAME=v0.1.0 npm run release:assert-tag
+```
+
+## CI Workflows
+
+This repository ships GitHub Actions workflows under `.github/workflows`:
+
+- `CI`: runs on pull requests, pushes to `main`, and manual dispatch. It tests Node `20.12.x`, `22.x`, and `24.x`, provisions Chromium through `npm run setup`, runs `npm run quality:ci`, runs coverage once on Node `24.x`, runs headed parity under `xvfb-run`, validates build/package/install smoke across the Node matrix, and finishes with `npm run test:smoke`.
+- `Release`: runs when a GitHub Release is published. It builds from the release tag, validates the tag/version match, runs the full release gate, packs the project, and uploads the tarball plus `.sha256` checksum to the release.
+
+Recommended future CI coverage:
+
+- Add release artifact provenance/attestations if this repository starts distributing externally.
 
 Optional soak workflow:
 
-- `.github/workflows/flake-soak.yml`: scheduled/manual multi-iteration integration soak; uploads JSON failure-rate report artifact.
+- A scheduled/manual multi-iteration integration soak that runs `npm run test:flake:soak` and uploads the JSON failure-rate report artifact.
 
 ## Recorder Architecture Note
 

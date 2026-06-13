@@ -454,6 +454,21 @@ describe("runImprove plan/apply-plan modes", () => {
     expect(serializedPlan).toContain('"assertionCandidates"');
   });
 
+  it("passes load storage through in --plan mode", async () => {
+    await runImprove("e2e/sample.yaml", {
+      plan: true,
+      loadStorage: ".auth/state.json",
+    });
+
+    expect(improveTestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dryRunWrite: true,
+        includeProposedTest: true,
+        loadStorage: ".auth/state.json",
+      })
+    );
+  });
+
   it("generates deterministic candidate and diagnostic ordering in plan mode", async () => {
     vi.mocked(improveTestFile).mockResolvedValue({
       reportPath: "e2e/sample.improve-report.json",

@@ -58,15 +58,16 @@ export interface RecordCliOptions {
 export async function runRecord(opts: RecordCliOptions): Promise<void> {
   if (opts.fromFile) {
     const imported = await importRecordFromFile(opts);
+    const profile = resolveRecordProfile(opts);
     if (opts.improve !== false) {
       try {
-        await runAutoImprove(imported.outputPath, imported.improveMode);
+        await runAutoImprove(imported.outputPath, imported.improveMode, profile.loadStorage);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         ui.warn("Auto-improve failed: " + message);
         ui.warn(
           "You can run it manually: " +
-            buildManualImproveCommand(imported.outputPath, imported.improveMode)
+            buildManualImproveCommand(imported.outputPath, imported.improveMode, profile.loadStorage)
         );
       }
     }
@@ -192,13 +193,21 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
       if (fallback) {
         if (opts.improve !== false) {
           try {
-            await runAutoImprove(fallback.outputPath, profile.improveMode);
+            await runAutoImprove(
+              fallback.outputPath,
+              profile.improveMode,
+              resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
+            );
           } catch (improveErr) {
             const message = improveErr instanceof Error ? improveErr.message : String(improveErr);
             ui.warn("Auto-improve failed: " + message);
             ui.warn(
               "You can run it manually: " +
-                buildManualImproveCommand(fallback.outputPath, profile.improveMode)
+                buildManualImproveCommand(
+                  fallback.outputPath,
+                  profile.improveMode,
+                  resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
+                )
             );
           }
         }
@@ -215,16 +224,31 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
 
   if (opts.improve !== false) {
     try {
-      await runAutoImprove(result.outputPath, profile.improveMode);
+      await runAutoImprove(
+        result.outputPath,
+        profile.improveMode,
+        resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       ui.warn("Auto-improve failed: " + message);
       ui.warn(
         "You can run it manually: " +
-          buildManualImproveCommand(result.outputPath, profile.improveMode)
+          buildManualImproveCommand(
+            result.outputPath,
+            profile.improveMode,
+            resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
+          )
       );
     }
   }
+}
+
+function resolveAutoImproveStorage(
+  loadStorage: string | undefined,
+  saveStorage: string | undefined
+): string | undefined {
+  return saveStorage ?? loadStorage;
 }
 
 async function maybeCreateInteractivePickFallback(options: {
@@ -406,7 +430,8 @@ function isNoInteractionsError(err: unknown): err is UserError {
 
 async function runAutoImprove(
   testFile: string,
-  improveMode: RecordImproveMode
+  improveMode: RecordImproveMode,
+  loadStorage?: string
 ): Promise<void> {
   if (improveMode === "off") {
     return;
@@ -426,6 +451,7 @@ async function runAutoImprove(
     assertions: improveProfile.assertions,
     assertionSource: improveProfile.assertionSource,
     assertionPolicy: improveProfile.assertionPolicy,
+    ...(loadStorage !== undefined ? { loadStorage } : {}),
     appliedBy,
   });
   const determinismVerdict = formatDeterminismVerdict(improveResult.report.determinism);
@@ -509,10 +535,12 @@ function resolveDefaultImproveOutputPath(testFile: string): string {
 
 function buildManualImproveCommand(
   testFile: string,
-  improveMode: RecordImproveMode
+  improveMode: RecordImproveMode,
+  loadStorage?: string
 ): string {
   const absolutePath = path.resolve(testFile);
   const improveProfile = resolveRecordAutoImproveProfile(improveMode);
+  const storageArg = loadStorage === undefined ? "" : ` --load-storage ${loadStorage}`;
   const profileArgs = [
     `--assertions ${improveProfile.assertions}`,
     `--assertion-source ${improveProfile.assertionSource}`,
@@ -520,7 +548,7 @@ function buildManualImproveCommand(
   ].join(" ");
   if (improveMode === "apply") {
     const planPath = absolutePath.replace(/(\.[^.]+)?$/, ".improve-plan.json");
-    return `ui-test improve ${absolutePath} ${profileArgs} --plan && ui-test improve ${absolutePath} --apply-plan ${planPath}`;
+    return `ui-test improve ${absolutePath} ${profileArgs}${storageArg} --plan && ui-test improve ${absolutePath} --apply-plan ${planPath}`;
   }
-  return `ui-test improve ${absolutePath} ${profileArgs} --no-apply`;
+  return `ui-test improve ${absolutePath} ${profileArgs}${storageArg} --no-apply`;
 }

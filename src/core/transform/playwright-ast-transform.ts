@@ -86,7 +86,7 @@ function isTestCallCallee(callee: unknown): boolean {
     callee.object.name === "test" &&
     isIdentifier(callee.property)
   ) {
-    return true;
+    return callee.property.name === "only";
   }
 
   return false;
@@ -97,8 +97,8 @@ function awaitedCallToStep(call: CallExpressionNode, source: string): Step | nul
   const methodName = call.callee.property.name;
 
   if (methodName === "goto") {
-    const url = firstStringArgument(call.arguments, source);
-    if (!url) return null;
+    const url = firstStringArgument(call.arguments);
+    if (url === null || url.length === 0) return null;
     return { action: "navigate", url };
   }
 
@@ -111,16 +111,22 @@ function awaitedCallToStep(call: CallExpressionNode, source: string): Step | nul
     if (methodName === "uncheck") return { action: "uncheck", target };
     if (methodName === "hover") return { action: "hover", target };
     if (methodName === "fill") {
-      return { action: "fill", target, text: firstStringArgument(call.arguments, source) ?? "" };
+      const text = firstStringArgument(call.arguments);
+      if (text === null) return null;
+      return { action: "fill", target, text };
     }
     if (methodName === "press") {
-      return { action: "press", target, key: firstStringArgument(call.arguments, source) ?? "" };
+      const key = firstStringArgument(call.arguments);
+      if (key === null) return null;
+      return { action: "press", target, key };
     }
     if (methodName === "selectOption") {
+      const value = extractSelectOptionValue(call.arguments[0]);
+      if (value === null) return null;
       return {
         action: "select",
         target,
-        value: extractSelectOptionValue(call.arguments[0], source),
+        value,
       };
     }
   }
@@ -160,18 +166,22 @@ function expectCallToStep(call: CallExpressionNode, source: string): Step | null
   }
 
   if ((assertionName === "toContainText" || assertionName === "toHaveText") && !negated) {
+    const text = firstStringArgument(call.arguments);
+    if (text === null) return null;
     return {
       action: "assertText",
       target: expectedTarget,
-      text: firstStringArgument(call.arguments, source) ?? "",
+      text,
     };
   }
 
   if (assertionName === "toHaveValue" && !negated) {
+    const value = firstStringArgument(call.arguments);
+    if (value === null) return null;
     return {
       action: "assertValue",
       target: expectedTarget,
-      value: firstStringArgument(call.arguments, source) ?? "",
+      value,
     };
   }
 
@@ -226,7 +236,7 @@ function normalizeFrameAwareTarget(expression: unknown, source: string): Target 
     if (!segment) break;
 
     if (segment.method === "frameLocator") {
-      const frameSelector = firstStringArgument(segment.call.arguments, source);
+      const frameSelector = firstStringArgument(segment.call.arguments);
       if (!frameSelector) return null;
       framePath.push(frameSelector);
       terminalStartIndex += 1;
@@ -238,7 +248,7 @@ function normalizeFrameAwareTarget(expression: unknown, source: string): Target 
       terminalStartIndex + 1 < chain.length &&
       chain[terminalStartIndex + 1]?.method === "contentFrame"
     ) {
-      const frameSelector = firstStringArgument(segment.call.arguments, source);
+      const frameSelector = firstStringArgument(segment.call.arguments);
       if (!frameSelector) return null;
       framePath.push(frameSelector);
       terminalStartIndex += 2;
@@ -315,7 +325,7 @@ function flattenCallChain(expression: CallExpressionNode):
   return null;
 }
 
-function firstStringArgument(argumentsList: unknown, source: string): string | null {
+function firstStringArgument(argumentsList: unknown): string | null {
   if (!isUnknownArray(argumentsList) || argumentsList.length === 0) return null;
   const first = argumentsList[0];
   if (!first || typeof first !== "object") return null;
@@ -337,31 +347,23 @@ function firstStringArgument(argumentsList: unknown, source: string): string | n
     return firstQuasi?.["value"]?.["cooked"] ?? null;
   }
 
-  if (typeof firstNode.start === "number" && typeof firstNode.end === "number") {
-    const raw = source.slice(firstNode.start, firstNode.end).trim();
-    if (raw.startsWith("'") || raw.startsWith('"') || raw.startsWith("`")) {
-      return raw.slice(1, -1);
-    }
-    return raw;
-  }
-
   return null;
 }
 
-function extractSelectOptionValue(argument: unknown, source: string): string {
-  if (!argument || typeof argument !== "object") return "";
+function extractSelectOptionValue(argument: unknown): string | null {
+  if (!argument || typeof argument !== "object") return null;
   const node = argument as AstNode;
 
   if (node.type === "Literal" && node["value"] !== null) {
-    return stringifyLiteralValue(node["value"]) ?? "";
+    return stringifyLiteralValue(node["value"]);
   }
 
   if (node.type === "ArrayExpression" && Array.isArray(node["elements"])) {
     const first = node["elements"][0] as AstNode | undefined;
     if (first?.type === "Literal" && first["value"] !== null) {
-      return stringifyLiteralValue(first["value"]) ?? "";
+      return stringifyLiteralValue(first["value"]);
     }
-    return "";
+    return null;
   }
 
   if (node.type === "ObjectExpression" && Array.isArray(node["properties"])) {
@@ -377,12 +379,9 @@ function extractSelectOptionValue(argument: unknown, source: string): string {
 
     const valueNode = prop?.["value"] as AstNode | undefined;
     if (valueNode?.type === "Literal" && valueNode["value"] !== null) {
-      return stringifyLiteralValue(valueNode["value"]) ?? "";
+      return stringifyLiteralValue(valueNode["value"]);
     }
   }
 
-  if (typeof node.start === "number" && typeof node.end === "number") {
-    return source.slice(node.start, node.end).trim();
-  }
-  return "";
+  return null;
 }

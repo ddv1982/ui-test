@@ -82,9 +82,9 @@ async function runExampleApp(opts: ExampleAppOptions) {
 
 async function serveExampleAsset(requestPath: string, res: ServerResponse): Promise<void> {
   const normalizedPath = normalizeRequestPath(requestPath);
-  const filePath = path.join(APP_DIR, normalizedPath);
+  const filePath = resolveExampleAssetPath(normalizedPath);
 
-  if (!filePath.startsWith(APP_DIR)) {
+  if (!filePath) {
     writeResponse(res, 400, "text/plain; charset=utf-8", "Bad request");
     return;
   }
@@ -115,6 +115,15 @@ function normalizeRequestPath(requestPath: string): string {
   return cleaned.replace(/^\/+/, "");
 }
 
+function resolveExampleAssetPath(normalizedPath: string, appDir = APP_DIR): string | null {
+  const filePath = path.resolve(appDir, normalizedPath);
+  const relativePath = path.relative(appDir, filePath);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return null;
+  }
+  return filePath;
+}
+
 function writeResponse(
   res: ServerResponse,
   statusCode: number,
@@ -138,7 +147,7 @@ function parseExampleAppOptions(value: unknown): ExampleAppOptions {
   return out;
 }
 
-export { runExampleApp, normalizeRequestPath };
+export { runExampleApp, normalizeRequestPath, resolveExampleAssetPath };
 
 interface RawExampleAppOptions {
   host?: unknown;

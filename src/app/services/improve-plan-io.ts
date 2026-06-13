@@ -32,6 +32,7 @@ interface ImprovePlanProfile {
   applySelectors: boolean;
   applyAssertions: boolean;
   reportPath?: string;
+  loadStorage?: string;
 }
 
 interface ImproveWriteTarget {
@@ -52,6 +53,7 @@ export async function generateImprovePlan(
       assertions,
       assertionSource,
       assertionPolicy,
+      ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
     })
   );
 
@@ -67,6 +69,7 @@ export async function generateImprovePlan(
           dryRunWrite: true,
           includeProposedTest: true,
           appliedBy: "plan_preview",
+          ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
         }
       : {
           testFile,
@@ -78,6 +81,7 @@ export async function generateImprovePlan(
           dryRunWrite: true,
           includeProposedTest: true,
           appliedBy: "plan_preview",
+          ...(profile.loadStorage !== undefined ? { loadStorage: profile.loadStorage } : {}),
           reportPath: profile.reportPath,
         }
   );

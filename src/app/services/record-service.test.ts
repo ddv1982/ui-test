@@ -171,6 +171,41 @@ describe("runRecord auto-improve", () => {
     });
   });
 
+  it("passes recording storage state to auto-improve", async () => {
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      loadStorage: ".auth/in.json",
+    });
+
+    expect(improveTestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        loadStorage: ".auth/in.json",
+      })
+    );
+  });
+
+  it("prefers saved storage state for auto-improve", async () => {
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      loadStorage: ".auth/in.json",
+      saveStorage: ".auth/out.json",
+    });
+
+    expect(improveTestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        loadStorage: ".auth/out.json",
+      })
+    );
+  });
+
   it("supports explicit auto-improve report mode", async () => {
     await runRecord({
       name: "sample",
@@ -581,6 +616,25 @@ describe("runRecord auto-improve", () => {
     );
   });
 
+  it("includes storage state in manual retry hint when auto-improve fails", async () => {
+    vi.mocked(improveTestFile).mockRejectedValue(new Error("browser crashed"));
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      saveStorage: ".auth/out.json",
+    });
+
+    expect(ui.warn).toHaveBeenCalledWith(
+      "You can run it manually: ui-test improve " +
+        path.resolve("e2e/sample.yaml") +
+        " --assertions candidates --assertion-source deterministic --assertion-policy reliable --load-storage .auth/out.json --no-apply"
+    );
+  });
+
   it("preserves apply mode in the manual retry hint when auto-improve apply fails", async () => {
     vi.mocked(improveTestFile).mockRejectedValue(new Error("browser crashed"));
 
@@ -784,13 +838,18 @@ describe("runRecordFromFile", () => {
   });
 
   it("runs from-file auto-improve in report mode by default", async () => {
-    await runRecord({ fromFile: "/tmp/recording.json", improveMode: "report" });
+    await runRecord({
+      fromFile: "/tmp/recording.json",
+      improveMode: "report",
+      loadStorage: ".auth/state.json",
+    });
 
     expect(improveTestFile).toHaveBeenCalledWith(
       expect.objectContaining({
         applySelectors: false,
         applyAssertions: false,
         assertionSource: "deterministic",
+        loadStorage: ".auth/state.json",
         appliedBy: "report_only",
       })
     );

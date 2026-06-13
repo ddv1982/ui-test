@@ -13,7 +13,40 @@ export function resolveLocator(
   const target = "action" in targetOrStep ? targetOrStep.target : targetOrStep;
   const context = resolveLocatorContext(page, target.framePath);
 
-  let primary: Locator;
+  return resolveTargetLocator(context, target);
+}
+
+export async function resolveActionLocator(
+  page: Page,
+  targetOrStep: Target | TargetStep
+): Promise<Locator> {
+  const target = "action" in targetOrStep ? targetOrStep.target : targetOrStep;
+  const context = resolveLocatorContext(page, target.framePath);
+  const primary = resolveTargetLocator(context, target);
+
+  if (!target.fallbacks || target.fallbacks.length === 0) {
+    return primary;
+  }
+
+  if (await locatorHasMatches(primary)) {
+    return primary;
+  }
+
+  for (const fallback of target.fallbacks) {
+    try {
+      const fallbackLocator = resolveTargetLocator(context, fallback);
+      if (await locatorHasMatches(fallbackLocator)) {
+        return fallbackLocator;
+      }
+    } catch {
+      // Skip invalid fallback silently - primary locator is still valid.
+    }
+  }
+
+  return primary;
+}
+
+function resolveTargetLocator(context: LocatorContext, target: Target): Locator {
   if (target.kind === "locatorExpression") {
     const resolved = evaluateLocatorExpression(context, target.value);
     if (!isPlaywrightLocator(resolved)) {
@@ -22,30 +55,18 @@ export function resolveLocator(
         "Ensure the expression returns a Playwright locator chain."
       );
     }
-    primary = resolved;
-  } else {
-    primary = context.locator(target.value);
+    return resolved;
   }
 
-  if (!target.fallbacks || target.fallbacks.length === 0) {
-    return primary;
-  }
+  return context.locator(target.value);
+}
 
-  let chained = primary;
-  for (const fallback of target.fallbacks) {
-    try {
-      const fallbackLocator =
-        fallback.kind === "locatorExpression"
-          ? (evaluateLocatorExpression(context, fallback.value) as Locator)
-          : context.locator(fallback.value);
-      if (isPlaywrightLocator(fallbackLocator)) {
-        chained = chained.or(fallbackLocator);
-      }
-    } catch {
-      // Skip invalid fallback silently - primary locator is still valid
-    }
+async function locatorHasMatches(locator: Locator): Promise<boolean> {
+  try {
+    return (await locator.count()) > 0;
+  } catch {
+    return false;
   }
-  return chained;
 }
 
 export function resolveLocatorContext(page: Page, framePath?: string[]): LocatorContext {

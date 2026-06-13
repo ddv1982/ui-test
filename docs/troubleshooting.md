@@ -4,7 +4,7 @@
 
 ### `ui-test setup` (or repo `npm run setup` / `npm run setup:play`) fails
 
-1. Verify Node.js 18+ (`node -v`) and npm (`npm -v`).
+1. Verify Node.js 20.12+ (`node -v`) and npm (`npm -v`).
 2. Follow the install steps in [Getting Started](getting-started.md).
 
 If you see `Standalone install policy: project-local installs are not supported`:
@@ -36,7 +36,7 @@ If `play e2e/example.yaml` cannot reach the app:
 1. Verify the example app is running at `http://127.0.0.1:5173`.
 2. If you start the app manually, run `ui-test play --no-start`.
 
-Auto-start only applies to `e2e/example.yaml`. For other tests, start your app manually and use `--no-start`.
+Auto-start only applies when you run a user-created `e2e/example.yaml`. For other tests, start your app manually and use `--no-start`.
 
 ## Failure Artifacts Not Saved
 

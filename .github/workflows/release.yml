@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  github-release-artifact:
+    name: Build GitHub Release Artifact
+    runs-on: ubuntu-latest
+    environment: github-release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Assert release tag matches package version
+        run: npm run release:assert-tag
+
+      - name: Provision Chromium
+        run: npm run setup
+
+      - name: Run release quality gate
+        run: npm run quality:release
+
+      - name: Pack release artifact
+        id: pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball="$(npm pack --silent)"
+          shasum -a 256 "$tarball" > "$tarball.sha256"
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+          printf 'checksum=%s.sha256\n' "$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            "${{ steps.pack.outputs.tarball }}" \
+            "${{ steps.pack.outputs.checksum }}" \
+            --clobber

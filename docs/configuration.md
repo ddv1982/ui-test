@@ -25,7 +25,7 @@ ui-test setup
 | `--browser <name>` | chromium |
 | `--no-start` | off (auto-start enabled) |
 
-Auto-start only applies to `e2e/example.yaml`.
+Auto-start only applies when you run a user-created `e2e/example.yaml`.
 
 ## Record Defaults
 

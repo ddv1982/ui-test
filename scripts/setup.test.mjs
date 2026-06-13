@@ -15,6 +15,7 @@ vi.mock("node:fs", async () => {
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import {
+  ensureNodeVersion,
   ensureLocalCliBuilt,
   resolveLocalCliEntry,
   runCliSetup,
@@ -22,6 +23,22 @@ import {
 
 const mockSpawnSync = vi.mocked(spawnSync);
 const mockExistsSync = vi.mocked(existsSync);
+
+function withNodeVersion(version, callback) {
+  const original = process.versions.node;
+  Object.defineProperty(process.versions, "node", {
+    value: version,
+    configurable: true,
+  });
+  try {
+    callback();
+  } finally {
+    Object.defineProperty(process.versions, "node", {
+      value: original,
+      configurable: true,
+    });
+  }
+}
 
 describe("setup maintainer wrapper", () => {
   beforeEach(() => {
@@ -75,5 +92,17 @@ describe("setup maintainer wrapper", () => {
         env: process.env,
       }
     );
+  });
+
+  it("accepts Node 20.12 and newer", () => {
+    withNodeVersion("20.12.0", () => {
+      expect(() => ensureNodeVersion()).not.toThrow();
+    });
+  });
+
+  it("rejects Node versions below 20.12", () => {
+    withNodeVersion("20.11.1", () => {
+      expect(() => ensureNodeVersion()).toThrow(/Node\.js 20\.12\+/);
+    });
   });
 });

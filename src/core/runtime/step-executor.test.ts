@@ -221,6 +221,23 @@ describe("executeRuntimeStep assertions", () => {
     expect(textContentMock).toHaveBeenCalledWith({ timeout: 2_000 });
   });
 
+  it("retries assertText until the expected text appears", async () => {
+    const { page, textContentMock } = createMockPage();
+    textContentMock.mockResolvedValueOnce("Loading").mockResolvedValue("Ready now");
+
+    await executeRuntimeStep(
+      page,
+      {
+        action: "assertText",
+        target: { value: "#message", kind: "css", source: "manual" },
+        text: "Ready",
+      } as Step,
+      { timeout: 100, mode: "playback" }
+    );
+
+    expect(textContentMock).toHaveBeenCalledTimes(2);
+  });
+
   it("throws a descriptive error when assertText does not match", async () => {
     const { page, textContentMock } = createMockPage();
     textContentMock.mockImplementation(async () => null as unknown as string);
@@ -233,14 +250,14 @@ describe("executeRuntimeStep assertions", () => {
           target: { value: "#message", kind: "css", source: "manual" },
           text: "expected text",
         } as Step,
-        { timeout: 2_000, mode: "playback" }
+        { timeout: 1, mode: "playback" }
       )
     ).rejects.toThrow("Expected text 'expected text' but got '(empty)'");
   });
 
-  it("passes assertValue and throws when the value differs", async () => {
+  it("passes assertValue after a transient mismatch", async () => {
     const { page, inputValueMock } = createMockPage();
-    inputValueMock.mockResolvedValueOnce("admin").mockResolvedValueOnce("guest");
+    inputValueMock.mockResolvedValueOnce("guest").mockResolvedValue("admin");
 
     await expect(
       executeRuntimeStep(
@@ -253,6 +270,12 @@ describe("executeRuntimeStep assertions", () => {
         { timeout: 2_000, mode: "playback" }
       )
     ).resolves.toBeUndefined();
+    expect(inputValueMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws when assertValue never matches before timeout", async () => {
+    const { page, inputValueMock } = createMockPage();
+    inputValueMock.mockResolvedValue("guest");
 
     await expect(
       executeRuntimeStep(
@@ -262,14 +285,14 @@ describe("executeRuntimeStep assertions", () => {
           target: { value: "#username", kind: "css", source: "manual" },
           value: "admin",
         } as Step,
-        { timeout: 2_000, mode: "playback" }
+        { timeout: 1, mode: "playback" }
       )
     ).rejects.toThrow("Expected value 'admin' but got 'guest'");
   });
 
-  it("uses the default checked expectation and supports asserting unchecked state", async () => {
+  it("uses the default checked expectation and retries unchecked state", async () => {
     const { page, isCheckedMock } = createMockPage();
-    isCheckedMock.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    isCheckedMock.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValue(false);
 
     await expect(
       executeRuntimeStep(
@@ -290,24 +313,55 @@ describe("executeRuntimeStep assertions", () => {
           target: { value: "#tos", kind: "css", source: "manual" },
           checked: false,
         } as Step,
-        { timeout: 2_000, mode: "playback" }
-      )
-    ).rejects.toThrow("Expected element to be unchecked");
-
-    await expect(
-      executeRuntimeStep(
-        page,
-        {
-          action: "assertChecked",
-          target: { value: "#tos", kind: "css", source: "manual" },
-          checked: false,
-        } as Step,
-        { timeout: 2_000, mode: "playback" }
+        { timeout: 100, mode: "playback" }
       )
     ).resolves.toBeUndefined();
   });
 
-  it("throws when assertUrl or assertTitle expectations fail", async () => {
+  it("throws when assertChecked never reaches expected state", async () => {
+    const { page, isCheckedMock } = createMockPage();
+    isCheckedMock.mockResolvedValue(true);
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        {
+          action: "assertChecked",
+          target: { value: "#tos", kind: "css", source: "manual" },
+          checked: false,
+        } as Step,
+        { timeout: 1, mode: "playback" }
+      )
+    ).rejects.toThrow("Expected element to be unchecked");
+  });
+
+  it("retries assertUrl and assertTitle until expectations pass", async () => {
+    const { page } = createMockPage();
+    vi.mocked(page.url)
+      .mockReturnValueOnce("https://example.test/profile")
+      .mockReturnValue("https://example.test/settings");
+    vi.mocked(page.title)
+      .mockResolvedValueOnce("Example Dashboard")
+      .mockResolvedValue("Example Settings");
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        { action: "assertUrl", url: "https://example.test/settings" } as Step,
+        { timeout: 100, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        { action: "assertTitle", title: "Settings" } as Step,
+        { timeout: 100, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws when assertUrl or assertTitle expectations never pass", async () => {
     const { page } = createMockPage();
     vi.mocked(page.url).mockReturnValue("https://example.test/profile");
     vi.mocked(page.title).mockResolvedValue("Example Dashboard");
@@ -316,7 +370,7 @@ describe("executeRuntimeStep assertions", () => {
       executeRuntimeStep(
         page,
         { action: "assertUrl", url: "https://example.test/settings" } as Step,
-        { timeout: 2_000, mode: "playback" }
+        { timeout: 1, mode: "playback" }
       )
     ).rejects.toThrow('URL "https://example.test/profile" does not match pattern "https://example.test/settings"');
 
@@ -324,14 +378,14 @@ describe("executeRuntimeStep assertions", () => {
       executeRuntimeStep(
         page,
         { action: "assertTitle", title: "Settings" } as Step,
-        { timeout: 2_000, mode: "playback" }
+        { timeout: 1, mode: "playback" }
       )
     ).rejects.toThrow("Expected title to contain 'Settings' but got 'Example Dashboard'");
   });
 
-  it("throws when assertEnabled expectations fail for enabled and disabled checks", async () => {
+  it("retries assertEnabled until expectations pass", async () => {
     const waitFor = vi.fn(async () => {});
-    const isEnabled = vi.fn(async () => false).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const isEnabled = vi.fn(async () => true).mockResolvedValueOnce(false).mockResolvedValue(true);
     const page = {
       locator: vi.fn(() => ({ waitFor, isEnabled })),
     } as unknown as Page;
@@ -343,9 +397,31 @@ describe("executeRuntimeStep assertions", () => {
           action: "assertEnabled",
           target: { value: "#submit", kind: "css", source: "manual" },
         } as Step,
-        { timeout: 10_000, mode: "playback" }
+        { timeout: 100, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+    expect(isEnabled).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws when assertEnabled expectations never pass", async () => {
+    const waitFor = vi.fn(async () => {});
+    const isEnabled = vi.fn(async () => false).mockResolvedValue(false);
+    const page = {
+      locator: vi.fn(() => ({ waitFor, isEnabled })),
+    } as unknown as Page;
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        {
+          action: "assertEnabled",
+          target: { value: "#submit", kind: "css", source: "manual" },
+        } as Step,
+        { timeout: 1, mode: "playback" }
       )
     ).rejects.toThrow("Expected element to be enabled");
+
+    isEnabled.mockResolvedValue(true);
 
     await expect(
       executeRuntimeStep(
@@ -355,7 +431,7 @@ describe("executeRuntimeStep assertions", () => {
           target: { value: "#submit", kind: "css", source: "manual" },
           enabled: false,
         } as Step,
-        { timeout: 10_000, mode: "playback" }
+        { timeout: 1, mode: "playback" }
       )
     ).rejects.toThrow("Expected element to be disabled");
   });

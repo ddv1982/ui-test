@@ -11,7 +11,8 @@ import {
 import { handleError, UserError } from "../utils/errors.js";
 import { asOptionalBoolean, asOptionalString } from "./parse-helpers.js";
 
-const MIN_NODE_MAJOR = 18;
+const MIN_NODE_MAJOR = 20;
+const MIN_NODE_MINOR = 12;
 
 const HELP_APPENDIX = [
   "",
@@ -102,11 +103,18 @@ function parseSetupCliOptions(value: unknown): SetupCliOptions {
   return out;
 }
 
-function ensureNodeVersion() {
-  const major = Number(process.versions.node.split(".")[0] ?? "0");
-  if (!Number.isInteger(major) || major < MIN_NODE_MAJOR) {
+export function ensureNodeVersion() {
+  const [majorRaw, minorRaw] = process.versions.node.split(".");
+  const major = Number(majorRaw ?? "0");
+  const minor = Number(minorRaw ?? "0");
+  if (
+    !Number.isInteger(major) ||
+    !Number.isInteger(minor) ||
+    major < MIN_NODE_MAJOR ||
+    (major === MIN_NODE_MAJOR && minor < MIN_NODE_MINOR)
+  ) {
     throw new UserError(
-      `Node.js ${MIN_NODE_MAJOR}+ is required. Current version: ${process.versions.node}`
+      `Node.js ${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}+ is required. Current version: ${process.versions.node}`
     );
   }
 }

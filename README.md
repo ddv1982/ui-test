@@ -46,7 +46,7 @@ All command examples below assume either:
 | `--browser <name>` | chromium |
 | `--no-start` | off (auto-start enabled) |
 
-`testDir=e2e`, `baseUrl=http://127.0.0.1:5173`. Auto-start applies to `e2e/example.yaml` only.
+`testDir=e2e`, `baseUrl=http://127.0.0.1:5173`. Auto-start applies only when you run a user-created `e2e/example.yaml`.
 
 Use `--load-storage <path>` with `play` or `improve` to apply a Playwright storage state JSON file when replay or improve needs an existing signed-in session.
 

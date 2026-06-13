@@ -36,6 +36,7 @@ import { checkbox } from "@inquirer/prompts";
 import { UserError } from "../utils/errors.js";
 import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../app/services/onboarding-service.js";
 import {
+  ensureNodeVersion,
   parseBrowsersFlag,
   registerSetup,
   resolveUiTestCliEntry,
@@ -44,6 +45,22 @@ import {
 const mockSpawnSync = vi.mocked(spawnSync);
 const mockExistsSync = vi.mocked(existsSync);
 const mockCheckbox = vi.mocked(checkbox);
+
+function withNodeVersion(version: string, callback: () => void): void {
+  const original = process.versions.node;
+  Object.defineProperty(process.versions, "node", {
+    value: version,
+    configurable: true,
+  });
+  try {
+    callback();
+  } finally {
+    Object.defineProperty(process.versions, "node", {
+      value: original,
+      configurable: true,
+    });
+  }
+}
 
 function createProgram(): Command {
   const program = new Command();
@@ -199,6 +216,18 @@ describe("setup execution", () => {
         required: true,
       })
     );
+  });
+
+  it("accepts Node 20.12 and newer", () => {
+    withNodeVersion("20.12.0", () => {
+      expect(() => ensureNodeVersion()).not.toThrow();
+    });
+  });
+
+  it("rejects Node versions below 20.12", () => {
+    withNodeVersion("20.11.1", () => {
+      expect(() => ensureNodeVersion()).toThrow(/Node\.js 20\.12\+/);
+    });
   });
 });
 
