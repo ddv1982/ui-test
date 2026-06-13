@@ -68,7 +68,7 @@ GITHUB_REF_NAME=v0.1.0 npm run release:assert-tag
 
 This repository ships GitHub Actions workflows under `.github/workflows`:
 
-- `CI`: runs on pull requests, pushes to `main`, and manual dispatch. It tests Node `20.12.x`, `22.x`, and `24.x`, provisions Chromium through `npm run setup`, runs `npm run quality:ci`, runs coverage once on Node `24.x`, runs headed parity under `xvfb-run`, validates build/package/install smoke across the Node matrix, and finishes with `npm run test:smoke`.
+- `CI`: runs on pull requests, pushes to `main`, and manual dispatch. It tests Node `20.12.x`, `22.x`, and `24.x`, provisions Chromium with Playwright's Linux installer, runs `npm run quality:ci`, runs coverage once on Node `24.x`, runs headed parity under `xvfb-run`, validates build/package/install smoke across the Node matrix, and finishes with `npm run test:smoke`.
 - `Release`: runs when a GitHub Release is published. It builds from the release tag, validates the tag/version match, runs the full release gate, packs the project, and uploads the tarball plus `.sha256` checksum to the release.
 
 Recommended future CI coverage:

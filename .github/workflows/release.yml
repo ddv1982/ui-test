@@ -34,7 +34,7 @@ jobs:
         run: npm run release:assert-tag
 
       - name: Provision Chromium
-        run: npm run setup
+        run: npx playwright install --with-deps chromium
 
       - name: Run release quality gate
         run: npm run quality:release

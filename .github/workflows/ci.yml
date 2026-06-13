@@ -40,7 +40,7 @@ jobs:
         run: npm ci
 
       - name: Provision Chromium
-        run: npm run setup
+        run: npx playwright install --with-deps chromium
 
       - name: Run CI quality gate
         run: npm run quality:ci
@@ -64,7 +64,7 @@ jobs:
         run: npm ci
 
       - name: Provision Chromium
-        run: npm run setup
+        run: npx playwright install --with-deps chromium
 
       - name: Run coverage
         run: npm run test:coverage
@@ -86,7 +86,7 @@ jobs:
         run: npm ci
 
       - name: Provision Chromium
-        run: npm run setup
+        run: npx playwright install --with-deps chromium
 
       - name: Run headed parity gate
         run: xvfb-run -a npm run test:parity:headed
@@ -161,7 +161,7 @@ jobs:
         run: npm ci
 
       - name: Provision Chromium
-        run: npm run setup
+        run: npx playwright install --with-deps chromium
 
       - name: Run consumer smoke test
         run: npm run test:smoke
