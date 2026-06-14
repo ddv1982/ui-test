@@ -33,6 +33,7 @@ vi.mock("@inquirer/prompts", () => ({
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { checkbox } from "@inquirer/prompts";
+import { chromium, firefox } from "playwright";
 import { UserError } from "../utils/errors.js";
 import { PLAY_DEFAULT_EXAMPLE_TEST_FILE } from "../app/services/onboarding-service.js";
 import {
@@ -175,6 +176,13 @@ describe("setup execution", () => {
       expect.anything(),
       expect.anything()
     );
+  });
+
+  it("verifies every selected browser after install", async () => {
+    await runSetup({ browsers: "chromium,firefox" });
+
+    expect(chromium.launch).toHaveBeenCalledTimes(1);
+    expect(firefox.launch).toHaveBeenCalledTimes(1);
   });
 
   it("prints next-step help after setup", async () => {

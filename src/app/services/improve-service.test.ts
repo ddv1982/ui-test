@@ -45,10 +45,23 @@ import { improveTestFile } from "../../core/improve/improve.js";
 import type { ImproveReport } from "../../core/improve/report-schema.js";
 import { hashImprovePlanSource } from "../../core/improve/improve-plan.js";
 import { ui } from "../../utils/ui.js";
+import { buildExternalCliInvocationWarning } from "./improve-output.js";
 import { runImprove } from "./improve-service.js";
 
 const SAMPLE_YAML = "name: sample\nsteps:\n  - action: navigate\n    url: /\n";
 const SAFE_DETERMINISM: ImproveReport["determinism"] = { status: "safe", reasons: [] };
+
+describe("buildExternalCliInvocationWarning", () => {
+  it("does not warn for standalone invocations without a local ui-test package", () => {
+    expect(
+      buildExternalCliInvocationWarning(
+        "/tmp/consumer-app",
+        "/tmp/_npx/ui-test",
+        "e2e/sample.yaml"
+      )
+    ).toBeUndefined();
+  });
+});
 
 describe("runImprove chromium handling", () => {
   beforeEach(() => {

@@ -128,4 +128,43 @@ describe("improve-assertion-pass-support", () => {
     );
     expect(buildSnapshotNativeAssertionCandidatesMock).not.toHaveBeenCalled();
   });
+
+  it("maps snapshot-native runtime indexes to original step indexes after stale removals", () => {
+    buildSnapshotNativeAssertionCandidatesMock.mockReturnValue([
+      {
+        index: 1,
+        afterAction: "click",
+        candidate: {
+          action: "assertVisible",
+          target: { value: "#submit", kind: "css", source: "manual" },
+        },
+        confidence: 0.84,
+        rationale: "snapshot candidate",
+        candidateSource: "snapshot_native",
+      },
+    ]);
+
+    const result = buildRawAssertionCandidates({
+      assertions: "candidates",
+      assertionSource: "snapshot-native",
+      outputSteps: [
+        { action: "navigate", url: "https://example.com" },
+        { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+        { action: "click", target: { value: "#next", kind: "css", source: "manual" } },
+      ],
+      findings: [],
+      outputStepOriginalIndexes: [0, 2, 3],
+      nativeStepSnapshots: [
+        {
+          index: 1,
+          step: { action: "click", target: { value: "#submit", kind: "css", source: "manual" } },
+          preSnapshot: "before",
+          postSnapshot: "after",
+        },
+      ],
+      diagnostics: [],
+    });
+
+    expect(result.rawAssertionCandidates[0]?.index).toBe(2);
+  });
 });

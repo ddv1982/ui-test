@@ -129,6 +129,7 @@ export async function processRuntimeStep(input: {
   page: Page;
   step: Step;
   runtimeStep: Step;
+  stepIndex: number;
   originalIndex: number;
   wantsNativeSnapshots: boolean;
   testBaseUrl?: string;
@@ -266,7 +267,7 @@ export async function processRuntimeStep(input: {
   }
 
   const snapshot: StepSnapshot = {
-    index: input.originalIndex,
+    index: input.stepIndex,
     step: input.step,
     preSnapshot: scopedSnapshot.preSnapshot,
     postSnapshot,

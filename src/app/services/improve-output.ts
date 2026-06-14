@@ -111,9 +111,9 @@ export function buildExternalCliInvocationWarning(
   const resolvedCwd = path.resolve(cwd);
   const workspaceRoot = resolveWorkspaceRoot(resolvedCwd);
   const localPackageRoot = resolveLocalUiTestPackageRoot(resolvedCwd);
-  const localEntrypoint = localPackageRoot
-    ? path.join(localPackageRoot, "dist", "bin", "ui-test.js")
-    : undefined;
+  if (!localPackageRoot) return undefined;
+
+  const localEntrypoint = path.join(localPackageRoot, "dist", "bin", "ui-test.js");
   const resolvedTestFile = path.isAbsolute(testFile)
     ? testFile
     : path.resolve(resolvedCwd, testFile);

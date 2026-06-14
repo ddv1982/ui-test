@@ -28,6 +28,19 @@ export default defineConfig(
     },
   },
   {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        URL: "readonly",
+      },
+    },
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
     files: ["src/**/*.test.ts", "src/**/*.integration.test.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

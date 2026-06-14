@@ -20,8 +20,13 @@ export async function startPlayApp(
     ui.error(`Failed to start app process: ${err.message}`);
   });
 
-  await waitForReachableBaseUrl(baseUrl, appProcess, START_TIMEOUT_MS);
-  return appProcess;
+  try {
+    await waitForReachableBaseUrl(baseUrl, appProcess, START_TIMEOUT_MS);
+    return appProcess;
+  } catch (err) {
+    await stopStartedAppProcess(appProcess);
+    throw err;
+  }
 }
 
 export async function stopStartedAppProcess(appProcess: ChildProcess): Promise<void> {

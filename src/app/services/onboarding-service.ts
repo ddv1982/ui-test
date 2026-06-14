@@ -22,13 +22,14 @@ export async function runOnboardingPlan(
   plan: OnboardingPlan,
   context: OnboardingContext
 ): Promise<void> {
-  const primaryBrowser = plan.browsers[0];
-  if (!primaryBrowser) {
+  if (plan.browsers.length === 0) {
     throw new UserError("No browsers selected for setup.");
   }
 
   installPlaywrightBrowsers(plan.browsers);
-  await verifyBrowserLaunch(primaryBrowser);
+  for (const browser of plan.browsers) {
+    await verifyBrowserLaunch(browser);
+  }
 
   if (plan.runPlay) {
     const exampleTestPath = path.resolve(PLAY_DEFAULT_EXAMPLE_TEST_FILE);

@@ -53,7 +53,11 @@ function areEquivalentAssertions(left: Step, right: Step): boolean {
   }
 
   if (left.action === "assertText" && right.action === "assertText") {
-    return areEquivalentTargets(left.target, right.target) && left.text === right.text;
+    return (
+      areEquivalentTargets(left.target, right.target) &&
+      left.text === right.text &&
+      (left.exact ?? false) === (right.exact ?? false)
+    );
   }
 
   if (left.action === "assertValue" && right.action === "assertValue") {

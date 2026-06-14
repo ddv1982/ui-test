@@ -76,6 +76,7 @@ const assertVisibleStep = targetStep.extend({
 const assertTextStep = targetStep.extend({
   action: z.literal("assertText"),
   text: z.string(),
+  exact: z.boolean().optional(),
 });
 
 const assertValueStep = targetStep.extend({

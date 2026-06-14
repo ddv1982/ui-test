@@ -118,6 +118,21 @@ describe("assertion-apply-insertion", () => {
     ).toBe(false);
   });
 
+  it("does not treat exact and substring assertText steps as duplicates", () => {
+    const steps: Step[] = [
+      { action: "click", target: cssTarget("#save") },
+      { action: "assertText", target: cssTarget("#status"), text: "Saved", exact: true },
+    ];
+
+    expect(
+      isDuplicateAdjacentAssertion(steps, 0, {
+        action: "assertText",
+        target: cssTarget("#status"),
+        text: "Saved",
+      })
+    ).toBe(false);
+  });
+
   it("uses default true values when comparing assertChecked and assertEnabled steps", () => {
     const checkedSteps: Step[] = [
       { action: "click", target: cssTarget("#save") },

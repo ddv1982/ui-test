@@ -4,6 +4,10 @@ import { resolveActionLocator, resolveNavigateUrl } from "./locator-runtime.js";
 
 const ASSERTION_POLL_INTERVAL_MS = 25;
 
+function normalizeAssertionText(text: string): string {
+  return text.replace(/[\u200b\u00ad]/gu, "").trim().replace(/\s+/gu, " ");
+}
+
 export type RuntimeExecutionMode = "playback" | "analysis";
 
 export interface RuntimeStepExecutionOptions {
@@ -73,7 +77,11 @@ export async function executeRuntimeStep(
       await locator.waitFor({ state: "visible", timeout });
       await waitForExpectation(timeout, async () => {
         const text = await locator.textContent({ timeout });
-        if (!text?.includes(step.text)) {
+        const matches =
+          step.exact === true
+            ? text !== null && normalizeAssertionText(text) === normalizeAssertionText(step.text)
+            : text?.includes(step.text);
+        if (!matches) {
           throw new Error(`Expected text '${step.text}' but got '${text ?? "(empty)"}'`);
         }
       });

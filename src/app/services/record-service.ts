@@ -57,8 +57,8 @@ export interface RecordCliOptions {
 
 export async function runRecord(opts: RecordCliOptions): Promise<void> {
   if (opts.fromFile) {
-    const imported = await importRecordFromFile(opts);
     const profile = resolveRecordProfile(opts);
+    const imported = await importRecordFromFile(opts);
     if (opts.improve !== false) {
       try {
         await runAutoImprove(imported.outputPath, imported.improveMode, profile.loadStorage);

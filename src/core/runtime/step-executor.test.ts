@@ -221,6 +221,57 @@ describe("executeRuntimeStep assertions", () => {
     expect(textContentMock).toHaveBeenCalledWith({ timeout: 2_000 });
   });
 
+  it("requires exact text when assertText exact is true", async () => {
+    const { page, textContentMock } = createMockPage();
+    textContentMock.mockResolvedValue("Hello from the page");
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        {
+          action: "assertText",
+          target: { value: "#message", kind: "css", source: "manual" },
+          text: "from the page",
+          exact: true,
+        } as Step,
+        { timeout: 1, mode: "playback" }
+      )
+    ).rejects.toThrow("Expected text 'from the page' but got 'Hello from the page'");
+
+    textContentMock.mockResolvedValue("from the page");
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        {
+          action: "assertText",
+          target: { value: "#message", kind: "css", source: "manual" },
+          text: "from the page",
+          exact: true,
+        } as Step,
+        { timeout: 100, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it("normalizes whitespace for exact assertText", async () => {
+    const { page, textContentMock } = createMockPage();
+    textContentMock.mockResolvedValue("  Hello\n\nfrom\t the\u200b page  ");
+
+    await expect(
+      executeRuntimeStep(
+        page,
+        {
+          action: "assertText",
+          target: { value: "#message", kind: "css", source: "manual" },
+          text: "Hello from the page",
+          exact: true,
+        } as Step,
+        { timeout: 100, mode: "playback" }
+      )
+    ).resolves.toBeUndefined();
+  });
+
   it("retries assertText until the expected text appears", async () => {
     const { page, textContentMock } = createMockPage();
     textContentMock.mockResolvedValueOnce("Loading").mockResolvedValue("Ready now");

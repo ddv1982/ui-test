@@ -27,8 +27,9 @@ You will be prompted for:
 | `--test-id-attribute <attr>` | Custom test-id attribute | none |
 | `--load-storage <path>` | Preload browser storage state | none |
 | `--save-storage <path>` | Save browser storage state | none |
+| `--from-file <path>` | Import a Chrome DevTools Recorder JSON file instead of opening an interactive recorder | none |
 | `--improve-mode <mode>` | Auto-improve mode: `report` or `apply` | `report` |
-| `--no-improve` | Skip automatic improvement after recording | enabled |
+| `--no-improve` | Turn off automatic improvement; by default auto-improve is enabled in report mode | off |
 
 Skip all prompts by providing name and URL:
 
@@ -55,6 +56,16 @@ The CLI prints a summary of recommendations/changes. If auto-improve fails, the 
 Policy-capped or policy-filtered assertion candidates are reported as `skipped_policy`; report-only improve runs keep candidates as `not_requested`.
 
 Use `--no-improve` to skip auto-improvement entirely.
+
+## Import From Chrome DevTools Recorder
+
+Use `--from-file` to convert an existing Chrome DevTools Recorder JSON export into ui-test YAML without launching an interactive recorder:
+
+```bash
+ui-test record --from-file ./recording.json --output-dir e2e
+```
+
+The import path uses the same output, browser/profile validation, and auto-improve defaults as interactive recording. Provide `--no-improve` if you want only the direct imported YAML.
 
 ## Output Quality Summary
 

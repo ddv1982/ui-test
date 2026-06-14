@@ -61,6 +61,9 @@ describe("stepSchema - valid", () => {
       stepSchema.safeParse({ action: "assertText", target: cssTarget, text: "Welcome" }).success
     ).toBe(true);
     expect(
+      stepSchema.safeParse({ action: "assertText", target: cssTarget, text: "Welcome", exact: true }).success
+    ).toBe(true);
+    expect(
       stepSchema.safeParse({ action: "assertValue", target: cssTarget, value: "test" }).success
     ).toBe(true);
     expect(

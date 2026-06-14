@@ -70,6 +70,7 @@ This repository ships GitHub Actions workflows under `.github/workflows`:
 
 - `CI`: runs on pull requests, pushes to `main`, and manual dispatch. It runs browser-backed quality gates on Node `20.12.x` and `22.x`, provisions Chromium with Playwright's Linux installer, runs coverage/headed parity/consumer smoke on Node `22.x`, and keeps build/package/install smoke coverage across Node `20.12.x`, `22.x`, and `24.x`.
 - `Release`: runs when a GitHub Release is published. It builds from the release tag, validates the tag/version match, runs the full release gate, packs the project, and uploads the tarball plus `.sha256` checksum to the release.
+- `Release Package`: runs on version tags or manual dispatch to build and upload a workflow artifact only. It does not create GitHub Releases or upload release assets; release assets are published exclusively by the `Release` workflow after `release:assert-tag` and `quality:release` pass.
 
 Recommended future CI coverage:
 

@@ -218,6 +218,30 @@ describe("runPlay startup behavior", () => {
     expect(play).toHaveBeenCalledTimes(1);
   });
 
+  it("stops spawned app process when startup readiness times out", async () => {
+    vi.useFakeTimers();
+    const child = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(child);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    try {
+      const run = runPlay("e2e/example.yaml", {});
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      await expect(run).rejects.toThrow("Timed out waiting for app to become reachable");
+      if (process.platform !== "win32") {
+        expect(process.kill).toHaveBeenCalledWith(-43210, "SIGTERM");
+      } else {
+        expect((child.kill as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+          "SIGTERM"
+        );
+      }
+      expect(play).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("always stops spawned app process when test execution fails", async () => {
     const child = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(child);

@@ -12,6 +12,7 @@ export interface CanonicalEvent {
   checked?: boolean;
   title?: string;
   enabled?: boolean;
+  exact?: boolean;
 }
 
 export function stepsToCanonicalEvents(steps: Step[]): CanonicalEvent[] {
@@ -71,6 +72,7 @@ function stepToCanonicalEvent(step: Step): CanonicalEvent {
         ...base,
         ...withTarget,
         text: step.text,
+        ...(step.exact !== undefined ? { exact: step.exact } : {}),
       };
     case "assertValue":
       return {
@@ -151,6 +153,7 @@ function canonicalEventToStep(event: CanonicalEvent): Step {
       return {
         ...buildTargetStep("assertText", event, base),
         text: event.text ?? "",
+        ...(event.exact !== undefined ? { exact: event.exact } : {}),
       } as Step;
     case "assertValue":
       return {

@@ -102,11 +102,12 @@ function awaitedCallToStep(call: CallExpressionNode, source: string): Step | nul
     return { action: "navigate", url };
   }
 
-  if (["click", "fill", "press", "check", "uncheck", "hover", "selectOption"].includes(methodName)) {
+  if (["click", "dblclick", "fill", "press", "check", "uncheck", "hover", "selectOption"].includes(methodName)) {
     const target = expressionToTarget(call.callee.object, source);
     if (!target) return null;
 
     if (methodName === "click") return { action: "click", target };
+    if (methodName === "dblclick") return { action: "dblclick", target };
     if (methodName === "check") return { action: "check", target };
     if (methodName === "uncheck") return { action: "uncheck", target };
     if (methodName === "hover") return { action: "hover", target };
@@ -158,6 +159,18 @@ function expectCallToStep(call: CallExpressionNode, source: string): Step | null
     return null;
   }
 
+  if (assertionName === "toHaveURL" && !negated) {
+    const url = firstStringArgument(call.arguments);
+    if (url === null) return null;
+    return { action: "assertUrl", url };
+  }
+
+  if (assertionName === "toHaveTitle" && !negated) {
+    const title = firstStringArgument(call.arguments);
+    if (title === null) return null;
+    return { action: "assertTitle", title };
+  }
+
   const expectedTarget = expressionToTarget(expectTarget.arguments[0], source);
   if (!expectedTarget) return null;
 
@@ -172,6 +185,16 @@ function expectCallToStep(call: CallExpressionNode, source: string): Step | null
       action: "assertText",
       target: expectedTarget,
       text,
+      ...(assertionName === "toHaveText" ? { exact: true } : {}),
+    };
+  }
+
+  if (assertionName === "toBeEnabled" || assertionName === "toBeDisabled") {
+    const enabled = assertionName === "toBeEnabled" ? !negated : negated;
+    return {
+      action: "assertEnabled",
+      target: expectedTarget,
+      enabled,
     };
   }
 

@@ -95,10 +95,11 @@ describe("playwrightCodeToSteps", () => {
     ]);
   });
 
-  it("parses fill, press, check, uncheck, hover, selectOption actions", () => {
+  it("parses fill, press, check, uncheck, hover, selectOption, and dblclick actions", () => {
     const code = `
       import { test } from '@playwright/test';
       test('x', async ({ page }) => {
+        await page.getByRole('button', { name: 'Edit' }).dblclick();
         await page.getByLabel('Email').fill('user@example.com');
         await page.getByLabel('Email').press('Enter');
         await page.getByRole('checkbox').check();
@@ -110,7 +111,7 @@ describe("playwrightCodeToSteps", () => {
 
     const steps = playwrightCodeToSteps(code);
     expect(steps.map((s) => s.action)).toEqual([
-      "fill", "press", "check", "uncheck", "hover", "select",
+      "dblclick", "fill", "press", "check", "uncheck", "hover", "select",
     ]);
   });
 
@@ -122,13 +123,41 @@ describe("playwrightCodeToSteps", () => {
         await expect(page.getByRole('heading')).toHaveText('Welcome');
         await expect(page.locator('#input')).toHaveValue('test');
         await expect(page.getByRole('checkbox')).toBeChecked();
+        await expect(page).toHaveURL('https://example.com/dashboard');
+        await expect(page).toHaveTitle('Dashboard');
+        await expect(page.getByRole('button')).toBeEnabled();
+        await expect(page.getByRole('button')).toBeDisabled();
       });
     `;
 
     const steps = playwrightCodeToSteps(code);
     expect(steps.map((s) => s.action)).toEqual([
-      "assertVisible", "assertText", "assertValue", "assertChecked",
+      "assertVisible", "assertText", "assertValue", "assertChecked", "assertUrl", "assertTitle", "assertEnabled", "assertEnabled",
     ]);
+    expect(steps[1]).toMatchObject({ action: "assertText", exact: true });
+    expect(steps[6]).toMatchObject({ action: "assertEnabled", enabled: true });
+    expect(steps[7]).toMatchObject({ action: "assertEnabled", enabled: false });
+  });
+
+  it("keeps toContainText as substring assertText", () => {
+    const code = `
+      import { test, expect } from '@playwright/test';
+      test('x', async ({ page }) => {
+        await expect(page.locator('#status')).toContainText('Done');
+      });
+    `;
+
+    const steps = playwrightCodeToSteps(code);
+    expect(steps[0]).toEqual({
+      action: "assertText",
+      target: {
+        value: "locator('#status')",
+        kind: "locatorExpression",
+        source: "codegen",
+        confidence: 0.5,
+      },
+      text: "Done",
+    });
   });
 
   it("normalizes frameLocator chains into framePath metadata", () => {

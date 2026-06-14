@@ -129,6 +129,7 @@ function assertionCandidateKey(candidate: AssertionCandidate): string {
     candidateStep.action,
     targetKey,
     "text" in candidateStep ? candidateStep.text : "",
+    candidateStep.action === "assertText" ? String(candidateStep.exact === true) : "",
     "value" in candidateStep ? candidateStep.value : "",
     candidateStep.action === "assertChecked"
       ? String(candidateStep.checked ?? true)

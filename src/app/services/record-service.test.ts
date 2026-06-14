@@ -761,6 +761,15 @@ describe("runRecordFromFile", () => {
     );
   });
 
+  it("validates import options before reading or writing the recording", async () => {
+    await expect(
+      runRecord({ fromFile: "/tmp/recording.json", browser: "chrome" })
+    ).rejects.toThrow("Invalid browser: chrome");
+
+    expect(fs.readFile).not.toHaveBeenCalled();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+  });
+
   it("imports first navigation as normalized path while preserving derived baseUrl", async () => {
     vi.mocked(fs.readFile).mockResolvedValue(
       JSON.stringify({

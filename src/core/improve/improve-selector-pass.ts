@@ -75,6 +75,7 @@ export async function runImproveSelectorPass(input: {
       page: input.page,
       step,
       runtimeStep,
+      stepIndex: index,
       originalIndex,
       wantsNativeSnapshots: input.wantsNativeSnapshots,
       ...(input.testBaseUrl !== undefined ? { testBaseUrl: input.testBaseUrl } : {}),
