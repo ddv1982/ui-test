@@ -1,5 +1,4 @@
 import type { Command } from "commander";
-import { handleError } from "../utils/errors.js";
 import { runPlay } from "../app/services/play-service.js";
 import type { PlayProfileInput } from "../app/options/play-profile.js";
 import {
@@ -24,13 +23,9 @@ export function registerPlay(program: Command) {
     .option("--load-storage <path>", "Apply Playwright storage state JSON to replay contexts")
     .option("--browser <name>", "Browser to use: chromium, firefox, or webkit (default: chromium)")
     .option("--no-start", "Do not auto-start app before running tests")
-    .action(async (testArg: unknown, opts: unknown) => {
-      try {
-        await runPlay(parseOptionalArgument(testArg), parsePlayProfileInput(opts));
-      } catch (err) {
-        handleError(err);
-      }
-    });
+    .action((testArg: unknown, opts: unknown) =>
+      runPlay(parseOptionalArgument(testArg), parsePlayProfileInput(opts))
+    );
 }
 
 function parsePlayProfileInput(value: unknown): PlayProfileInput {

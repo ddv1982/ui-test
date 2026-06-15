@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 import type { Step } from "../yaml-schema.js";
 import { resolveActionLocator, resolveNavigateUrl } from "./locator-runtime.js";
+import { isPlaywrightTimeoutError } from "./network-idle.js";
 
 const ASSERTION_POLL_INTERVAL_MS = 25;
 
@@ -31,40 +32,40 @@ export async function executeRuntimeStep(
     }
 
     case "click":
-      await (await resolveActionLocator(page, step)).click({ timeout });
+      await (await resolveActionLocator(page, step, { timeout })).click({ timeout });
       return;
 
     case "dblclick":
-      await (await resolveActionLocator(page, step)).dblclick({ timeout });
+      await (await resolveActionLocator(page, step, { timeout })).dblclick({ timeout });
       return;
 
     case "fill":
-      await (await resolveActionLocator(page, step)).fill(step.text, { timeout });
+      await (await resolveActionLocator(page, step, { timeout })).fill(step.text, { timeout });
       return;
 
     case "press":
-      await (await resolveActionLocator(page, step)).press(step.key, { timeout });
+      await (await resolveActionLocator(page, step, { timeout })).press(step.key, { timeout });
       return;
 
     case "check":
-      await (await resolveActionLocator(page, step)).check({ timeout });
+      await (await resolveActionLocator(page, step, { timeout })).check({ timeout });
       return;
 
     case "uncheck":
-      await (await resolveActionLocator(page, step)).uncheck({ timeout });
+      await (await resolveActionLocator(page, step, { timeout })).uncheck({ timeout });
       return;
 
     case "hover":
-      await (await resolveActionLocator(page, step)).hover({ timeout });
+      await (await resolveActionLocator(page, step, { timeout })).hover({ timeout });
       return;
 
     case "select":
-      await (await resolveActionLocator(page, step)).selectOption(step.value, { timeout });
+      await (await resolveActionLocator(page, step, { timeout })).selectOption(step.value, { timeout });
       return;
 
     case "assertVisible": {
       if (options.mode === "analysis") return;
-      await (await resolveActionLocator(page, step)).waitFor({
+      await (await resolveActionLocator(page, step, { timeout })).waitFor({
         state: "visible",
         timeout,
       });
@@ -73,7 +74,7 @@ export async function executeRuntimeStep(
 
     case "assertText": {
       if (options.mode === "analysis") return;
-      const locator = await resolveActionLocator(page, step);
+      const locator = await resolveActionLocator(page, step, { timeout });
       await locator.waitFor({ state: "visible", timeout });
       await waitForExpectation(timeout, async () => {
         const text = await locator.textContent({ timeout });
@@ -90,7 +91,7 @@ export async function executeRuntimeStep(
 
     case "assertValue": {
       if (options.mode === "analysis") return;
-      const locator = await resolveActionLocator(page, step);
+      const locator = await resolveActionLocator(page, step, { timeout });
       await locator.waitFor({ state: "visible", timeout });
       await waitForExpectation(timeout, async () => {
         const value = await locator.inputValue({ timeout });
@@ -103,7 +104,7 @@ export async function executeRuntimeStep(
 
     case "assertChecked": {
       if (options.mode === "analysis") return;
-      const locator = await resolveActionLocator(page, step);
+      const locator = await resolveActionLocator(page, step, { timeout });
       await locator.waitFor({ state: "visible", timeout });
       const expected = step.checked ?? true;
       await waitForExpectation(timeout, async () => {
@@ -121,29 +122,38 @@ export async function executeRuntimeStep(
     case "assertUrl": {
       if (options.mode === "analysis") return;
       const regex = wildcardPatternToRegExp(step.url);
-      await waitForExpectation(timeout, () => {
+      try {
+        await page.waitForURL(regex, { timeout });
+      } catch (err) {
+        if (!isPlaywrightTimeoutError(err)) throw err;
         const currentUrl = page.url();
-        if (!regex.test(currentUrl)) {
-          throw new Error(`URL "${currentUrl}" does not match pattern "${step.url}"`);
-        }
-      });
+        throw new Error(`URL "${currentUrl}" does not match pattern "${step.url}"`);
+      }
       return;
     }
 
     case "assertTitle": {
       if (options.mode === "analysis") return;
-      await waitForExpectation(timeout, async () => {
+      try {
+        await page.waitForFunction(
+          (expectedTitle) => document.title.includes(expectedTitle),
+          step.title,
+          { timeout }
+        );
+      } catch (err) {
+        if (!isPlaywrightTimeoutError(err)) throw err;
         const title = await page.title();
-        if (!title.includes(step.title)) {
-          throw new Error(`Expected title to contain '${step.title}' but got '${title}'`);
-        }
-      });
+        throw new Error(`Expected title to contain '${step.title}' but got '${title}'`);
+      }
       return;
     }
 
     case "assertEnabled": {
       if (options.mode === "analysis") return;
-      const locator = await resolveActionLocator(page, step);
+      const locator = await resolveActionLocator(page, step, {
+        timeout,
+        state: "attached",
+      });
       await locator.waitFor({ state: "attached", timeout });
       const expected = step.enabled ?? true;
       await waitForExpectation(timeout, async () => {

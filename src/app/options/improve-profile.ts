@@ -5,6 +5,7 @@ import type {
 } from "../../core/improve/improve.js";
 import { DEFAULT_IMPROVE_ASSERTION_POLICY } from "../../core/improve/assertion-policy.js";
 import { UserError } from "../../utils/errors.js";
+import { cleanOptionalPath } from "./path-options.js";
 
 export interface ImproveProfileInput {
   apply?: boolean;
@@ -41,19 +42,19 @@ export function resolveImproveProfile(
     applyAssertions: apply,
   };
 
-  if (input.report !== undefined) {
-    profile.reportPath = input.report;
-  }
-  if (input.loadStorage !== undefined) {
-    const loadStorage = input.loadStorage.trim();
-    if (loadStorage.length === 0) {
-      throw new UserError(
-        "Invalid load storage path: empty path",
-        "Use --load-storage <path> with a non-empty path."
-      );
-    }
-    profile.loadStorage = loadStorage;
-  }
+  const reportPath = cleanOptionalPath(
+    input.report,
+    "report path",
+    "--report <path>"
+  );
+  const loadStorage = cleanOptionalPath(
+    input.loadStorage,
+    "load storage path",
+    "--load-storage <path>"
+  );
+
+  if (reportPath !== undefined) profile.reportPath = reportPath;
+  if (loadStorage !== undefined) profile.loadStorage = loadStorage;
 
   return profile;
 }

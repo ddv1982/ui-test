@@ -18,7 +18,8 @@ export function resolveLocator(
 
 export async function resolveActionLocator(
   page: Page,
-  targetOrStep: Target | TargetStep
+  targetOrStep: Target | TargetStep,
+  options: { timeout?: number; state?: "attached" | "visible" } = {}
 ): Promise<Locator> {
   const target = "action" in targetOrStep ? targetOrStep.target : targetOrStep;
   const context = resolveLocatorContext(page, target.framePath);
@@ -28,22 +29,20 @@ export async function resolveActionLocator(
     return primary;
   }
 
-  if (await locatorHasMatches(primary)) {
-    return primary;
-  }
+  const candidates: Locator[] = [primary];
 
   for (const fallback of target.fallbacks) {
     try {
-      const fallbackLocator = resolveTargetLocator(context, fallback);
-      if (await locatorHasMatches(fallbackLocator)) {
-        return fallbackLocator;
-      }
+      candidates.push(resolveTargetLocator(context, fallback));
     } catch {
       // Skip invalid fallback silently - primary locator is still valid.
     }
   }
 
-  return primary;
+  return firstReadyLocator(candidates, {
+    state: options.state ?? "visible",
+    ...(options.timeout !== undefined ? { timeout: options.timeout } : {}),
+  });
 }
 
 function resolveTargetLocator(context: LocatorContext, target: Target): Locator {
@@ -61,11 +60,30 @@ function resolveTargetLocator(context: LocatorContext, target: Target): Locator 
   return context.locator(target.value);
 }
 
-async function locatorHasMatches(locator: Locator): Promise<boolean> {
+async function firstReadyLocator(
+  locators: Locator[],
+  options: { timeout?: number; state: "attached" | "visible" }
+): Promise<Locator> {
+  const errors: unknown[] = [];
   try {
-    return (await locator.count()) > 0;
+    return await Promise.any(
+      locators.map(async (locator) => {
+        try {
+          await locator.waitFor({
+            state: options.state,
+            ...(options.timeout !== undefined ? { timeout: options.timeout } : {}),
+          });
+        } catch (err) {
+          errors.push(err);
+          throw err;
+        }
+        return locator;
+      })
+    );
   } catch {
-    return false;
+    const firstError = errors[0];
+    if (firstError instanceof Error) throw firstError;
+    throw new Error(`No locator became ${options.state} before timeout.`);
   }
 }
 

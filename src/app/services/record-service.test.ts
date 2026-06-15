@@ -635,6 +635,30 @@ describe("runRecord auto-improve", () => {
     );
   });
 
+  it("quotes paths with spaces in manual retry hints", async () => {
+    vi.mocked(record).mockResolvedValue({
+      outputPath: "e2e/my sample.yaml",
+      stepCount: 2,
+      recordingMode: "codegen",
+    });
+    vi.mocked(improveTestFile).mockRejectedValue(new Error("browser crashed"));
+
+    await runRecord({
+      name: "sample",
+      url: "http://127.0.0.1:5173",
+      description: "demo",
+      outputDir: "e2e",
+      browser: "firefox",
+      saveStorage: ".auth/out state.json",
+    });
+
+    expect(ui.warn).toHaveBeenCalledWith(
+      "You can run it manually: ui-test improve " +
+        `'${path.resolve("e2e/my sample.yaml")}'` +
+        " --assertions candidates --assertion-source deterministic --assertion-policy reliable --load-storage '.auth/out state.json' --no-apply"
+    );
+  });
+
   it("preserves apply mode in the manual retry hint when auto-improve apply fails", async () => {
     vi.mocked(improveTestFile).mockRejectedValue(new Error("browser crashed"));
 

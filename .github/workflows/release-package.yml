@@ -29,8 +29,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build package
-        run: npm run build
+      - name: Assert release tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm run release:assert-tag
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run release quality gate
+        run: npm run quality:release
+
+      - name: Run headed parity gate
+        run: xvfb-run -a npm run test:parity:headed
 
       - name: Pack npm tarball
         run: npm pack

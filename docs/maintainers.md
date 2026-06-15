@@ -9,6 +9,7 @@ npm run setup
 npm run lint
 npm run lint:typed
 npm run typecheck:prod
+npm run typecheck:test
 npm test
 npm run quality:ci
 npm run test:parity:headed
@@ -19,15 +20,7 @@ npm run test:smoke
 npm run quality:release
 ```
 
-`npm test` includes architecture boundary checks (see `src/architecture/layer-boundaries.test.ts`).
-
-Optional strictness ratchet for tests:
-
-```bash
-npm run typecheck:test
-```
-
-Run `typecheck:test` before release changes that touch tests or test-only helpers.
+`npm test` includes architecture boundary checks (see `src/architecture/layer-boundaries.test.ts`). `npm run quality:ci` runs both production and test TypeScript checks before the test suite.
 
 ## Packaging Validation
 
@@ -54,7 +47,7 @@ The package is marked `private: true` to prevent accidental publication to the p
 1. Bump `package.json` and `package-lock.json` together in a release PR.
 2. Merge the release PR after CI passes.
 3. Create and publish a GitHub Release from `main` using tag `vX.Y.Z`, where `X.Y.Z` matches `package.json`.
-4. The `Release` workflow validates the tag with `npm run release:assert-tag`, runs `npm run quality:release`, packs the project, generates a SHA-256 checksum, and uploads both files to the GitHub Release.
+4. The `Release` workflow validates the tag with `npm run release:assert-tag`, provisions Chromium, runs `npm run quality:release`, runs headed parity under `xvfb-run`, packs the project, generates a SHA-256 checksum, and uploads both files to the GitHub Release.
 
 The release workflow does not run `npm publish` and does not require npm registry credentials. Configure the `github-release` environment in GitHub repository settings if you want required reviewer approval before release assets are built and uploaded.
 
@@ -69,8 +62,9 @@ GITHUB_REF_NAME=v0.1.0 npm run release:assert-tag
 This repository ships GitHub Actions workflows under `.github/workflows`:
 
 - `CI`: runs on pull requests, pushes to `main`, and manual dispatch. It runs browser-backed quality gates on Node `20.12.x` and `22.x`, provisions Chromium with Playwright's Linux installer, runs coverage/headed parity/consumer smoke on Node `22.x`, and keeps build/package/install smoke coverage across Node `20.12.x`, `22.x`, and `24.x`.
-- `Release`: runs when a GitHub Release is published. It builds from the release tag, validates the tag/version match, runs the full release gate, packs the project, and uploads the tarball plus `.sha256` checksum to the release.
-- `Release Package`: runs on version tags or manual dispatch to build and upload a workflow artifact only. It does not create GitHub Releases or upload release assets; release assets are published exclusively by the `Release` workflow after `release:assert-tag` and `quality:release` pass.
+- `Release`: runs when a GitHub Release is published. It builds from the release tag, validates the tag/version match, runs the full release gate including coverage, runs headed parity under `xvfb-run`, packs the project, and uploads the tarball plus `.sha256` checksum to the release.
+- `Release Package`: runs on version tags or manual dispatch to build and upload a workflow artifact only. Tag runs validate the tag/version match, and all runs execute the release quality gate plus headed parity before packing. It does not create GitHub Releases or upload release assets; release assets are published exclusively by the `Release` workflow after `release:assert-tag`, `quality:release`, and headed parity pass.
+- `Release Verify`: runs on pull requests, version tags, and manual dispatch. It verifies lint, production/test typecheck, build/package/install smoke, full tests, coverage, headed parity, consumer smoke, and the tarball file list including packaged docs.
 
 Recommended future CI coverage:
 

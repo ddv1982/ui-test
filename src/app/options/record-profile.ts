@@ -1,6 +1,7 @@
 import type { RecordBrowser } from "../../core/recorder.js";
 import { PLAY_DEFAULT_TEST_DIR } from "../../core/play/play-defaults.js";
 import { UserError } from "../../utils/errors.js";
+import { cleanOptionalPath, cleanRequiredPath } from "./path-options.js";
 
 export type RecordImproveMode = "off" | "report" | "apply";
 
@@ -29,14 +30,26 @@ export function resolveRecordProfile(
 ): ResolvedRecordProfile {
   const profile: ResolvedRecordProfile = {
     browser: parseRecordBrowser(input.browser) ?? "chromium",
-    outputDir: input.outputDir ?? PLAY_DEFAULT_TEST_DIR,
+    outputDir: cleanRequiredPath(
+      input.outputDir ?? PLAY_DEFAULT_TEST_DIR,
+      "output directory",
+      "--output-dir <dir>"
+    ),
     improveMode: parseRecordImproveMode(input.improveMode) ?? "report",
   };
 
   const device = cleanOptional(input.device);
   const testIdAttribute = cleanOptional(input.testIdAttribute);
-  const loadStorage = cleanOptional(input.loadStorage);
-  const saveStorage = cleanOptional(input.saveStorage);
+  const loadStorage = cleanOptionalPath(
+    input.loadStorage,
+    "load storage path",
+    "--load-storage <path>"
+  );
+  const saveStorage = cleanOptionalPath(
+    input.saveStorage,
+    "save storage path",
+    "--save-storage <path>"
+  );
 
   if (device !== undefined) profile.device = device;
   if (testIdAttribute !== undefined) profile.testIdAttribute = testIdAttribute;

@@ -2,19 +2,12 @@ import path from "node:path";
 import type { Command } from "commander";
 import { buildRecommendedCliCommand, collectRuntimeInfo } from "../utils/runtime-info.js";
 import { ui } from "../utils/ui.js";
-import { handleError } from "../utils/errors.js";
 
 export function registerDoctor(program: Command) {
   program
     .command("doctor")
     .description("Show runtime diagnostics for CLI version and invocation")
-    .action(async () => {
-      try {
-        await runDoctor();
-      } catch (err) {
-        handleError(err);
-      }
-    });
+    .action(() => runDoctor());
 }
 
 export async function runDoctor(): Promise<void> {

@@ -5,6 +5,7 @@ import { saveRecordedYaml } from "../../core/recording/recording-output.js";
 import { devtoolsRecordingToSteps } from "../../core/transform/devtools-recording-adapter.js";
 import { UserError } from "../../utils/errors.js";
 import { ui } from "../../utils/ui.js";
+import { cleanRequiredPath } from "../options/path-options.js";
 import { parseRecordImproveMode, type RecordImproveMode } from "../options/record-profile.js";
 
 interface RecordImportOptions {
@@ -23,7 +24,11 @@ interface ImportedRecordingResult {
 export async function importRecordFromFile(
   opts: RecordImportOptions
 ): Promise<ImportedRecordingResult> {
-  const filePath = opts.fromFile!;
+  const filePath = cleanRequiredPath(
+    opts.fromFile ?? "",
+    "recording import path",
+    "--from-file <path>"
+  );
   const improveMode = parseRecordImproveMode(opts.improveMode) ?? "report";
 
   let json: string;
@@ -45,7 +50,11 @@ export async function importRecordFromFile(
   }
 
   const name = opts.name ?? result.title ?? path.basename(filePath, path.extname(filePath));
-  const outputDir = opts.outputDir ?? PLAY_DEFAULT_TEST_DIR;
+  const outputDir = cleanRequiredPath(
+    opts.outputDir ?? PLAY_DEFAULT_TEST_DIR,
+    "output directory",
+    "--output-dir <dir>"
+  );
 
   const firstStep = result.steps[0];
   const firstNavigateUrl = firstStep?.action === "navigate" ? firstStep.url : undefined;

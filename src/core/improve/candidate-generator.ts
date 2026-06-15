@@ -49,32 +49,17 @@ function deriveTargets(target: Target): Array<{ target: Target; reasonCodes: str
     const parsed = parseEngineSelector(value);
     if (parsed?.engine === "data-testid" && parsed.body) {
       out.push({
-        target: {
-          value: `getByTestId(${quote(parsed.body)})`,
-          kind: "locatorExpression",
-          source: "manual",
-          ...(target.framePath ? { framePath: target.framePath } : {}),
-        },
+        target: locatorExpressionTarget(`getByTestId(${quote(parsed.body)})`, target),
         reasonCodes: ["engine_data_testid_to_expression"],
       });
     } else if (parsed?.engine === "text" && parsed.body) {
       out.push({
-        target: {
-          value: `getByText(${quote(parsed.body)})`,
-          kind: "locatorExpression",
-          source: "manual",
-          ...(target.framePath ? { framePath: target.framePath } : {}),
-        },
+        target: locatorExpressionTarget(`getByText(${quote(parsed.body)})`, target),
         reasonCodes: ["engine_text_to_expression"],
       });
     } else if (parsed?.engine === "css" && parsed.body) {
       out.push({
-        target: {
-          value: `locator(${quote(parsed.body)})`,
-          kind: "locatorExpression",
-          source: "manual",
-          ...(target.framePath ? { framePath: target.framePath } : {}),
-        },
+        target: locatorExpressionTarget(`locator(${quote(parsed.body)})`, target),
         reasonCodes: ["engine_css_to_expression"],
       });
     }
@@ -82,24 +67,14 @@ function deriveTargets(target: Target): Array<{ target: Target; reasonCodes: str
 
   if (target.kind === "css") {
     out.push({
-      target: {
-        value: `locator(${quote(value)})`,
-        kind: "locatorExpression",
-        source: "manual",
-        ...(target.framePath ? { framePath: target.framePath } : {}),
-      },
+      target: locatorExpressionTarget(`locator(${quote(value)})`, target),
       reasonCodes: ["css_to_locator_expression"],
     });
 
     const testId = parseCssTestId(value);
     if (testId) {
       out.push({
-        target: {
-          value: `getByTestId(${quote(testId)})`,
-          kind: "locatorExpression",
-          source: "manual",
-          ...(target.framePath ? { framePath: target.framePath } : {}),
-        },
+        target: locatorExpressionTarget(`getByTestId(${quote(testId)})`, target),
         reasonCodes: ["css_testid_to_expression"],
       });
     }
@@ -108,17 +83,21 @@ function deriveTargets(target: Target): Array<{ target: Target; reasonCodes: str
   if (target.kind === "xpath") {
     const normalizedXpath = value.startsWith("xpath=") ? value : `xpath=${value}`;
     out.push({
-      target: {
-        value: `locator(${quote(normalizedXpath)})`,
-        kind: "locatorExpression",
-        source: "manual",
-        ...(target.framePath ? { framePath: target.framePath } : {}),
-      },
+      target: locatorExpressionTarget(`locator(${quote(normalizedXpath)})`, target),
       reasonCodes: ["xpath_to_locator_expression"],
     });
   }
 
   return out;
+}
+
+function locatorExpressionTarget(value: string, sourceTarget: Target): Target {
+  return {
+    value,
+    kind: "locatorExpression",
+    source: "manual",
+    ...(sourceTarget.framePath ? { framePath: sourceTarget.framePath } : {}),
+  };
 }
 
 function parseEngineSelector(selector: string): { engine: string; body: string } | null {

@@ -14,7 +14,7 @@ describe("resolveImproveProfile", () => {
       assertions: "none",
       assertionSource: "snapshot-native",
       assertionPolicy: "reliable",
-      report: "out.json",
+      report: "  out.json  ",
       loadStorage: "  .auth/state.json  ",
     });
 
@@ -67,6 +67,7 @@ describe("improve-profile parsing", () => {
     expect(() => parseImproveAssertions("all")).toThrow(UserError);
     expect(() => parseImproveAssertionSource("auto")).toThrow(UserError);
     expect(() => parseImproveAssertionPolicy("strict")).toThrow(UserError);
+    expect(() => resolveImproveProfile({ report: "   " })).toThrow(UserError);
     expect(() => resolveImproveProfile({ loadStorage: "   " })).toThrow(UserError);
   });
 });

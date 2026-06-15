@@ -6,7 +6,7 @@ import { registerExampleApp } from "./commands/example-app.js";
 import { registerImprove } from "./commands/improve.js";
 import { registerDoctor } from "./commands/doctor.js";
 import { registerSetup } from "./commands/setup.js";
-import { UserError, handleError } from "./utils/errors.js";
+import { handleError, UserError } from "./utils/errors.js";
 import { getCliVersion, isProjectLocalUiTestInvocation } from "./utils/runtime-info.js";
 import { buildUnifiedHelp } from "./utils/unified-help.js";
 
@@ -50,16 +50,18 @@ export function createProgram(): Command {
   return program;
 }
 
-export function run() {
-  if (isProjectLocalUiTestInvocation(process.cwd(), process.argv[1])) {
-    handleError(
-      new UserError(
-        "Project-local ui-test installs are not supported.",
-        STANDALONE_POLICY_HINT
-      )
+export async function run(argv: string[] = process.argv): Promise<void> {
+  if (isProjectLocalUiTestInvocation(process.cwd(), argv[1])) {
+    throw new UserError(
+      "Project-local ui-test installs are not supported.",
+      STANDALONE_POLICY_HINT
     );
   }
 
   const program = createProgram();
-  program.parseAsync().catch(handleError);
+  await program.parseAsync(argv);
+}
+
+export async function runCli(argv: string[] = process.argv): Promise<void> {
+  await run(argv).catch(handleError);
 }

@@ -1,6 +1,7 @@
 import { parse } from "acorn";
 import type { Step, Target } from "../yaml-schema.js";
 import { classifySelector } from "../selector-classifier.js";
+import { normalizeFrameAwareLocatorExpression } from "./frame-aware-locator.js";
 import { scoreLocatorConfidence } from "./locator-confidence.js";
 import {
   isArrowFunctionExpression,
@@ -246,60 +247,16 @@ function expressionToTarget(expression: unknown, source: string): Target | null 
 }
 
 function normalizeFrameAwareTarget(expression: unknown, source: string): Target | null {
-  if (!isCallExpression(expression)) return null;
-
-  const chain = flattenCallChain(expression);
-  if (!chain || chain.length === 0) return null;
-
-  const framePath: string[] = [];
-  let terminalStartIndex = 0;
-
-  while (terminalStartIndex < chain.length) {
-    const segment = chain[terminalStartIndex];
-    if (!segment) break;
-
-    if (segment.method === "frameLocator") {
-      const frameSelector = firstStringArgument(segment.call.arguments);
-      if (!frameSelector) return null;
-      framePath.push(frameSelector);
-      terminalStartIndex += 1;
-      continue;
-    }
-
-    if (
-      segment.method === "locator" &&
-      terminalStartIndex + 1 < chain.length &&
-      chain[terminalStartIndex + 1]?.method === "contentFrame"
-    ) {
-      const frameSelector = firstStringArgument(segment.call.arguments);
-      if (!frameSelector) return null;
-      framePath.push(frameSelector);
-      terminalStartIndex += 2;
-      continue;
-    }
-
-    break;
-  }
-
-  if (framePath.length === 0 || terminalStartIndex >= chain.length) {
-    return null;
-  }
-
-  const terminal = chain[terminalStartIndex];
-  if (!terminal || typeof terminal.propertyStart !== "number") return null;
-  if (typeof expression.end !== "number") return null;
-
-  const normalized = source.slice(terminal.propertyStart, expression.end).trim();
-  const raw = expressionSource(expression, source);
-  if (!normalized || !raw) return null;
+  const normalized = normalizeFrameAwareLocatorExpression(expression, source);
+  if (!normalized) return null;
 
   return {
-    value: normalized,
-    kind: classifySelector(normalized).kind,
+    value: normalized.value,
+    kind: classifySelector(normalized.value).kind,
     source: "codegen",
-    framePath,
-    raw,
-    confidence: scoreLocatorConfidence(normalized),
+    framePath: normalized.framePath,
+    raw: normalized.raw,
+    confidence: scoreLocatorConfidence(normalized.value),
   };
 }
 
@@ -310,42 +267,6 @@ function expressionSource(expression: unknown, source: string): string | null {
 
   const full = source.slice(expression.start, expression.end).trim();
   return full || null;
-}
-
-function flattenCallChain(expression: CallExpressionNode):
-  | Array<{ method: string; propertyStart?: number; call: CallExpressionNode }>
-  | null {
-  if (isIdentifier(expression.callee)) {
-    return [{
-      method: expression.callee.name,
-      ...(typeof expression.callee.start === "number" ? { propertyStart: expression.callee.start } : {}),
-      call: expression,
-    }];
-  }
-
-  if (!isMemberExpression(expression.callee) || expression.callee.computed || !isIdentifier(expression.callee.property)) {
-    return null;
-  }
-
-  const current = {
-    method: expression.callee.property.name,
-    ...(typeof expression.callee.property.start === "number"
-      ? { propertyStart: expression.callee.property.start }
-      : {}),
-    call: expression,
-  };
-
-  if (isCallExpression(expression.callee.object)) {
-    const previous = flattenCallChain(expression.callee.object);
-    if (!previous) return null;
-    return [...previous, current];
-  }
-
-  if (isIdentifier(expression.callee.object)) {
-    return [current];
-  }
-
-  return null;
 }
 
 function firstStringArgument(argumentsList: unknown): string | null {

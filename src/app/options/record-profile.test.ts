@@ -15,6 +15,7 @@ describe("resolveRecordProfile", () => {
       testIdAttribute: "  data-qa  ",
       loadStorage: "  .auth/in.json  ",
       saveStorage: "  .auth/out.json  ",
+      outputDir: "  tests/e2e  ",
     });
 
     expect(out).toEqual({
@@ -23,7 +24,7 @@ describe("resolveRecordProfile", () => {
       testIdAttribute: "data-qa",
       loadStorage: ".auth/in.json",
       saveStorage: ".auth/out.json",
-      outputDir: "e2e",
+      outputDir: "tests/e2e",
       improveMode: "report",
     });
   });
@@ -33,6 +34,12 @@ describe("resolveRecordProfile", () => {
     expect(out.browser).toBe("chromium");
     expect(out.outputDir).toBe("e2e");
     expect(out.improveMode).toBe("report");
+  });
+
+  it("rejects blank path-like options", () => {
+    expect(() => resolveRecordProfile({ outputDir: "   " })).toThrow(UserError);
+    expect(() => resolveRecordProfile({ loadStorage: "   " })).toThrow(UserError);
+    expect(() => resolveRecordProfile({ saveStorage: "   " })).toThrow(UserError);
   });
 });
 

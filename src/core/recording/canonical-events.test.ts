@@ -3,6 +3,7 @@ import { playwrightCodeToSteps } from "../transform/playwright-ast-transform.js"
 import { devtoolsRecordingToSteps } from "../transform/devtools-recording-adapter.js";
 import { canonicalEventsToSteps, stepsToCanonicalEvents } from "./canonical-events.js";
 import type { Step } from "../yaml-schema.js";
+import { UserError } from "../../utils/errors.js";
 
 describe("canonical events", () => {
   it("round-trips steps deterministically", () => {
@@ -246,68 +247,26 @@ describe("canonical events", () => {
     });
   });
 
-  it("rebuilds canonical events with defaults for missing fields and unknown kinds", () => {
+  it("rebuilds non-target canonical events with defaults for missing fields and unknown kinds", () => {
     const rebuilt = canonicalEventsToSteps([
       { kind: "navigate" },
-      { kind: "click", description: "click fallback", timeout: 250 },
-      { kind: "fill" },
-      { kind: "press" },
-      { kind: "select" },
-      { kind: "assertText" },
-      { kind: "assertValue" },
-      { kind: "assertChecked" },
       { kind: "assertUrl" },
       { kind: "assertTitle" },
-      { kind: "assertEnabled" },
       { kind: "unknown" as Step["action"] },
     ]);
 
     expect(rebuilt).toEqual([
       { action: "navigate", url: "/" },
-      {
-        action: "click",
-        description: "click fallback",
-        timeout: 250,
-        target: { value: "*", kind: "unknown", source: "manual" },
-      },
-      {
-        action: "fill",
-        target: { value: "*", kind: "unknown", source: "manual" },
-        text: "",
-      },
-      {
-        action: "press",
-        target: { value: "*", kind: "unknown", source: "manual" },
-        key: "",
-      },
-      {
-        action: "select",
-        target: { value: "*", kind: "unknown", source: "manual" },
-        value: "",
-      },
-      {
-        action: "assertText",
-        target: { value: "*", kind: "unknown", source: "manual" },
-        text: "",
-      },
-      {
-        action: "assertValue",
-        target: { value: "*", kind: "unknown", source: "manual" },
-        value: "",
-      },
-      {
-        action: "assertChecked",
-        target: { value: "*", kind: "unknown", source: "manual" },
-        checked: true,
-      },
       { action: "assertUrl", url: "" },
       { action: "assertTitle", title: "" },
-      {
-        action: "assertEnabled",
-        target: { value: "*", kind: "unknown", source: "manual" },
-        enabled: true,
-      },
       { action: "navigate", url: "/" },
     ]);
+  });
+
+  it("rejects target actions without emitting wildcard targets", () => {
+    expect(() => canonicalEventsToSteps([{ kind: "click" }])).toThrow(UserError);
+    expect(() => canonicalEventsToSteps([{ kind: "assertText", text: "Ready" }])).toThrow(
+      "Cannot rebuild assertText step without a target."
+    );
   });
 });

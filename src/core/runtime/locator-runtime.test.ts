@@ -3,27 +3,46 @@ import type { Page } from "playwright";
 import type { Target } from "../yaml-schema.js";
 import { resolveActionLocator, resolveLocator } from "./locator-runtime.js";
 
-function createMockLocator(label?: string, count = 1) {
+function timeoutError(): Error {
+  const err = new Error("timed out");
+  err.name = "TimeoutError";
+  return err;
+}
+
+function createMockLocator(label?: string, ready = true) {
   const mockLocator: Record<string, unknown> = {
     click: vi.fn(),
-    waitFor: vi.fn(),
+    waitFor: vi.fn(async () => {
+      if (!ready) throw timeoutError();
+    }),
     locator: vi.fn(),
     or: vi.fn(),
-    count: vi.fn(async () => count),
     _label: label ?? "primary",
   };
   // .or() returns a new mock locator representing the chained result
   mockLocator.or = vi.fn((other: unknown) => {
-    const chained = createMockLocator(`chained(${(mockLocator as { _label: string })._label},${(other as { _label: string })?._label ?? "?"})`);
+    const chained = createMockLocator(
+      `chained(${(mockLocator as { _label: string })._label},${(other as { _label: string })?._label ?? "?"})`
+    );
     return chained;
   });
   return mockLocator;
 }
 
-function createMockPage(counts: Partial<Record<"primary" | "fallback1" | "fallback2", number>> = {}) {
-  const primary = createMockLocator("primary", counts.primary ?? 1);
-  const fallback1 = createMockLocator("fallback1", counts.fallback1 ?? 1);
-  const fallback2 = createMockLocator("fallback2", counts.fallback2 ?? 1);
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+}
+
+function createMockPage(
+  readiness: Partial<Record<"primary" | "fallback1" | "fallback2", boolean>> = {}
+) {
+  const primary = createMockLocator("primary", readiness.primary ?? true);
+  const fallback1 = createMockLocator("fallback1", readiness.fallback1 ?? true);
+  const fallback2 = createMockLocator("fallback2", readiness.fallback2 ?? true);
 
   const page = {
     locator: vi.fn((selector: string) => {
@@ -87,7 +106,7 @@ describe("resolveLocator", () => {
     expect(result).toBe(primary);
   });
 
-  it("resolveActionLocator returns primary when it has matches", async () => {
+  it("resolveActionLocator returns primary when it is ready", async () => {
     const { page, primary } = createMockPage();
     const target: Target = {
       value: "#primary",
@@ -99,13 +118,18 @@ describe("resolveLocator", () => {
       ],
     };
 
-    const result = await resolveActionLocator(page, target);
+    const result = await resolveActionLocator(page, target, { timeout: 250 });
     expect(result).toBe(primary);
     expect(primary.or).not.toHaveBeenCalled();
+    expect(primary.waitFor).toHaveBeenCalledWith({ state: "visible", timeout: 250 });
   });
 
-  it("resolveActionLocator uses the first matching fallback when primary has no matches", async () => {
-    const { page, fallback2 } = createMockPage({ primary: 0, fallback1: 0, fallback2: 1 });
+  it("resolveActionLocator uses the first ready fallback when primary is not ready", async () => {
+    const { page, fallback2 } = createMockPage({
+      primary: false,
+      fallback1: false,
+      fallback2: true,
+    });
     const target: Target = {
       value: "#primary",
       kind: "css",
@@ -116,12 +140,40 @@ describe("resolveLocator", () => {
       ],
     };
 
-    const result = await resolveActionLocator(page, target);
+    const result = await resolveActionLocator(page, target, { timeout: 250 });
     expect(result).toBe(fallback2);
   });
 
-  it("resolveActionLocator falls back to primary when no fallback matches", async () => {
-    const { page, primary } = createMockPage({ primary: 0, fallback1: 0, fallback2: 0 });
+  it("resolveActionLocator waits for a delayed primary instead of using count-based fallback", async () => {
+    const { page, primary, fallback1 } = createMockPage();
+    const primaryReady = deferred<void>();
+    (primary.waitFor as { mockReturnValue(value: Promise<void>): void }).mockReturnValue(
+      primaryReady.promise
+    );
+    (fallback1.waitFor as { mockRejectedValue(value: Error): void }).mockRejectedValue(
+      timeoutError()
+    );
+    const target: Target = {
+      value: "#primary",
+      kind: "css",
+      source: "manual",
+      fallbacks: [
+        { value: "#fallback1", kind: "css", source: "manual" },
+      ],
+    };
+
+    const resultPromise = resolveActionLocator(page, target, { timeout: 250 });
+    primaryReady.resolve();
+
+    await expect(resultPromise).resolves.toBe(primary);
+  });
+
+  it("resolveActionLocator rejects when no locator becomes ready", async () => {
+    const { page } = createMockPage({
+      primary: false,
+      fallback1: false,
+      fallback2: false,
+    });
     const target: Target = {
       value: "#primary",
       kind: "css",
@@ -132,8 +184,9 @@ describe("resolveLocator", () => {
       ],
     };
 
-    const result = await resolveActionLocator(page, target);
-    expect(result).toBe(primary);
+    await expect(resolveActionLocator(page, target, { timeout: 250 })).rejects.toThrow(
+      "timed out"
+    );
   });
 
   it("skips invalid fallback locator expressions gracefully", () => {
@@ -154,7 +207,7 @@ describe("resolveLocator", () => {
   });
 
   it("resolveActionLocator skips invalid fallback expressions", async () => {
-    const { page, fallback2 } = createMockPage({ primary: 0, fallback2: 1 });
+    const { page, fallback2 } = createMockPage({ primary: false, fallback2: true });
     const target: Target = {
       value: "#primary",
       kind: "css",
@@ -165,7 +218,7 @@ describe("resolveLocator", () => {
       ],
     };
 
-    const result = await resolveActionLocator(page, target);
+    const result = await resolveActionLocator(page, target, { timeout: 250 });
     expect(result).toBe(fallback2);
   });
 

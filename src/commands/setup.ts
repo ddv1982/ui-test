@@ -8,7 +8,7 @@ import {
   validateBrowserName,
   type PlaywrightBrowser,
 } from "../app/services/onboarding-service.js";
-import { handleError, UserError } from "../utils/errors.js";
+import { UserError } from "../utils/errors.js";
 import { asOptionalBoolean, asOptionalString } from "./parse-helpers.js";
 
 const MIN_NODE_MAJOR = 20;
@@ -35,13 +35,7 @@ export function registerSetup(program: Command) {
     .option("--browsers <list>", "Comma-separated browsers to install: chromium, firefox, webkit")
     .option("--run-play", "Run ui-test play e2e/example.yaml after setup")
     .addHelpText("after", HELP_APPENDIX)
-    .action(async (opts: unknown) => {
-      try {
-        await runSetup(parseSetupCliOptions(opts));
-      } catch (err) {
-        handleError(err);
-      }
-    });
+    .action((opts: unknown) => runSetup(parseSetupCliOptions(opts)));
 }
 
 export async function runSetup(opts: SetupCliOptions): Promise<void> {

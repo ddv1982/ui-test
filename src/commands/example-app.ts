@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ui } from "../utils/ui.js";
-import { handleError, UserError } from "../utils/errors.js";
+import { UserError } from "../utils/errors.js";
 import { asOptionalString } from "./parse-helpers.js";
 
 const DEFAULT_HOST = "127.0.0.1";
@@ -31,13 +31,7 @@ export function registerExampleApp(program: Command) {
     .description("Serve the built-in Vue example app")
     .option("--host <host>", "Host to bind", DEFAULT_HOST)
     .option("--port <port>", "Port to bind", String(DEFAULT_PORT))
-    .action(async (opts: unknown) => {
-      try {
-        await runExampleApp(parseExampleAppOptions(opts));
-      } catch (err) {
-        handleError(err);
-      }
-    });
+    .action((opts: unknown) => runExampleApp(parseExampleAppOptions(opts)));
 }
 
 async function runExampleApp(opts: ExampleAppOptions) {

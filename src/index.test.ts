@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createProgram } from "./index.js";
+import { UserError } from "./utils/errors.js";
 
 describe("CLI command registration", () => {
   it("registers expected commands and excludes init/bootstrap", () => {
@@ -26,6 +27,28 @@ describe("CLI command registration", () => {
     await expect(
       program.parseAsync(["node", "ui-test", "bootstrap"], { from: "node" })
     ).rejects.toMatchObject({ code: "commander.unknownCommand" });
+  });
+
+  it("lets async command action errors reject through parseAsync", async () => {
+    const program = createProgram();
+    program.exitOverride();
+
+    await expect(
+      program.parseAsync(["node", "ui-test", "setup", "--browsers", "chrome"], {
+        from: "node",
+      })
+    ).rejects.toBeInstanceOf(UserError);
+  });
+
+  it("rejects empty record import paths through the command action", async () => {
+    const program = createProgram();
+    program.exitOverride();
+
+    await expect(
+      program.parseAsync(["node", "ui-test", "record", "--from-file", ""], {
+        from: "node",
+      })
+    ).rejects.toThrow("Invalid recording import path: empty path");
   });
 
   it("shows unified help with options from all subcommands", () => {

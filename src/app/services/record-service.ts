@@ -56,20 +56,15 @@ export interface RecordCliOptions {
 }
 
 export async function runRecord(opts: RecordCliOptions): Promise<void> {
-  if (opts.fromFile) {
+  if (opts.fromFile !== undefined) {
     const profile = resolveRecordProfile(opts);
     const imported = await importRecordFromFile(opts);
     if (opts.improve !== false) {
-      try {
-        await runAutoImprove(imported.outputPath, imported.improveMode, profile.loadStorage);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        ui.warn("Auto-improve failed: " + message);
-        ui.warn(
-          "You can run it manually: " +
-            buildManualImproveCommand(imported.outputPath, imported.improveMode, profile.loadStorage)
-        );
-      }
+      await runAutoImproveWithManualFallback(
+        imported.outputPath,
+        imported.improveMode,
+        profile.loadStorage
+      );
     }
     return;
   }
@@ -192,24 +187,11 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
         }));
       if (fallback) {
         if (opts.improve !== false) {
-          try {
-            await runAutoImprove(
-              fallback.outputPath,
-              profile.improveMode,
-              resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
-            );
-          } catch (improveErr) {
-            const message = improveErr instanceof Error ? improveErr.message : String(improveErr);
-            ui.warn("Auto-improve failed: " + message);
-            ui.warn(
-              "You can run it manually: " +
-                buildManualImproveCommand(
-                  fallback.outputPath,
-                  profile.improveMode,
-                  resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
-                )
-            );
-          }
+          await runAutoImproveWithManualFallback(
+            fallback.outputPath,
+            profile.improveMode,
+            resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
+          );
         }
         return;
       }
@@ -223,24 +205,11 @@ export async function runRecord(opts: RecordCliOptions): Promise<void> {
   ui.info("Run it with: ui-test play " + result.outputPath);
 
   if (opts.improve !== false) {
-    try {
-      await runAutoImprove(
-        result.outputPath,
-        profile.improveMode,
-        resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      ui.warn("Auto-improve failed: " + message);
-      ui.warn(
-        "You can run it manually: " +
-          buildManualImproveCommand(
-            result.outputPath,
-            profile.improveMode,
-            resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
-          )
-      );
-    }
+    await runAutoImproveWithManualFallback(
+      result.outputPath,
+      profile.improveMode,
+      resolveAutoImproveStorage(profile.loadStorage, profile.saveStorage)
+    );
   }
 }
 
@@ -526,6 +495,23 @@ async function runAutoImprove(
   }
 }
 
+async function runAutoImproveWithManualFallback(
+  testFile: string,
+  improveMode: RecordImproveMode,
+  loadStorage?: string
+): Promise<void> {
+  try {
+    await runAutoImprove(testFile, improveMode, loadStorage);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    ui.warn("Auto-improve failed: " + message);
+    ui.warn(
+      "You can run it manually: " +
+        buildManualImproveCommand(testFile, improveMode, loadStorage)
+    );
+  }
+}
+
 function resolveDefaultImproveOutputPath(testFile: string): string {
   const ext = path.extname(testFile);
   const base = ext ? testFile.slice(0, -ext.length) : testFile;
@@ -539,8 +525,11 @@ function buildManualImproveCommand(
   loadStorage?: string
 ): string {
   const absolutePath = path.resolve(testFile);
+  const quotedTestFile = shellQuote(absolutePath);
   const improveProfile = resolveRecordAutoImproveProfile(improveMode);
-  const storageArg = loadStorage === undefined ? "" : ` --load-storage ${loadStorage}`;
+  const storageArg = loadStorage === undefined
+    ? ""
+    : ` --load-storage ${shellQuote(loadStorage)}`;
   const profileArgs = [
     `--assertions ${improveProfile.assertions}`,
     `--assertion-source ${improveProfile.assertionSource}`,
@@ -548,7 +537,14 @@ function buildManualImproveCommand(
   ].join(" ");
   if (improveMode === "apply") {
     const planPath = absolutePath.replace(/(\.[^.]+)?$/, ".improve-plan.json");
-    return `ui-test improve ${absolutePath} ${profileArgs}${storageArg} --plan && ui-test improve ${absolutePath} --apply-plan ${planPath}`;
+    const planCommand = `ui-test improve ${quotedTestFile} ${profileArgs}${storageArg} --plan`;
+    const applyCommand = `ui-test improve ${quotedTestFile} --apply-plan ${shellQuote(planPath)}`;
+    return `${planCommand} && ${applyCommand}`;
   }
-  return `ui-test improve ${absolutePath} ${profileArgs}${storageArg} --no-apply`;
+  return `ui-test improve ${quotedTestFile} ${profileArgs}${storageArg} --no-apply`;
+}
+
+function shellQuote(value: string): string {
+  if (/^[A-Za-z0-9_./:=@+-]+$/.test(value)) return value;
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }

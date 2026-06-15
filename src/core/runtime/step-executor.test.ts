@@ -3,6 +3,12 @@ import type { Page } from "playwright";
 import type { Step } from "../yaml-schema.js";
 import { executeRuntimeStep } from "./step-executor.js";
 
+function timeoutError(): Error {
+  const err = new Error("timed out");
+  err.name = "TimeoutError";
+  return err;
+}
+
 function createMockPage() {
   const clickMock = vi.fn(async () => {});
   const dblclickMock = vi.fn(async () => {});
@@ -17,6 +23,8 @@ function createMockPage() {
   const inputValueMock = vi.fn(async () => "");
   const isCheckedMock = vi.fn(async () => false);
   const isEnabledMock = vi.fn(async () => true);
+  const waitForURLMock = vi.fn(async () => {});
+  const waitForFunctionMock = vi.fn(async () => ({}));
   const locatorMock = vi.fn(() => ({
     click: clickMock,
     dblclick: dblclickMock,
@@ -39,6 +47,8 @@ function createMockPage() {
     goto: vi.fn(async () => undefined),
     url: vi.fn(() => "about:blank"),
     title: vi.fn(async () => ""),
+    waitForURL: waitForURLMock,
+    waitForFunction: waitForFunctionMock,
   } as unknown as Page;
   return {
     page,
@@ -56,6 +66,8 @@ function createMockPage() {
     inputValueMock,
     isCheckedMock,
     isEnabledMock,
+    waitForURLMock,
+    waitForFunctionMock,
   };
 }
 
@@ -386,14 +398,8 @@ describe("executeRuntimeStep assertions", () => {
     ).rejects.toThrow("Expected element to be unchecked");
   });
 
-  it("retries assertUrl and assertTitle until expectations pass", async () => {
-    const { page } = createMockPage();
-    vi.mocked(page.url)
-      .mockReturnValueOnce("https://example.test/profile")
-      .mockReturnValue("https://example.test/settings");
-    vi.mocked(page.title)
-      .mockResolvedValueOnce("Example Dashboard")
-      .mockResolvedValue("Example Settings");
+  it("uses Playwright page waits for assertUrl and assertTitle", async () => {
+    const { page, waitForURLMock, waitForFunctionMock } = createMockPage();
 
     await expect(
       executeRuntimeStep(
@@ -402,6 +408,10 @@ describe("executeRuntimeStep assertions", () => {
         { timeout: 100, mode: "playback" }
       )
     ).resolves.toBeUndefined();
+    expect(waitForURLMock).toHaveBeenCalledWith(
+      /^https:\/\/example\.test\/settings$/,
+      { timeout: 100 }
+    );
 
     await expect(
       executeRuntimeStep(
@@ -410,12 +420,19 @@ describe("executeRuntimeStep assertions", () => {
         { timeout: 100, mode: "playback" }
       )
     ).resolves.toBeUndefined();
+    expect(waitForFunctionMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      "Settings",
+      { timeout: 100 }
+    );
   });
 
-  it("throws when assertUrl or assertTitle expectations never pass", async () => {
-    const { page } = createMockPage();
+  it("throws descriptive errors when assertUrl or assertTitle waits time out", async () => {
+    const { page, waitForURLMock, waitForFunctionMock } = createMockPage();
     vi.mocked(page.url).mockReturnValue("https://example.test/profile");
     vi.mocked(page.title).mockResolvedValue("Example Dashboard");
+    waitForURLMock.mockRejectedValueOnce(timeoutError());
+    waitForFunctionMock.mockRejectedValueOnce(timeoutError());
 
     await expect(
       executeRuntimeStep(
@@ -490,8 +507,10 @@ describe("executeRuntimeStep assertions", () => {
 
 describe("executeRuntimeStep assertUrl", () => {
   it("matches literal URLs that contain regex special characters", async () => {
+    const waitForURL = vi.fn(async () => {});
     const page = {
       url: vi.fn(() => "https://example.com/search?q=test.1"),
+      waitForURL,
     } as unknown as Page;
 
     await expect(
@@ -501,11 +520,17 @@ describe("executeRuntimeStep assertUrl", () => {
         { timeout: 10_000, mode: "playback" }
       )
     ).resolves.toBeUndefined();
+    expect(waitForURL).toHaveBeenCalledWith(
+      /^https:\/\/example\.com\/search\?q=test\.1$/,
+      { timeout: 10_000 }
+    );
   });
 
   it("supports wildcard matching while escaping non-wildcard characters", async () => {
+    const waitForURL = vi.fn(async () => {});
     const page = {
       url: vi.fn(() => "https://example.com/items/42/details?view=full.1"),
+      waitForURL,
     } as unknown as Page;
 
     await expect(
@@ -515,13 +540,19 @@ describe("executeRuntimeStep assertUrl", () => {
         { timeout: 10_000, mode: "playback" }
       )
     ).resolves.toBeUndefined();
+    expect(waitForURL).toHaveBeenCalledWith(
+      /^https:\/\/example\.com\/items\/.*\/details\?view=full\.1$/,
+      { timeout: 10_000 }
+    );
   });
 });
 
 describe("executeRuntimeStep assertTitle", () => {
   it("passes when the current page title contains the expected value", async () => {
+    const waitForFunction = vi.fn(async () => ({}));
     const page = {
       title: vi.fn(async () => "Settings - Example App"),
+      waitForFunction,
     } as unknown as Page;
 
     await expect(
@@ -531,6 +562,9 @@ describe("executeRuntimeStep assertTitle", () => {
         { timeout: 10_000, mode: "playback" }
       )
     ).resolves.toBeUndefined();
+    expect(waitForFunction).toHaveBeenCalledWith(expect.any(Function), "Settings", {
+      timeout: 10_000,
+    });
   });
 });
 

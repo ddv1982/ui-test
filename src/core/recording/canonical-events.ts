@@ -1,4 +1,5 @@
 import type { Step, Target } from "../yaml-schema.js";
+import { UserError } from "../../utils/errors.js";
 
 export interface CanonicalEvent {
   kind: Step["action"];
@@ -209,6 +210,13 @@ function buildTargetStep(
   event: CanonicalEvent,
   base: { description?: string; timeout?: number }
 ): Step {
+  if (!event.target) {
+    throw new UserError(
+      `Cannot rebuild ${action} step without a target.`,
+      "Record or import a concrete element target before saving the step."
+    );
+  }
+
   return {
     action,
     target: cloneTarget(event.target),
@@ -216,31 +224,23 @@ function buildTargetStep(
   } as Step;
 }
 
-function cloneTarget(target?: Target): Target {
-  if (target) {
-    return {
-      value: target.value,
-      kind: target.kind,
-      source: target.source,
-      ...(target.framePath !== undefined ? { framePath: [...target.framePath] } : {}),
-      ...(target.raw !== undefined ? { raw: target.raw } : {}),
-      ...(target.confidence !== undefined ? { confidence: target.confidence } : {}),
-      ...(target.warning !== undefined ? { warning: target.warning } : {}),
-      ...(target.fallbacks !== undefined
-        ? {
-            fallbacks: target.fallbacks.map((fallback) => ({
-              value: fallback.value,
-              kind: fallback.kind,
-              source: fallback.source,
-            })),
-          }
-        : {}),
-    };
-  }
-
+function cloneTarget(target: Target): Target {
   return {
-    value: "*",
-    kind: "unknown",
-    source: "manual",
+    value: target.value,
+    kind: target.kind,
+    source: target.source,
+    ...(target.framePath !== undefined ? { framePath: [...target.framePath] } : {}),
+    ...(target.raw !== undefined ? { raw: target.raw } : {}),
+    ...(target.confidence !== undefined ? { confidence: target.confidence } : {}),
+    ...(target.warning !== undefined ? { warning: target.warning } : {}),
+    ...(target.fallbacks !== undefined
+      ? {
+          fallbacks: target.fallbacks.map((fallback) => ({
+            value: fallback.value,
+            kind: fallback.kind,
+            source: fallback.source,
+          })),
+        }
+      : {}),
   };
 }

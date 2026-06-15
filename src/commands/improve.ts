@@ -1,5 +1,4 @@
 import type { Command } from "commander";
-import { handleError } from "../utils/errors.js";
 import { runImprove, type ImproveCliOptions } from "../app/services/improve-service.js";
 import {
   asOptionalBoolean,
@@ -32,16 +31,12 @@ export function registerImprove(program: Command) {
     .option("--apply-plan <path>", "Apply a previously generated improve plan JSON")
     .option("--report <path>", "Write JSON report to a custom path")
     .option("--load-storage <path>", "Apply Playwright storage state JSON to improve browser contexts")
-    .action(async (testFile: unknown, opts: unknown) => {
-      try {
-        await runImprove(
-          parseRequiredArgument(testFile, "test-file"),
-          parseImproveCliOptions(opts)
-        );
-      } catch (err) {
-        handleError(err);
-      }
-    });
+    .action((testFile: unknown, opts: unknown) =>
+      runImprove(
+        parseRequiredArgument(testFile, "test-file"),
+        parseImproveCliOptions(opts)
+      )
+    );
 }
 
 function parseImproveCliOptions(value: unknown): ImproveCliOptions {

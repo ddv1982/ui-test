@@ -39,6 +39,9 @@ jobs:
       - name: Run release quality gate
         run: npm run quality:release
 
+      - name: Run headed parity gate
+        run: xvfb-run -a npm run test:parity:headed
+
       - name: Pack release artifact
         id: pack
         shell: bash

@@ -1,5 +1,4 @@
 import type { Command } from "commander";
-import { handleError } from "../utils/errors.js";
 import { runRecord, type RecordCliOptions } from "../app/services/record-service.js";
 import { asOptionalBoolean, asOptionalString } from "./parse-helpers.js";
 
@@ -22,13 +21,7 @@ export function registerRecord(program: Command) {
       "Auto-improve mode after recording: report (default), apply, or off"
     )
     .option("--no-improve", "Skip automatic improvement after recording")
-    .action(async (opts: unknown) => {
-      try {
-        await runRecord(parseRecordCliOptions(opts));
-      } catch (err) {
-        handleError(err);
-      }
-    });
+    .action((opts: unknown) => runRecord(parseRecordCliOptions(opts)));
 }
 
 function parseRecordCliOptions(value: unknown): RecordCliOptions {

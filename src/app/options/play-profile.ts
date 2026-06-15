@@ -3,6 +3,7 @@ import {
   validateBrowserName,
   type PlaywrightBrowser,
 } from "../../infra/playwright/browser-provisioner.js";
+import { cleanOptionalPath, cleanRequiredPath } from "./path-options.js";
 import {
   PLAY_DEFAULT_ARTIFACTS_DIR,
   PLAY_DEFAULT_BASE_URL,
@@ -68,16 +69,13 @@ export function resolvePlayProfile(
   const delayMs = cliDelay ?? PLAY_DEFAULT_DELAY_MS;
 
   const waitForNetworkIdle = input.waitNetworkIdle ?? PLAY_DEFAULT_WAIT_FOR_NETWORK_IDLE;
-  const artifactsDir = (input.artifactsDir ?? PLAY_DEFAULT_ARTIFACTS_DIR).trim();
+  const artifactsDir = cleanRequiredPath(
+    input.artifactsDir ?? PLAY_DEFAULT_ARTIFACTS_DIR,
+    "artifacts directory value",
+    "--artifacts-dir <path>"
+  );
   const loadStorage = cleanOptionalPath(input.loadStorage, "load storage path", "--load-storage <path>");
   const browser = parseBrowserOption(input.browser);
-
-  if (!artifactsDir) {
-    throw new UserError(
-      "Invalid artifacts directory value: empty path",
-      "Set a non-empty path with --artifacts-dir <path>."
-    );
-  }
 
   return {
     headed,
@@ -93,22 +91,6 @@ export function resolvePlayProfile(
     testDir: PLAY_DEFAULT_TEST_DIR,
     browser,
   };
-}
-
-function cleanOptionalPath(
-  input: string | undefined,
-  label: string,
-  hintFlag: string
-): string | undefined {
-  if (input === undefined) return undefined;
-  const value = input.trim();
-  if (value.length === 0) {
-    throw new UserError(
-      `Invalid ${label}: empty path`,
-      `Set a non-empty path with ${hintFlag}.`
-    );
-  }
-  return value;
 }
 
 function parseBrowserOption(input: string | undefined): PlaywrightBrowser {
